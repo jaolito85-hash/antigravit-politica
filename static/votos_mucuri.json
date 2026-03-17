@@ -1,0 +1,138 @@
+{
+    "eleicao": "2022",
+    "regiao": "Vale do Mucuri",
+    "candidatos": {
+        "nikolas": {
+            "nome": "Nikolas Ferreira",
+            "partido": "PL",
+            "cargo": "Deputado Federal"
+        },
+        "engler": {
+            "nome": "Bruno Engler",
+            "partido": "PL",
+            "cargo": "Deputado Estadual"
+        }
+    },
+    "polos": [
+        {
+            "nome": "Microrregião de Teófilo Otoni",
+            "cidades": [
+                {
+                    "cidade": "Teófilo Otoni",
+                    "nikolas": 6783,
+                    "engler": 685
+                },
+                {
+                    "cidade": "Águas Formosas",
+                    "nikolas": 1120,
+                    "engler": 125
+                },
+                {
+                    "cidade": "Novo Cruzeiro",
+                    "nikolas": 564,
+                    "engler": 173
+                },
+                {
+                    "cidade": "Poté",
+                    "nikolas": 423,
+                    "engler": 130
+                },
+                {
+                    "cidade": "Carlos Chagas",
+                    "nikolas": 311,
+                    "engler": 179
+                },
+                {
+                    "cidade": "Serra dos Aimorés",
+                    "nikolas": 250,
+                    "engler": 60
+                },
+                {
+                    "cidade": "Malacacheta",
+                    "nikolas": 249,
+                    "engler": 69
+                },
+                {
+                    "cidade": "Ladainha",
+                    "nikolas": 219,
+                    "engler": 63
+                },
+                {
+                    "cidade": "Pavão",
+                    "nikolas": 212,
+                    "engler": 33
+                },
+                {
+                    "cidade": "Ouro Verde de Minas",
+                    "nikolas": 179,
+                    "engler": 46
+                },
+                {
+                    "cidade": "Setubinha",
+                    "nikolas": 171,
+                    "engler": 51
+                },
+                {
+                    "cidade": "Umburatiba",
+                    "nikolas": 140,
+                    "engler": 31
+                },
+                {
+                    "cidade": "Crisólita",
+                    "nikolas": 130,
+                    "engler": 24
+                },
+                {
+                    "cidade": "Itaipé",
+                    "nikolas": 128,
+                    "engler": 68
+                },
+                {
+                    "cidade": "Santa Helena de Minas",
+                    "nikolas": 128,
+                    "engler": 60
+                },
+                {
+                    "cidade": "Franciscópolis",
+                    "nikolas": 115,
+                    "engler": 39
+                },
+                {
+                    "cidade": "Catuji",
+                    "nikolas": 109,
+                    "engler": 26
+                },
+                {
+                    "cidade": "Fronteira dos Vales",
+                    "nikolas": 81,
+                    "engler": 31
+                }
+            ]
+        },
+        {
+            "nome": "Microrregião de Nanuque",
+            "cidades": [
+                {
+                    "cidade": "Nanuque",
+                    "nikolas": 1267,
+                    "engler": 429
+                },
+                {
+                    "cidade": "Ataléia",
+                    "nikolas": 501,
+                    "engler": 71
+                },
+                {
+                    "cidade": "Machacalis",
+                    "nikolas": 237,
+                    "engler": 130
+                },
+                {
+                    "cidade": "Bertópolis",
+                    "nikolas": 155,
+                    "engler": 98
+                }
+            ]
+        }
+    ]
+}

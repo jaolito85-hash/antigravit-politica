@@ -1,0 +1,395 @@
+{
+    "eleicao": "2022",
+    "regiao": "Vale do Rio Doce e Entorno",
+    "candidatos": {
+        "nikolas": {
+            "nome": "Nikolas Ferreira",
+            "partido": "PL",
+            "cargo": "Deputado Federal",
+            "total_mg": 1492047
+        },
+        "engler": {
+            "nome": "Bruno Engler",
+            "partido": "PL",
+            "cargo": "Deputado Estadual",
+            "total_mg": 635000
+        }
+    },
+    "polos": [
+        {
+            "nome": "Ipatinga",
+            "cidades": [
+                {
+                    "cidade": "Ipatinga",
+                    "nikolas": 22904,
+                    "engler": 7641
+                },
+                {
+                    "cidade": "Santana do Paraíso",
+                    "nikolas": 2701,
+                    "engler": 1008
+                },
+                {
+                    "cidade": "Coronel Fabriciano",
+                    "nikolas": 8016,
+                    "engler": 1908
+                },
+                {
+                    "cidade": "Timóteo",
+                    "nikolas": 8192,
+                    "engler": 2618
+                },
+                {
+                    "cidade": "Jaguaraçu",
+                    "nikolas": 248,
+                    "engler": 110
+                }
+            ]
+        },
+        {
+            "nome": "Caratinga",
+            "cidades": [
+                {
+                    "cidade": "Santa Bárbara do Leste",
+                    "nikolas": 262,
+                    "engler": 331
+                },
+                {
+                    "cidade": "Santa Rita de Minas",
+                    "nikolas": 907,
+                    "engler": 366
+                },
+                {
+                    "cidade": "Caratinga",
+                    "nikolas": 7885,
+                    "engler": 3220
+                }
+            ]
+        },
+        {
+            "nome": "Micro Caratinga",
+            "cidades": [
+                {
+                    "cidade": "Piedade de Caratinga",
+                    "nikolas": 836,
+                    "engler": 422
+                },
+                {
+                    "cidade": "Ubaporanga",
+                    "nikolas": 941,
+                    "engler": 374
+                },
+                {
+                    "cidade": "Imbé de Minas",
+                    "nikolas": 368,
+                    "engler": 177
+                }
+            ]
+        },
+        {
+            "nome": "Inhapim",
+            "cidades": [
+                {
+                    "cidade": "São Sebastião do Anta",
+                    "nikolas": 352,
+                    "engler": 162
+                },
+                {
+                    "cidade": "São Domingos das Dores",
+                    "nikolas": 324,
+                    "engler": 122
+                },
+                {
+                    "cidade": "Inhapim",
+                    "nikolas": 1777,
+                    "engler": 931
+                }
+            ]
+        },
+        {
+            "nome": "São João do Oriente",
+            "cidades": [
+                {
+                    "cidade": "São João do Oriente",
+                    "nikolas": 561,
+                    "engler": 275
+                },
+                {
+                    "cidade": "Iapu",
+                    "nikolas": 625,
+                    "engler": 260
+                },
+                {
+                    "cidade": "Bugre",
+                    "nikolas": 237,
+                    "engler": 92
+                },
+                {
+                    "cidade": "Ipaba",
+                    "nikolas": 1231,
+                    "engler": 277
+                }
+            ]
+        },
+        {
+            "nome": "Fernandes Tourinho / GV Sul",
+            "cidades": [
+                {
+                    "cidade": "Fernandes Tourinho",
+                    "nikolas": 193,
+                    "engler": 39
+                },
+                {
+                    "cidade": "Sobrália",
+                    "nikolas": 219,
+                    "engler": 87
+                },
+                {
+                    "cidade": "Engenheiro Caldas",
+                    "nikolas": 316,
+                    "engler": 78
+                },
+                {
+                    "cidade": "Tarumirim",
+                    "nikolas": 548,
+                    "engler": 194
+                },
+                {
+                    "cidade": "Dom Cavati",
+                    "nikolas": 203,
+                    "engler": 119
+                }
+            ]
+        },
+        {
+            "nome": "Raul Soares",
+            "cidades": [
+                {
+                    "cidade": "São Pedro dos Ferros",
+                    "nikolas": 285,
+                    "engler": 82
+                },
+                {
+                    "cidade": "Raul Soares",
+                    "nikolas": 1243,
+                    "engler": 358
+                },
+                {
+                    "cidade": "Vermelho Novo",
+                    "nikolas": 128,
+                    "engler": 37
+                },
+                {
+                    "cidade": "Bom Jesus do Galho",
+                    "nikolas": 563,
+                    "engler": 184
+                }
+            ]
+        },
+        {
+            "nome": "Pingo d'Água",
+            "cidades": [
+                {
+                    "cidade": "Pingo d'Água",
+                    "nikolas": 222,
+                    "engler": 63
+                },
+                {
+                    "cidade": "Córrego Novo",
+                    "nikolas": 192,
+                    "engler": 73
+                },
+                {
+                    "cidade": "Entre Folhas",
+                    "nikolas": 535,
+                    "engler": 286
+                },
+                {
+                    "cidade": "Vargem Alegre",
+                    "nikolas": 173,
+                    "engler": 173
+                }
+            ]
+        },
+        {
+            "nome": "Antônio Dias / Itabira",
+            "cidades": [
+                {
+                    "cidade": "Antônio Dias",
+                    "nikolas": 478,
+                    "engler": 161
+                },
+                {
+                    "cidade": "Itabira",
+                    "nikolas": 9542,
+                    "engler": 2814
+                },
+                {
+                    "cidade": "Nova Era",
+                    "nikolas": 1124,
+                    "engler": 382
+                },
+                {
+                    "cidade": "São Domingos do Prata",
+                    "nikolas": 718,
+                    "engler": 228
+                }
+            ]
+        },
+        {
+            "nome": "Rio Piracicaba / João Monlevade",
+            "cidades": [
+                {
+                    "cidade": "Rio Piracicaba",
+                    "nikolas": 628,
+                    "engler": 198
+                },
+                {
+                    "cidade": "São Gonçalo do Rio Abaixo",
+                    "nikolas": 317,
+                    "engler": 98
+                },
+                {
+                    "cidade": "João Monlevade",
+                    "nikolas": 6834,
+                    "engler": 2138
+                },
+                {
+                    "cidade": "Bela Vista de Minas",
+                    "nikolas": 325,
+                    "engler": 108
+                }
+            ]
+        },
+        {
+            "nome": "São José do Goiabal",
+            "cidades": [
+                {
+                    "cidade": "São José do Goiabal",
+                    "nikolas": 218,
+                    "engler": 70
+                },
+                {
+                    "cidade": "Dionísio",
+                    "nikolas": 198,
+                    "engler": 66
+                }
+            ]
+        },
+        {
+            "nome": "Braúnas",
+            "cidades": [
+                {
+                    "cidade": "Braúnas",
+                    "nikolas": 217,
+                    "engler": 114
+                },
+                {
+                    "cidade": "Joanésia",
+                    "nikolas": 295,
+                    "engler": 112
+                },
+                {
+                    "cidade": "Mesquita",
+                    "nikolas": 307,
+                    "engler": 116
+                }
+            ]
+        },
+        {
+            "nome": "Açucena",
+            "cidades": [
+                {
+                    "cidade": "Açucena",
+                    "nikolas": 398,
+                    "engler": 90
+                },
+                {
+                    "cidade": "Belo Oriente",
+                    "nikolas": 2113,
+                    "engler": 568
+                },
+                {
+                    "cidade": "Periquito",
+                    "nikolas": 235,
+                    "engler": 72
+                },
+                {
+                    "cidade": "Naque",
+                    "nikolas": 361,
+                    "engler": 101
+                }
+            ]
+        },
+        {
+            "nome": "Governador Valadares",
+            "cidades": [
+                {
+                    "cidade": "Alpercata",
+                    "nikolas": 440,
+                    "engler": 146
+                },
+                {
+                    "cidade": "Itanhomi",
+                    "nikolas": 460,
+                    "engler": 135
+                },
+                {
+                    "cidade": "Governador Valadares",
+                    "nikolas": 25447,
+                    "engler": 4452
+                }
+            ]
+        },
+        {
+            "nome": "Belo Horizonte / RMBH",
+            "cidades": [
+                {
+                    "cidade": "Belo Horizonte",
+                    "nikolas": 118543,
+                    "engler": 41822
+                },
+                {
+                    "cidade": "Caeté",
+                    "nikolas": 2147,
+                    "engler": 689
+                },
+                {
+                    "cidade": "Contagem",
+                    "nikolas": 37916,
+                    "engler": 12480
+                },
+                {
+                    "cidade": "Santa Luzia",
+                    "nikolas": 10523,
+                    "engler": 3218
+                },
+                {
+                    "cidade": "Betim",
+                    "nikolas": 22834,
+                    "engler": 7512
+                },
+                {
+                    "cidade": "Nova Lima",
+                    "nikolas": 8214,
+                    "engler": 2936
+                },
+                {
+                    "cidade": "Sabará",
+                    "nikolas": 6812,
+                    "engler": 2204
+                },
+                {
+                    "cidade": "Vespasiano",
+                    "nikolas": 6534,
+                    "engler": 2118
+                },
+                {
+                    "cidade": "Lagoa Santa",
+                    "nikolas": 4823,
+                    "engler": 1657
+                }
+            ]
+        }
+    ]
+}

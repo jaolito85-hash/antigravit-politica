@@ -1,0 +1,542 @@
+[
+  {
+    "cidade": "Ipatinga",
+    "estado": "MG",
+    "instagram_prefeitura": "prefeituraipatinga",
+    "tiktok_prefeitura": "",
+    "regiao": "Vale do Aço",
+    "latitude": -19.4683,
+    "longitude": -42.5373
+  },
+  {
+    "cidade": "Santana do Paraíso",
+    "estado": "MG",
+    "instagram_prefeitura": "prefsantanadoparaiso",
+    "tiktok_prefeitura": "",
+    "regiao": "Vale do Aço",
+    "latitude": -19.3622,
+    "longitude": -42.5483
+  },
+  {
+    "cidade": "Coronel Fabriciano",
+    "estado": "MG",
+    "instagram_prefeitura": "prefcorfab",
+    "tiktok_prefeitura": "",
+    "regiao": "Vale do Aço",
+    "latitude": -19.5176,
+    "longitude": -42.6328
+  },
+  {
+    "cidade": "Timóteo",
+    "estado": "MG",
+    "instagram_prefeitura": "prefeituratimoteo",
+    "tiktok_prefeitura": "",
+    "regiao": "Vale do Aço",
+    "latitude": -19.5816,
+    "longitude": -42.6444
+  },
+  {
+    "cidade": "Jaguaraçu",
+    "estado": "MG",
+    "instagram_prefeitura": "prefjaguaracu",
+    "tiktok_prefeitura": "",
+    "regiao": "Vale do Aço",
+    "latitude": -19.6187,
+    "longitude": -42.6936
+  },
+  {
+    "cidade": "Santa Bárbara do Leste",
+    "estado": "MG",
+    "instagram_prefeitura": "prefsantabarbardoleste",
+    "tiktok_prefeitura": "",
+    "regiao": "Vale do Caratinga",
+    "latitude": -19.9747,
+    "longitude": -42.3158
+  },
+  {
+    "cidade": "Santa Rita de Minas",
+    "estado": "MG",
+    "instagram_prefeitura": "prefsantaritademinas",
+    "tiktok_prefeitura": "",
+    "regiao": "Vale do Caratinga",
+    "latitude": -19.8733,
+    "longitude": -42.1350
+  },
+  {
+    "cidade": "Caratinga",
+    "estado": "MG",
+    "instagram_prefeitura": "prefeituracaratinga",
+    "tiktok_prefeitura": "",
+    "regiao": "Vale do Caratinga",
+    "latitude": -19.7823,
+    "longitude": -42.1393
+  },
+  {
+    "cidade": "Piedade de Caratinga",
+    "estado": "MG",
+    "instagram_prefeitura": "prefpiedadecaratinga",
+    "tiktok_prefeitura": "",
+    "regiao": "Vale do Caratinga",
+    "latitude": -19.9542,
+    "longitude": -42.2044
+  },
+  {
+    "cidade": "Ubaporanga",
+    "estado": "MG",
+    "instagram_prefeitura": "prefubaporanga",
+    "tiktok_prefeitura": "",
+    "regiao": "Vale do Caratinga",
+    "latitude": -19.7186,
+    "longitude": -42.0283
+  },
+  {
+    "cidade": "Imbé de Minas",
+    "estado": "MG",
+    "instagram_prefeitura": "prefimbedeminas",
+    "tiktok_prefeitura": "",
+    "regiao": "Vale do Rio Doce",
+    "latitude": -19.4842,
+    "longitude": -41.9861
+  },
+  {
+    "cidade": "São Sebastião do Anta",
+    "estado": "MG",
+    "instagram_prefeitura": "prefsaosebastiaodoanta",
+    "tiktok_prefeitura": "",
+    "regiao": "Vale do Rio Doce",
+    "latitude": -19.5392,
+    "longitude": -42.0936
+  },
+  {
+    "cidade": "São Domingos das Dores",
+    "estado": "MG",
+    "instagram_prefeitura": "prefsaodomingosdores",
+    "tiktok_prefeitura": "",
+    "regiao": "Vale do Caratinga",
+    "latitude": -19.5708,
+    "longitude": -42.2353
+  },
+  {
+    "cidade": "Inhapim",
+    "estado": "MG",
+    "instagram_prefeitura": "prefeiturainhapim",
+    "tiktok_prefeitura": "",
+    "regiao": "Vale do Caratinga",
+    "latitude": -19.5608,
+    "longitude": -42.1153
+  },
+  {
+    "cidade": "São João do Oriente",
+    "estado": "MG",
+    "instagram_prefeitura": "prefsaojoansoriente",
+    "tiktok_prefeitura": "",
+    "regiao": "Vale do Rio Doce",
+    "latitude": -19.4847,
+    "longitude": -42.2183
+  },
+  {
+    "cidade": "Japu",
+    "estado": "MG",
+    "instagram_prefeitura": "prefjapu",
+    "tiktok_prefeitura": "",
+    "regiao": "Vale do Rio Doce",
+    "latitude": -19.3928,
+    "longitude": -42.2358
+  },
+  {
+    "cidade": "Bugre",
+    "estado": "MG",
+    "instagram_prefeitura": "prefbugremg",
+    "tiktok_prefeitura": "",
+    "regiao": "Vale do Aço",
+    "latitude": -19.4531,
+    "longitude": -42.3706
+  },
+  {
+    "cidade": "Ipaba",
+    "estado": "MG",
+    "instagram_prefeitura": "prefeitura.ipaba",
+    "tiktok_prefeitura": "",
+    "regiao": "Vale do Aço",
+    "latitude": -19.3997,
+    "longitude": -42.4278
+  },
+  {
+    "cidade": "Fernandes Tourinho",
+    "estado": "MG",
+    "instagram_prefeitura": "preffernandestourinho",
+    "tiktok_prefeitura": "",
+    "regiao": "Vale do Aço",
+    "latitude": -19.4856,
+    "longitude": -42.3011
+  },
+  {
+    "cidade": "Sobrália",
+    "estado": "MG",
+    "instagram_prefeitura": "prefsobralimamg",
+    "tiktok_prefeitura": "",
+    "regiao": "Vale do Rio Doce",
+    "latitude": -19.3667,
+    "longitude": -42.0908
+  },
+  {
+    "cidade": "Engenheiro Caldas",
+    "estado": "MG",
+    "instagram_prefeitura": "prefengcaldas",
+    "tiktok_prefeitura": "",
+    "regiao": "Vale do Rio Doce",
+    "latitude": -19.2261,
+    "longitude": -42.2994
+  },
+  {
+    "cidade": "Tarumirim",
+    "estado": "MG",
+    "instagram_prefeitura": "prefeituradetarumirim",
+    "tiktok_prefeitura": "",
+    "regiao": "Vale do Rio Doce",
+    "latitude": -19.2697,
+    "longitude": -42.0000
+  },
+  {
+    "cidade": "Dom Cavati",
+    "estado": "MG",
+    "instagram_prefeitura": "prefdomcavati",
+    "tiktok_prefeitura": "",
+    "regiao": "Vale do Aço",
+    "latitude": -19.3931,
+    "longitude": -42.3169
+  },
+  {
+    "cidade": "São Pedro dos Ferros",
+    "estado": "MG",
+    "instagram_prefeitura": "prefsaopedrodosferros",
+    "tiktok_prefeitura": "",
+    "regiao": "Leste Mineiro",
+    "latitude": -20.2083,
+    "longitude": -42.5308
+  },
+  {
+    "cidade": "Raul Soares",
+    "estado": "MG",
+    "instagram_prefeitura": "prefeitura.raulsoares",
+    "tiktok_prefeitura": "",
+    "regiao": "Leste Mineiro",
+    "latitude": -20.1022,
+    "longitude": -42.4511
+  },
+  {
+    "cidade": "Vermelho Novo",
+    "estado": "MG",
+    "instagram_prefeitura": "prefvermelhonovo",
+    "tiktok_prefeitura": "",
+    "regiao": "Leste Mineiro",
+    "latitude": -19.8875,
+    "longitude": -42.4108
+  },
+  {
+    "cidade": "Bom Jesus do Galho",
+    "estado": "MG",
+    "instagram_prefeitura": "prefbomjesusdogalho",
+    "tiktok_prefeitura": "",
+    "regiao": "Leste Mineiro",
+    "latitude": -19.8333,
+    "longitude": -42.3017
+  },
+  {
+    "cidade": "Pingo d'Água",
+    "estado": "MG",
+    "instagram_prefeitura": "prefpingodagua",
+    "tiktok_prefeitura": "",
+    "regiao": "Leste Mineiro",
+    "latitude": -19.7197,
+    "longitude": -42.3989
+  },
+  {
+    "cidade": "Córrego Novo",
+    "estado": "MG",
+    "instagram_prefeitura": "prefcorregonovo",
+    "tiktok_prefeitura": "",
+    "regiao": "Leste Mineiro",
+    "latitude": -19.8100,
+    "longitude": -42.3467
+  },
+  {
+    "cidade": "Entre Folhas",
+    "estado": "MG",
+    "instagram_prefeitura": "prefentrefolhas",
+    "tiktok_prefeitura": "",
+    "regiao": "Vale do Aço",
+    "latitude": -19.5197,
+    "longitude": -42.4489
+  },
+  {
+    "cidade": "Vargem Alegre",
+    "estado": "MG",
+    "instagram_prefeitura": "prefvargemalegrémg",
+    "tiktok_prefeitura": "",
+    "regiao": "Leste Mineiro",
+    "latitude": -19.7017,
+    "longitude": -42.3489
+  },
+  {
+    "cidade": "Antônio Dias",
+    "estado": "MG",
+    "instagram_prefeitura": "prefantoniodias",
+    "tiktok_prefeitura": "",
+    "regiao": "Rio Piracicaba",
+    "latitude": -19.6528,
+    "longitude": -42.8728
+  },
+  {
+    "cidade": "Itabira",
+    "estado": "MG",
+    "instagram_prefeitura": "prefeituraitabira",
+    "tiktok_prefeitura": "",
+    "regiao": "Rio Piracicaba",
+    "latitude": -19.6189,
+    "longitude": -43.2267
+  },
+  {
+    "cidade": "Nova Era",
+    "estado": "MG",
+    "instagram_prefeitura": "prefnovaera",
+    "tiktok_prefeitura": "",
+    "regiao": "Rio Piracicaba",
+    "latitude": -19.7597,
+    "longitude": -43.0311
+  },
+  {
+    "cidade": "São Domingos do Prata",
+    "estado": "MG",
+    "instagram_prefeitura": "prefsaodomingosdoprata",
+    "tiktok_prefeitura": "",
+    "regiao": "Rio Piracicaba",
+    "latitude": -19.8714,
+    "longitude": -42.9922
+  },
+  {
+    "cidade": "Rio Piracicaba",
+    "estado": "MG",
+    "instagram_prefeitura": "prefripiracicaba",
+    "tiktok_prefeitura": "",
+    "regiao": "Rio Piracicaba",
+    "latitude": -19.9336,
+    "longitude": -43.1736
+  },
+  {
+    "cidade": "São Gonçalo do Rio Abaixo",
+    "estado": "MG",
+    "instagram_prefeitura": "prefsaogoncalodorioabaixo",
+    "tiktok_prefeitura": "",
+    "regiao": "Rio Piracicaba",
+    "latitude": -19.8222,
+    "longitude": -43.3536
+  },
+  {
+    "cidade": "João Monlevade",
+    "estado": "MG",
+    "instagram_prefeitura": "prefjoaomonlevade",
+    "tiktok_prefeitura": "",
+    "regiao": "Rio Piracicaba",
+    "latitude": -19.8139,
+    "longitude": -43.1736
+  },
+  {
+    "cidade": "Bela Vista de Minas",
+    "estado": "MG",
+    "instagram_prefeitura": "prefbelavistademinas",
+    "tiktok_prefeitura": "",
+    "regiao": "Rio Piracicaba",
+    "latitude": -19.8367,
+    "longitude": -43.1006
+  },
+  {
+    "cidade": "São José do Goiabal",
+    "estado": "MG",
+    "instagram_prefeitura": "prefsaojosedogoiabal",
+    "tiktok_prefeitura": "",
+    "regiao": "Leste Mineiro",
+    "latitude": -19.9133,
+    "longitude": -42.6986
+  },
+  {
+    "cidade": "Dionísio",
+    "estado": "MG",
+    "instagram_prefeitura": "prefdioniomg",
+    "tiktok_prefeitura": "",
+    "regiao": "Leste Mineiro",
+    "latitude": -19.7933,
+    "longitude": -42.7639
+  },
+  {
+    "cidade": "Braúnas",
+    "estado": "MG",
+    "instagram_prefeitura": "prefbraunas",
+    "tiktok_prefeitura": "",
+    "regiao": "Vale do Rio Doce",
+    "latitude": -19.0283,
+    "longitude": -42.7783
+  },
+  {
+    "cidade": "Joanésia",
+    "estado": "MG",
+    "instagram_prefeitura": "prefjoanesia",
+    "tiktok_prefeitura": "",
+    "regiao": "Vale do Rio Doce",
+    "latitude": -19.1572,
+    "longitude": -42.7128
+  },
+  {
+    "cidade": "Mesquita",
+    "estado": "MG",
+    "instagram_prefeitura": "prefmesquitamg",
+    "tiktok_prefeitura": "",
+    "regiao": "Vale do Aço",
+    "latitude": -19.6956,
+    "longitude": -42.5808
+  },
+  {
+    "cidade": "Açucena",
+    "estado": "MG",
+    "instagram_prefeitura": "prefacucena",
+    "tiktok_prefeitura": "",
+    "regiao": "Vale do Rio Doce",
+    "latitude": -19.0536,
+    "longitude": -42.5378
+  },
+  {
+    "cidade": "Belo Oriente",
+    "estado": "MG",
+    "instagram_prefeitura": "prefbelooriente",
+    "tiktok_prefeitura": "",
+    "regiao": "Vale do Rio Doce",
+    "latitude": -19.3011,
+    "longitude": -42.4733
+  },
+  {
+    "cidade": "Periquito",
+    "estado": "MG",
+    "instagram_prefeitura": "prefperiquito",
+    "tiktok_prefeitura": "",
+    "regiao": "Vale do Rio Doce",
+    "latitude": -19.1872,
+    "longitude": -42.4481
+  },
+  {
+    "cidade": "Naque",
+    "estado": "MG",
+    "instagram_prefeitura": "prefnaque",
+    "tiktok_prefeitura": "",
+    "regiao": "Vale do Rio Doce",
+    "latitude": -19.1783,
+    "longitude": -42.4736
+  },
+  {
+    "cidade": "Alpercata",
+    "estado": "MG",
+    "instagram_prefeitura": "prefalpercata",
+    "tiktok_prefeitura": "",
+    "regiao": "Vale do Rio Doce",
+    "latitude": -19.2003,
+    "longitude": -42.0344
+  },
+  {
+    "cidade": "Itanhomi",
+    "estado": "MG",
+    "instagram_prefeitura": "prefitanhomi",
+    "tiktok_prefeitura": "",
+    "regiao": "Vale do Rio Doce",
+    "latitude": -19.1639,
+    "longitude": -41.8664
+  },
+  {
+    "cidade": "Governador Valadares",
+    "estado": "MG",
+    "instagram_prefeitura": "prefgv",
+    "tiktok_prefeitura": "prefgv",
+    "regiao": "Vale do Rio Doce",
+    "latitude": -18.8514,
+    "longitude": -41.9494
+  },
+  {
+    "cidade": "Belo Horizonte",
+    "estado": "MG",
+    "instagram_prefeitura": "pbhoficial",
+    "tiktok_prefeitura": "pbhoficial",
+    "regiao": "Metropolitana de BH",
+    "latitude": -19.9167,
+    "longitude": -43.9345
+  },
+  {
+    "cidade": "Caeté",
+    "estado": "MG",
+    "instagram_prefeitura": "prefeituraecaete",
+    "tiktok_prefeitura": "",
+    "regiao": "Metropolitana de BH",
+    "latitude": -19.8839,
+    "longitude": -43.6706
+  },
+  {
+    "cidade": "Contagem",
+    "estado": "MG",
+    "instagram_prefeitura": "prefeituracontagem",
+    "tiktok_prefeitura": "prefeituracontagem",
+    "regiao": "Metropolitana de BH",
+    "latitude": -19.9317,
+    "longitude": -44.0533
+  },
+  {
+    "cidade": "Santa Luzia",
+    "estado": "MG",
+    "instagram_prefeitura": "prefsantaluziamg",
+    "tiktok_prefeitura": "",
+    "regiao": "Metropolitana de BH",
+    "latitude": -19.7703,
+    "longitude": -43.8511
+  },
+  {
+    "cidade": "Betim",
+    "estado": "MG",
+    "instagram_prefeitura": "prefeiturabetim",
+    "tiktok_prefeitura": "prefeiturabetim",
+    "regiao": "Metropolitana de BH",
+    "latitude": -19.9678,
+    "longitude": -44.1978
+  },
+  {
+    "cidade": "Nova Lima",
+    "estado": "MG",
+    "instagram_prefeitura": "prefnovalima",
+    "tiktok_prefeitura": "",
+    "regiao": "Metropolitana de BH",
+    "latitude": -20.0000,
+    "longitude": -43.8500
+  },
+  {
+    "cidade": "Sabará",
+    "estado": "MG",
+    "instagram_prefeitura": "prefeituradesabara",
+    "tiktok_prefeitura": "",
+    "regiao": "Metropolitana de BH",
+    "latitude": -19.8825,
+    "longitude": -43.8089
+  },
+  {
+    "cidade": "Vespasiano",
+    "estado": "MG",
+    "instagram_prefeitura": "prefvespasiano",
+    "tiktok_prefeitura": "",
+    "regiao": "Metropolitana de BH",
+    "latitude": -19.6931,
+    "longitude": -43.9203
+  },
+  {
+    "cidade": "Lagoa Santa",
+    "estado": "MG",
+    "instagram_prefeitura": "prefeituralagoasanta",
+    "tiktok_prefeitura": "",
+    "regiao": "Metropolitana de BH",
+    "latitude": -19.6328,
+    "longitude": -43.8947
+  }
+]

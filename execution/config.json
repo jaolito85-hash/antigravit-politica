@@ -1,0 +1,21 @@
+{
+    "categories": [
+        { "name": "Propostas & Projetos", "color": "#1a3a6b", "count": 0 },
+        { "name": "Infraestrutura & Obras", "color": "#f59e0b", "count": 0 },
+        { "name": "Saúde & Educação", "color": "#ec4899", "count": 0 },
+        { "name": "Segurança Pública", "color": "#ef4444", "count": 0 },
+        { "name": "Transporte & Mobilidade", "color": "#3b82f6", "count": 0 },
+        { "name": "Meio Ambiente", "color": "#22c55e", "count": 0 },
+        { "name": "Desenvolvimento Econômico", "color": "#84cc16", "count": 0 },
+        { "name": "Assistência Social", "color": "#f97316", "count": 0 }
+    ],
+    "regions": [
+        { "name": "Centro", "count": 0 },
+        { "name": "Zona Norte", "count": 0 },
+        { "name": "Zona Sul", "count": 0 },
+        { "name": "Zona Leste", "count": 0 },
+        { "name": "Zona Oeste", "count": 0 },
+        { "name": "Distrito Industrial", "count": 0 },
+        { "name": "Zona Rural", "count": 0 }
+    ]
+}

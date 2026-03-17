@@ -1,0 +1,303 @@
+{
+    "eleicao": "2022",
+    "regiao": "Vale do Jequitinhonha",
+    "candidatos": {
+        "nikolas": {
+            "nome": "Nikolas Ferreira",
+            "partido": "PL",
+            "cargo": "Deputado Federal"
+        },
+        "engler": {
+            "nome": "Bruno Engler",
+            "partido": "PL",
+            "cargo": "Deputado Estadual"
+        }
+    },
+    "polos": [
+        {
+            "nome": "Alto Jequitinhonha",
+            "cidades": [
+                {
+                    "cidade": "Itamarandiba",
+                    "nikolas": 1831,
+                    "engler": 429
+                },
+                {
+                    "cidade": "Capelinha",
+                    "nikolas": 1718,
+                    "engler": 587
+                },
+                {
+                    "cidade": "Diamantina",
+                    "nikolas": 1452,
+                    "engler": 656
+                },
+                {
+                    "cidade": "Turmalina",
+                    "nikolas": 754,
+                    "engler": 339
+                },
+                {
+                    "cidade": "Minas Novas",
+                    "nikolas": 466,
+                    "engler": 200
+                },
+                {
+                    "cidade": "Gouveia",
+                    "nikolas": 406,
+                    "engler": 185
+                },
+                {
+                    "cidade": "Rio Vermelho",
+                    "nikolas": 258,
+                    "engler": 80
+                },
+                {
+                    "cidade": "Angelândia",
+                    "nikolas": 256,
+                    "engler": 47
+                },
+                {
+                    "cidade": "Aricanduva",
+                    "nikolas": 173,
+                    "engler": 52
+                },
+                {
+                    "cidade": "Coluna",
+                    "nikolas": 171,
+                    "engler": 65
+                },
+                {
+                    "cidade": "Veredinha",
+                    "nikolas": 168,
+                    "engler": 74
+                },
+                {
+                    "cidade": "Felício dos Santos",
+                    "nikolas": 163,
+                    "engler": 51
+                },
+                {
+                    "cidade": "Carbonita",
+                    "nikolas": 147,
+                    "engler": 33
+                },
+                {
+                    "cidade": "Datas",
+                    "nikolas": 142,
+                    "engler": 75
+                },
+                {
+                    "cidade": "Chapada do Norte",
+                    "nikolas": 122,
+                    "engler": 53
+                },
+                {
+                    "cidade": "Presidente Kubitschek",
+                    "nikolas": 94,
+                    "engler": 53
+                },
+                {
+                    "cidade": "Senador Modestino Gonçalves",
+                    "nikolas": 91,
+                    "engler": 34
+                },
+                {
+                    "cidade": "Berilo",
+                    "nikolas": 84,
+                    "engler": 49
+                },
+                {
+                    "cidade": "Couto de Magalhães de Minas",
+                    "nikolas": 83,
+                    "engler": 39
+                },
+                {
+                    "cidade": "Francisco Badaró",
+                    "nikolas": 74,
+                    "engler": 38
+                },
+                {
+                    "cidade": "São Gonçalo do Rio Preto",
+                    "nikolas": 64,
+                    "engler": 38
+                },
+                {
+                    "cidade": "José Gonçalves de Minas",
+                    "nikolas": 60,
+                    "engler": 10
+                },
+                {
+                    "cidade": "Leme do Prado",
+                    "nikolas": 53,
+                    "engler": 32
+                }
+            ]
+        },
+        {
+            "nome": "Baixo Jequitinhonha",
+            "cidades": [
+                {
+                    "cidade": "Taiobeiras",
+                    "nikolas": 1421,
+                    "engler": 40
+                },
+                {
+                    "cidade": "Almenara",
+                    "nikolas": 1368,
+                    "engler": 446
+                },
+                {
+                    "cidade": "Araçuaí",
+                    "nikolas": 760,
+                    "engler": 552
+                },
+                {
+                    "cidade": "Pedra Azul",
+                    "nikolas": 657,
+                    "engler": 162
+                },
+                {
+                    "cidade": "Itaobim",
+                    "nikolas": 614,
+                    "engler": 210
+                },
+                {
+                    "cidade": "Novo Cruzeiro",
+                    "nikolas": 564,
+                    "engler": 173
+                },
+                {
+                    "cidade": "Santo Antônio do Jacinto",
+                    "nikolas": 502,
+                    "engler": 41
+                },
+                {
+                    "cidade": "Bandeira",
+                    "nikolas": 483,
+                    "engler": 25
+                },
+                {
+                    "cidade": "Jequitinhonha",
+                    "nikolas": 404,
+                    "engler": 112
+                },
+                {
+                    "cidade": "Padre Paraíso",
+                    "nikolas": 389,
+                    "engler": 168
+                },
+                {
+                    "cidade": "Jordânia",
+                    "nikolas": 377,
+                    "engler": 171
+                },
+                {
+                    "cidade": "Medina",
+                    "nikolas": 348,
+                    "engler": 128
+                },
+                {
+                    "cidade": "Jacinto",
+                    "nikolas": 342,
+                    "engler": 107
+                },
+                {
+                    "cidade": "Mata Verde",
+                    "nikolas": 305,
+                    "engler": 95
+                },
+                {
+                    "cidade": "Divisa Alegre",
+                    "nikolas": 220,
+                    "engler": 30
+                },
+                {
+                    "cidade": "Itinga",
+                    "nikolas": 219,
+                    "engler": 93
+                },
+                {
+                    "cidade": "Ponto dos Volantes",
+                    "nikolas": 216,
+                    "engler": 79
+                },
+                {
+                    "cidade": "Rubim",
+                    "nikolas": 208,
+                    "engler": 55
+                },
+                {
+                    "cidade": "Joaíma",
+                    "nikolas": 202,
+                    "engler": 101
+                },
+                {
+                    "cidade": "Salto da Divisa",
+                    "nikolas": 191,
+                    "engler": 27
+                },
+                {
+                    "cidade": "Divisópolis",
+                    "nikolas": 184,
+                    "engler": 50
+                },
+                {
+                    "cidade": "São José do Jacuri",
+                    "nikolas": 162,
+                    "engler": 68
+                },
+                {
+                    "cidade": "Coronel Murta",
+                    "nikolas": 148,
+                    "engler": 78
+                },
+                {
+                    "cidade": "Palmópolis",
+                    "nikolas": 133,
+                    "engler": 36
+                },
+                {
+                    "cidade": "Cachoeira de Pajeú",
+                    "nikolas": 125,
+                    "engler": 47
+                },
+                {
+                    "cidade": "Monte Formoso",
+                    "nikolas": 121,
+                    "engler": 48
+                },
+                {
+                    "cidade": "Felisburgo",
+                    "nikolas": 116,
+                    "engler": 45
+                },
+                {
+                    "cidade": "Berizal",
+                    "nikolas": 93,
+                    "engler": 13
+                },
+                {
+                    "cidade": "Comercinho",
+                    "nikolas": 81,
+                    "engler": 28
+                },
+                {
+                    "cidade": "Fronteira dos Vales",
+                    "nikolas": 81,
+                    "engler": 31
+                },
+                {
+                    "cidade": "Virgem da Lapa",
+                    "nikolas": 66,
+                    "engler": 33
+                },
+                {
+                    "cidade": "Santa Maria do Salto",
+                    "nikolas": 61,
+                    "engler": 4
+                }
+            ]
+        }
+    ]
+}

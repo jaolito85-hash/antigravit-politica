@@ -1,0 +1,4030 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Node Data | Política</title>
+
+    <!-- PWA Meta Tags -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#1a3a6b">
+    <meta name="description"
+        content="Dashboard de inteligência política em tempo real para gestores públicos e candidatos">
+
+    <!-- Icons -->
+    <link rel="icon" type="image/png" sizes="512x512" href="/static/icons/icon-512.png">
+    <link rel="apple-touch-icon" href="/static/icons/icon-512.png">
+
+    <!-- iOS PWA -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Node Data">
+
+    <!-- Fonts & Libraries -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-body: #050507;
+            --bg-sidebar: #0b0c10;
+            --bg-card: #111217;
+            --bg-hover: #1c1e26;
+            --accent-primary: #1a3a6b;
+            --text-main: #ffffff;
+            --text-muted: #8b949e;
+            --border: #23252e;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            outline: none;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 260px;
+            background-color: var(--bg-sidebar);
+            border-right: 1px solid var(--border);
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+        }
+
+        .logo {
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 40px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: white;
+        }
+
+        .logo i {
+            color: var(--accent-primary);
+            font-size: 1.2rem;
+        }
+
+        .nav-label {
+            font-size: 0.7rem;
+            color: #555963;
+            text-transform: uppercase;
+            margin: 20px 0 10px 10px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 14px;
+            color: var(--text-muted);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: 0.2s;
+            font-size: 0.9rem;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+
+        .nav-item:hover {
+            background-color: var(--bg-hover);
+            color: var(--text-main);
+        }
+
+        .nav-item.active {
+            background-color: var(--accent-primary);
+            color: white;
+        }
+
+        .nav-item i {
+            font-size: 1.1rem;
+        }
+
+        /* Main Content */
+        .main {
+            flex: 1;
+            padding: 40px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .page-header {
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+        }
+
+        .page-title h1 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .page-title p {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            min-height: 100px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .stat-label {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            margin-bottom: 8px;
+            font-weight: 500;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: white;
+        }
+
+        .stat-sub {
+            font-size: 0.75rem;
+            color: #22c55e;
+            margin-top: 5px;
+            font-weight: 500;
+        }
+
+        .highlight-icon {
+            color: var(--accent-primary);
+        }
+
+        /* Dashboard Layout */
+        .dash-row {
+            display: grid;
+            grid-template-columns: 3fr 2fr;
+            gap: 24px;
+            flex: 1;
+        }
+
+        .chart-box {
+            background: var(--bg-card);
+            padding: 24px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chart-header {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+
+        .chart-container-bar {
+            flex: 1;
+            position: relative;
+            min-height: 250px;
+        }
+
+        .chart-container-donut {
+            position: relative;
+            height: 300px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Feedbacks List */
+        .feed-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .feedback-card {
+            background: var(--bg-card);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            transition: 0.2s;
+        }
+
+        .feedback-card:hover {
+            border-color: var(--accent-primary);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .fb-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .fb-tag {
+            font-size: 0.7rem;
+            padding: 4px 8px;
+            border-radius: 4px;
+            background: #1f2937;
+            color: white;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .fb-time {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .fb-msg {
+            font-size: 0.92rem;
+            line-height: 1.5;
+            color: #d1d5db;
+            margin-bottom: 12px;
+            min-height: 36px;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            line-clamp: 3;
+            overflow: hidden;
+        }
+
+        .fb-footer {
+            border-top: 1px solid var(--border);
+            padding-top: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        /* Update badge */
+        .update-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.72rem;
+            font-weight: 600;
+            background: rgba(26, 58, 107, 0.2);
+            color: #7ba4d4;
+            border: 1px solid rgba(123, 164, 212, 0.35);
+            border-radius: 20px;
+            padding: 3px 8px;
+            margin-top: 8px;
+        }
+
+        .feedback-card.clickable {
+            cursor: pointer;
+        }
+
+        .feedback-card.clickable:hover {
+            border-color: var(--accent-primary);
+            box-shadow: 0 4px 24px rgba(26, 58, 107, 0.2);
+            transform: translateY(-1px);
+        }
+
+        /* Thread Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 9998;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal-thread-box {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            width: 94%;
+            max-width: 640px;
+            max-height: 88vh;
+            overflow-y: auto;
+            padding: 28px;
+            animation: slideIn 0.25s ease-out;
+        }
+
+        .thread-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            gap: 12px;
+        }
+
+        .thread-sender {
+            font-size: 0.82rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .thread-timeline {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            margin: 16px 0;
+        }
+
+        .thread-item {
+            display: flex;
+            gap: 14px;
+            position: relative;
+        }
+
+        .thread-item:not(:last-child) .thread-line {
+            position: absolute;
+            left: 13px;
+            top: 30px;
+            bottom: -4px;
+            width: 2px;
+            background: var(--border);
+        }
+
+        .thread-dot {
+            flex-shrink: 0;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            margin-top: 2px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .thread-dot.original {
+            background: rgba(26, 58, 107, 0.2);
+            border: 2px solid #1a3a6b;
+            color: #7ba4d4;
+        }
+
+        .thread-dot.update {
+            background: rgba(251, 191, 36, 0.15);
+            border: 2px solid #f59e0b;
+            color: #fbbf24;
+        }
+
+        .thread-content {
+            flex: 1;
+            background: var(--bg-body);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 12px 14px;
+            margin-bottom: 10px;
+        }
+
+        .thread-content-label {
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 5px;
+        }
+
+        .thread-content-label.original {
+            color: #7ba4d4;
+        }
+
+        .thread-content-label.update {
+            color: #fbbf24;
+        }
+
+        .thread-content-text {
+            font-size: 0.9rem;
+            color: #d1d5db;
+            line-height: 1.5;
+        }
+
+        .msg-time-badge {
+            font-size: 0.65rem;
+            font-weight: 600;
+            color: #6b7280;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 1px 7px;
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            white-space: nowrap;
+        }
+
+        .msg-time-badge.update-time {
+            color: #f59e0b;
+            border-color: rgba(245, 158, 11, 0.3);
+            background: rgba(245, 158, 11, 0.07);
+        }
+
+        .thread-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
+            padding-top: 16px;
+            margin-top: 8px;
+            border-top: 1px solid var(--border);
+        }
+
+        .whatsapp-contact-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: #25D36620;
+            color: #25D366;
+            border: 1px solid #25D366;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            font-size: 0.85rem;
+        }
+
+        .whatsapp-contact-btn:hover {
+            background: #25D366;
+            color: #fff;
+            transform: scale(1.1);
+            box-shadow: 0 0 12px #25D36650;
+        }
+
+        .priority-dot {
+            height: 8px;
+            width: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 5px;
+        }
+
+        /* Item Management Grid */
+        .grid-manage {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            gap: 20px;
+        }
+
+        .manage-card {
+            background: var(--bg-card);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            position: relative;
+        }
+
+        .manage-card h3 {
+            font-size: 1rem;
+            margin-bottom: 5px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .manage-card h2 {
+            font-size: 2rem;
+            margin-bottom: 5px;
+        }
+
+        .manage-card p {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .btn-delete {
+            color: #ef4444;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+        }
+
+        .btn-add {
+            background: var(--accent-primary);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.9rem;
+        }
+
+        /* Utility */
+        .hidden {
+            display: none;
+        }
+
+        .text-red {
+            color: #ef4444;
+        }
+
+        /* Filters Bar */
+        .filters-bar {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .filter-select {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            min-width: 150px;
+        }
+
+        .filter-select:focus {
+            border-color: var(--accent-primary);
+        }
+
+        .filter-input {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            min-width: 200px;
+        }
+
+        .filter-input:focus {
+            border-color: var(--accent-primary);
+            outline: none;
+        }
+
+        .filter-count {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            margin-left: auto;
+        }
+
+        .btn-clear-filters {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .btn-clear-filters:hover {
+            border-color: var(--accent-primary);
+            color: var(--accent-primary);
+        }
+
+        /* Alerta Crítico */
+        .alerta-critico {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+            color: white;
+            padding: 16px 20px;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(220, 38, 38, 0.4);
+            z-index: 9999;
+            max-width: 350px;
+            animation: slideIn 0.3s ease-out, pulse 2s infinite;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .alerta-critico strong {
+            display: block;
+            font-size: 1rem;
+            margin-bottom: 8px;
+        }
+
+        .alerta-critico p {
+            margin: 0 0 8px 0;
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+
+        .alerta-critico small {
+            opacity: 0.8;
+            font-size: 0.75rem;
+        }
+
+        .alerta-critico .close-btn {
+            position: absolute;
+            top: 8px;
+            right: 10px;
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            font-size: 1.2rem;
+            opacity: 0.7;
+        }
+
+        .alerta-critico .close-btn:hover {
+            opacity: 1;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                box-shadow: 0 8px 32px rgba(220, 38, 38, 0.4);
+            }
+
+            50% {
+                box-shadow: 0 8px 48px rgba(220, 38, 38, 0.6);
+            }
+        }
+
+        @keyframes fadeSlideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-8px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+
+        /* Export Button */
+        .export-dropdown {
+            position: relative;
+        }
+
+        .export-btn {
+            background: var(--accent-primary);
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: 0.2s;
+        }
+
+        .export-btn:hover {
+            background: #0f2347;
+        }
+
+        .export-menu {
+            position: absolute;
+            right: 0;
+            top: 100%;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 6px;
+            margin-top: 6px;
+            z-index: 100;
+            min-width: 150px;
+        }
+
+        .export-menu a {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 12px;
+            color: var(--text-main);
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 0.85rem;
+        }
+
+        .export-menu a:hover {
+            background: var(--bg-hover);
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        /* Adversary tags */
+        .adversario-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            background: rgba(239, 68, 68, 0.15);
+            color: #ef4444;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 20px;
+            padding: 3px 10px;
+            font-size: 0.78rem;
+            font-weight: 600;
+        }
+
+        .adversario-tag button {
+            background: none;
+            border: none;
+            color: #ef4444;
+            cursor: pointer;
+            font-size: 0.9rem;
+            line-height: 1;
+            padding: 0;
+            opacity: 0.7;
+        }
+
+        .adversario-tag button:hover {
+            opacity: 1;
+        }
+
+        /* Radar table */
+        .radar-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+
+        .radar-table th {
+            padding: 10px 8px;
+            text-align: left;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border);
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .radar-table td {
+            padding: 10px 8px;
+            border-bottom: 1px solid var(--border);
+            vertical-align: middle;
+        }
+
+        .radar-table tr:hover td {
+            background: var(--bg-hover);
+        }
+
+        .sentimento-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .sentimento-badge.positivo {
+            background: rgba(34, 197, 94, 0.15);
+            color: #22c55e;
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+
+        .sentimento-badge.negativo {
+            background: rgba(239, 68, 68, 0.15);
+            color: #ef4444;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .sentimento-badge.neutro {
+            background: rgba(59, 130, 246, 0.15);
+            color: #3b82f6;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+
+        .fonte-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            background: var(--bg-hover);
+            color: var(--text-muted);
+        }
+
+        /* News cards */
+        .news-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 18px 20px;
+            transition: 0.2s;
+        }
+
+        .news-card:hover {
+            border-color: var(--accent-primary);
+            box-shadow: 0 4px 20px rgba(26, 58, 107, 0.2);
+        }
+
+        .news-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+
+        .news-titulo {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: #e5e7eb;
+            line-height: 1.4;
+        }
+
+        .news-resumo {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            line-height: 1.5;
+            margin-bottom: 10px;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .news-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .news-link {
+            color: #7ba4d4;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-weight: 600;
+        }
+
+        .news-link:hover {
+            text-decoration: underline;
+        }
+
+        /* ===== MOBILE BURGER MENU ===== */
+        .mobile-header {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background: var(--bg-sidebar);
+            border-bottom: 1px solid var(--border);
+            padding: 0 16px;
+            align-items: center;
+            justify-content: space-between;
+            z-index: 1000;
+        }
+
+        .mobile-header .logo {
+            margin: 0;
+            font-size: 1rem;
+        }
+
+        .burger-btn {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 8px;
+        }
+
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 998;
+        }
+
+        .sidebar-overlay.active {
+            display: block;
+        }
+
+        /* ===== MOBILE RESPONSIVE ===== */
+        @media (max-width: 768px) {
+            .mobile-header {
+                display: flex;
+            }
+
+            .sidebar {
+                position: fixed;
+                left: -280px;
+                top: 0;
+                bottom: 0;
+                z-index: 999;
+                transition: left 0.3s ease;
+                width: 260px;
+            }
+
+            .sidebar.active {
+                left: 0;
+            }
+
+            body {
+                flex-direction: column;
+            }
+
+            .main {
+                padding: 80px 16px 16px 16px;
+                margin-left: 0;
+                width: 100%;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr 1fr;
+                gap: 12px;
+            }
+
+            .stat-card {
+                padding: 14px;
+                min-height: auto;
+            }
+
+            .stat-value {
+                font-size: 1.4rem;
+            }
+
+            .stat-label {
+                font-size: 0.7rem;
+            }
+
+            .dash-row {
+                grid-template-columns: 1fr;
+                gap: 16px;
+            }
+
+            .chart-box {
+                padding: 16px;
+            }
+
+            .chart-container-bar {
+                min-height: 180px;
+            }
+
+            .chart-box>div[style*="display: flex"] {
+                flex-direction: column !important;
+                align-items: center !important;
+            }
+
+            #donut-legend {
+                width: 100%;
+                margin-top: 16px;
+            }
+
+            .page-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .page-title h1 {
+                font-size: 1.4rem;
+            }
+
+            .feedbacks-list {
+                gap: 12px;
+            }
+
+            .feedback-card {
+                padding: 14px;
+            }
+
+            .feedback-header {
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            .filters-bar {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .filters-bar select,
+            .filters-bar .filter-input {
+                width: 100%;
+            }
+
+            .grid-manage {
+                grid-template-columns: 1fr;
+            }
+
+            .stat-sub {
+                font-size: 0.65rem;
+            }
+
+            #ai-pulse-summary {
+                font-size: 0.8rem !important;
+            }
+
+            #top-problems-list {
+                flex-direction: column !important;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .stat-card:first-child {
+                grid-column: 1;
+            }
+
+            .page-title h1 {
+                font-size: 1.2rem;
+            }
+
+            .main {
+                padding: 70px 12px 12px 12px;
+            }
+        }
+    </style>
+    <!-- Leaflet -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+
+<body>
+    <!-- Mobile Header -->
+    <div class="mobile-header">
+        <div class="logo"><i class="ri-government-fill"></i> Node Data</div>
+        <button class="burger-btn" onclick="toggleMobileMenu()">
+            <i class="ri-menu-line" id="burger-icon"></i>
+        </button>
+    </div>
+
+    <!-- Overlay for mobile -->
+    <div class="sidebar-overlay" onclick="toggleMobileMenu()"></div>
+    <div class="sidebar">
+        <div class="logo"><i class="ri-government-fill"></i> Node Data</div>
+
+        <div class="nav-label">POLÍTICA</div>
+        <div class="nav-item active" onclick="nav('dashboard', this)"><i class="ri-layout-grid-fill"></i> Painel</div>
+        <div class="nav-item" onclick="nav('feedbacks', this)"><i class="ri-chat-3-line"></i> Feedbacks</div>
+        <div class="nav-item" onclick="nav('regions', this)"><i class="ri-map-pin-line"></i> Regiões</div>
+        <div class="nav-item" onclick="nav('categories', this)"><i class="ri-price-tag-3-line"></i> Categorias</div>
+        <div class="nav-item" onclick="nav('radar-comentarios', this)"><i class="ri-radar-line"></i> Radar de
+            Comentários</div>
+        <div class="nav-item" onclick="nav('radar-noticias', this)"><i class="ri-newspaper-line"></i> Radar de Notícias
+        </div>
+        <div class="nav-item" onclick="nav('radar-mg', this)"><i class="ri-map-2-line"></i> Radar MG</div>
+        <div class="nav-item" onclick="nav('mapa-eleitoral', this)"><i class="ri-bar-chart-grouped-line"></i> Mapa
+            Eleitoral</div>
+        <div class="nav-item" onclick="nav('simulador', this)"><i class="ri-crosshair-2-line"></i> Simulador de
+            Conquista</div>
+        <div class="nav-item" onclick="nav('coletar', this)"><i class="ri-download-cloud-2-line"></i> Coletar Dados
+        </div>
+        <div style="margin-top:auto;padding-top:16px;border-top:1px solid rgba(255,255,255,0.06);">
+            <a href="/logout" class="nav-item"
+                style="display:flex;align-items:center;gap:8px;color:#94a3b8;text-decoration:none;font-size:0.82rem;padding:10px 12px;border-radius:8px;transition:background 0.2s;"
+                onmouseover="this.style.background='rgba(239,68,68,0.1)';this.style.color='#f87171'"
+                onmouseout="this.style.background='';this.style.color='#94a3b8'"><i class="ri-logout-box-r-line"></i>
+                Sair</a>
+        </div>
+    </div>
+
+    <!-- DASHBOARD VIEW -->
+    <div class="main" id="view-dashboard">
+        <div class="page-header">
+            <div class="page-title">
+                <h1>Painel de Controle</h1>
+                <p>Visão geral do cenário político em tempo real</p>
+            </div>
+            <div class="export-dropdown">
+                <button class="export-btn" onclick="toggleExportMenu('dashboard')">
+                    <i class="ri-download-2-line"></i> Exportar <i class="ri-arrow-down-s-line"></i>
+                </button>
+                <div id="export-menu-dashboard" class="export-menu hidden">
+                    <a href="/api/export/csv" download><i class="ri-file-excel-2-line" style="color:#10b981"></i>
+                        Exportar CSV</a>
+                    <a href="/api/export/json" download><i class="ri-code-s-slash-line" style="color:#3b82f6"></i>
+                        Exportar JSON</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card" id="ai-pulse-card" style="border-left: 3px solid var(--accent-primary);">
+                <div class="stat-label">AI Pulse <i class="ri-sparkling-2-fill" style="color:#a855f7"></i></div>
+                <div id="ai-pulse-summary"
+                    style="font-size: 0.85rem; line-height: 1.5; color: #d1d5db; min-height: 40px;">
+                    Carregando análise...
+                </div>
+                <div class="stat-sub" id="ai-pulse-updated" style="margin-top: 8px;">Atualizado: --</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Feedbacks Hoje <i class="ri-pulse-line" style="color:#22c55e"></i></div>
+                <div class="stat-value" id="kpi-today">0</div>
+                <div class="stat-sub">Novos registros</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Região Mais Ativa <i class="ri-map-pin-2-line text-red"></i></div>
+                <div class="stat-value" id="kpi-region" style="font-size: 1.4rem">--</div>
+                <div class="stat-sub" id="kpi-region-count">0 feedbacks</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Principal Categoria <i class="ri-price-tag-3-line" style="color:#f59e0b"></i>
+                </div>
+                <div class="stat-value" id="kpi-cat" style="font-size: 1.4rem">--</div>
+                <div class="stat-sub" id="kpi-cat-count">0 feedbacks</div>
+            </div>
+        </div>
+
+        <!-- ROW 1: Timeline + Sentimentos -->
+        <div class="dash-row">
+            <div class="chart-box">
+                <div class="chart-header"><i class="ri-line-chart-line" style="color:#1a3a6b"></i> Feedbacks por Hora
+                </div>
+                <div class="chart-container-bar">
+                    <canvas id="timelineChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-box">
+                <div class="chart-header"><i class="ri-emotion-line" style="color:#a855f7"></i> Sentimentos</div>
+                <div id="sentiment-bars" style="padding: 20px 0;">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+        </div>
+
+        <!-- ROW 2: Donut + Top Elogios -->
+        <div class="dash-row" style="margin-top: 24px;">
+            <div class="chart-box">
+                <div class="chart-header"><i class="ri-pie-chart-2-fill" style="color:#f59e0b"></i> Categorias</div>
+                <div style="display: flex; align-items: center; gap: 30px; padding: 10px 0;">
+                    <div style="position: relative; width: 180px; height: 180px;">
+                        <canvas id="donutChart"></canvas>
+                        <div id="donut-center"
+                            style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center;">
+                            <div style="font-size: 2rem; font-weight: 700; color: white;" id="donut-total">0</div>
+                            <div style="font-size: 0.75rem; color: #9ca3af;">feedbacks</div>
+                        </div>
+                    </div>
+                    <div id="donut-legend" style="flex: 1; font-size: 0.85rem;"></div>
+                </div>
+            </div>
+            <div class="chart-box">
+                <div class="chart-header" style="color:#22c55e"><i class="ri-star-fill"></i> Top 3 Elogios</div>
+                <div id="top-compliments-list" style="font-size: 0.9rem; color: #d1d5db;">
+                    <p style="color:var(--text-muted)">Aguardando dados...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ROW 3: Top Problemas -->
+        <div class="dash-row" style="margin-top: 24px;">
+            <div class="chart-box" style="grid-column: span 2;">
+                <div class="chart-header" style="color:#ef4444"><i class="ri-alert-fill"></i> Top 3 Problemas</div>
+                <div id="top-problems-list"
+                    style="font-size: 0.9rem; color: #d1d5db; display: flex; gap: 20px; flex-wrap: wrap;">
+                    <p style="color:var(--text-muted)">Aguardando dados...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- FEEDBACKS VIEW -->
+    <div class="main hidden" id="view-feedbacks">
+        <div class="page-header">
+            <div class="page-title">
+                <h1>Feedbacks</h1>
+                <p>Gerencie e analise as mensagens dos cidadãos</p>
+            </div>
+            <div class="export-dropdown">
+                <button class="export-btn" onclick="toggleExportMenu('feedbacks')">
+                    <i class="ri-download-2-line"></i> Exportar <i class="ri-arrow-down-s-line"></i>
+                </button>
+                <div id="export-menu-feedbacks" class="export-menu hidden">
+                    <a href="/api/export/csv" download><i class="ri-file-excel-2-line" style="color:#10b981"></i>
+                        Exportar CSV</a>
+                    <a href="/api/export/json" download><i class="ri-code-s-slash-line" style="color:#3b82f6"></i>
+                        Exportar JSON</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="filters-bar">
+            <select id="filtro-categoria" class="filter-select" onchange="aplicarFiltros()">
+                <option value="">Todas Categorias</option>
+            </select>
+            <select id="filtro-prioridade" class="filter-select" onchange="aplicarFiltros()">
+                <option value="">Todas Prioridades</option>
+                <option value="Critico">Crítico</option>
+                <option value="Urgente">Urgente</option>
+                <option value="Positivo">Positivo</option>
+                <option value="Neutro">Neutro</option>
+            </select>
+            <select id="filtro-status" class="filter-select" onchange="aplicarFiltros()">
+                <option value="ativos" selected>Cards Ativos</option>
+                <option value="aberto">Aberto</option>
+                <option value="em_andamento">Em Andamento</option>
+                <option value="resolvido">Resolvido</option>
+            </select>
+            <button class="btn-clear-filters" onclick="limparFiltros()"><i class="ri-filter-off-line"></i>
+                Limpar</button>
+            <span class="filter-count" id="filter-count">Carregando...</span>
+        </div>
+
+        <div class="feed-list" id="feed-list-container">
+            <!-- Cards injected via JS -->
+        </div>
+    </div>
+
+    <!-- REGIONS VIEW -->
+    <div class="main hidden" id="view-regions">
+        <div class="page-header">
+            <div class="page-title">
+                <h1>Regiões</h1>
+                <p>Gerencie os bairros e regiões monitorados</p>
+            </div>
+            <button class="btn-add" onclick="addItem('regions')"><i class="ri-add-line"></i> Adicionar</button>
+        </div>
+        <div class="grid-manage" id="regions-grid"></div>
+    </div>
+
+    <!-- CATEGORIES VIEW -->
+    <div class="main hidden" id="view-categories">
+        <div class="page-header">
+            <div class="page-title">
+                <h1>Categorias</h1>
+                <p>Classificação automática da IA</p>
+            </div>
+            <button class="btn-add" onclick="addItem('categories')"><i class="ri-add-line"></i> Adicionar</button>
+        </div>
+        <div class="grid-manage" id="categories-grid"></div>
+    </div>
+
+    <!-- RADAR DE COMENTÁRIOS VIEW -->
+    <div class="main hidden" id="view-radar-comentarios">
+        <div class="page-header">
+            <div class="page-title">
+                <h1><i class="ri-radar-line" style="color:#1a3a6b"></i> Radar de Comentários</h1>
+                <p>Monitoramento de comentários em redes sociais</p>
+            </div>
+        </div>
+
+        <!-- Configuração -->
+        <div class="chart-box" style="margin-bottom:16px">
+            <div class="chart-header"><i class="ri-user-search-line" style="color:#1a3a6b"></i> Políticos Monitorados
+            </div>
+            <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end">
+                <div>
+                    <div style="font-size:0.78rem;color:#8b949e;margin-bottom:5px">Político Cliente</div>
+                    <input id="radar-cliente" type="text" placeholder="Ex: Matheus Braga" class="filter-input">
+                </div>
+                <div>
+                    <div style="font-size:0.78rem;color:#8b949e;margin-bottom:5px">
+                        <i class="ri-instagram-line" style="color:#e1306c"></i> Instagram
+                        <span style="opacity:0.6;font-size:0.72rem"> (sem o @)</span>
+                    </div>
+                    <input id="radar-instagram" type="text" placeholder="Ex: matheusbraga" class="filter-input"
+                        style="width:180px">
+                </div>
+                <div>
+                    <div style="font-size:0.78rem;color:#8b949e;margin-bottom:5px">Adversários <span
+                            style="opacity:0.6">(Enter para adicionar)</span></div>
+                    <input id="radar-adversario-input" type="text" placeholder="Ex: Maria Santos" class="filter-input"
+                        onkeydown="addAdversario(event)">
+                    <div id="adversarios-tags"
+                        style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;min-height:24px"></div>
+                </div>
+                <button onclick="buscarComentarios()" class="export-btn" style="align-self:flex-end">
+                    <i class="ri-search-line"></i> Buscar Comentários
+                </button>
+                <button id="btn-estrategia" onclick="gerarEstrategia()" class="export-btn"
+                    style="align-self:flex-end;background:#1a3a6b;opacity:0.5;cursor:not-allowed" disabled>
+                    <i class="ri-lightbulb-line"></i> Gerar Estratégia IA
+                </button>
+            </div>
+        </div>
+
+        <!-- Filtros -->
+        <div class="filters-bar" style="margin-bottom:16px">
+            <select id="filtro-periodo" onchange="filtrarEExibir()" class="filter-select">
+                <option value="24h">Últimas 24h</option>
+                <option value="7d" selected>Últimos 7 dias</option>
+                <option value="30d">Últimos 30 dias</option>
+            </select>
+            <select id="filtro-politico-radar" onchange="filtrarEExibir()" class="filter-select">
+                <option value="">Todos os políticos</option>
+            </select>
+            <span class="filter-count" id="radar-count"></span>
+        </div>
+
+        <!-- Pulse por Post -->
+        <div id="pulse-section" style="display:none;margin-bottom:16px">
+            <div style="font-size:0.75rem;color:#8b949e;margin-bottom:8px;font-weight:600;letter-spacing:0.06em">
+                PULSE POR POST — DO MAIS RECENTE AO MAIS ANTIGO
+            </div>
+            <div id="pulse-posts" style="display:flex;gap:12px;overflow-x:auto;padding-bottom:8px"></div>
+        </div>
+
+        <!-- Gráfico de pizza + Tabela -->
+        <div class="dash-row" style="align-items:flex-start">
+            <div class="chart-box" style="grid-column:1">
+                <div class="chart-header"><i class="ri-table-line" style="color:#1a3a6b"></i> Comentários Encontrados
+                </div>
+                <div style="overflow-x:auto">
+                    <table class="radar-table">
+                        <thead>
+                            <tr>
+                                <th>Fonte</th>
+                                <th>Usuário</th>
+                                <th>Comentário</th>
+                                <th>Sentimento</th>
+                                <th>Categoria</th>
+                                <th>Data</th>
+                            </tr>
+                        </thead>
+                        <tbody id="comentarios-tbody">
+                            <tr>
+                                <td colspan="6" style="color:var(--text-muted);text-align:center;padding:20px">Preencha
+                                    o nome e o @ do Instagram e clique em "Buscar Comentários"</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="chart-box" style="grid-column:2">
+                <div class="chart-header"><i class="ri-pie-chart-2-fill" style="color:#a855f7"></i> Distribuição de
+                    Sentimentos</div>
+                <div style="position:relative;height:200px;display:flex;align-items:center;justify-content:center">
+                    <canvas id="radarSentimentChart"></canvas>
+                </div>
+                <div id="radar-sentiment-legend" style="margin-top:12px;font-size:0.82rem"></div>
+            </div>
+        </div>
+
+        <!-- Estratégia da Semana -->
+        <div id="estrategia-box" class="chart-box" style="display:none;margin-top:16px"></div>
+    </div>
+
+    <!-- RADAR DE NOTÍCIAS VIEW -->
+    <div class="main hidden" id="view-radar-noticias">
+        <div class="page-header">
+            <div class="page-title">
+                <h1><i class="ri-newspaper-line" style="color:#1a3a6b"></i> Radar de Notícias</h1>
+                <p>Cobertura da imprensa sobre os políticos monitorados</p>
+            </div>
+            <button onclick="buscarNoticias()" class="export-btn">
+                <i class="ri-search-line"></i> Atualizar Notícias
+            </button>
+        </div>
+
+        <!-- Filtros -->
+        <div class="filters-bar" style="margin-bottom:20px;flex-wrap:wrap;gap:10px">
+            <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:200px">
+                <input id="filtro-politico-noticias" type="text" placeholder="Buscar por nome (ex: Matheus Lima)..."
+                    class="filter-select" style="flex:1;padding:8px 12px"
+                    onkeydown="if(event.key==='Enter') buscarNoticias()" />
+                <button onclick="buscarNoticias()" class="export-btn" style="padding:8px 14px;font-size:0.82rem">
+                    <i class="ri-search-line"></i>
+                </button>
+            </div>
+            <select id="filtro-sentimento-noticias" onchange="buscarNoticias()" class="filter-select">
+                <option value="">Todos os sentimentos</option>
+                <option value="Positivo">Positivo</option>
+                <option value="Neutro">Neutro</option>
+                <option value="Negativo">Negativo</option>
+            </select>
+            <span class="filter-count" id="noticias-count"></span>
+        </div>
+
+        <!-- Timeline de notícias -->
+        <div id="noticias-timeline" style="display:flex;flex-direction:column;gap:12px">
+            <p style="color:var(--text-muted)">Carregando notícias...</p>
+        </div>
+    </div>
+
+    <!-- RADAR MG VIEW -->
+    <div class="main hidden" id="view-radar-mg">
+        <div class="page-header">
+            <div class="page-title">
+                <h1><i class="ri-map-2-line" style="color:#1a3a6b"></i> Radar MG</h1>
+                <p>Inteligência política por cidade de Minas Gerais</p>
+            </div>
+        </div>
+
+        <!-- Barra de pesquisa -->
+        <div class="filters-bar" style="margin-bottom:20px;gap:12px">
+            <input type="text" id="radar-mg-cidade" placeholder="Digite uma cidade de MG..." class="filter-select"
+                style="flex:1;min-width:200px;padding:10px 14px" onkeydown="if(event.key==='Enter') pesquisarCidade()">
+            <select id="radar-mg-periodo" class="filter-select">
+                <option value="7">Últimos 7 dias</option>
+                <option value="14">Últimos 14 dias</option>
+                <option value="30">Últimos 30 dias</option>
+            </select>
+            <button id="btn-pesquisar-mg" onclick="pesquisarCidade()" class="export-btn">
+                <i class="ri-search-line"></i> Pesquisar
+            </button>
+        </div>
+
+        <!-- Grid principal: mapa + resumo -->
+        <div id="radar-mg-resultado" style="display:none">
+
+            <!-- Mapa Leaflet (full-width) -->
+            <div class="stat-card" style="padding:12px;margin-bottom:16px">
+                <div id="mapa-mg" style="width:100%;height:420px;border-radius:10px;"></div>
+            </div>
+
+            <!-- Cards de info: resumo + oportunidades + ad -->
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:20px">
+
+                <!-- Resumo IA -->
+                <div class="stat-card" style="padding:16px">
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+                        <span
+                            style="font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px">Resumo
+                            da Cidade</span>
+                        <span id="mg-sentimento-badge" class="sentimento-badge neutro"
+                            style="margin-left:auto;font-size:11px"></span>
+                    </div>
+                    <p id="mg-resumo" style="color:var(--text-main);font-size:13px;line-height:1.6;margin:0"></p>
+                    <div style="margin-top:10px;font-size:11px;color:var(--text-muted)">
+                        <i class="ri-database-2-line"></i> <span id="mg-total-posts">0</span> fontes analisadas
+                    </div>
+                </div>
+
+                <!-- Oportunidades Políticas -->
+                <div class="stat-card" style="padding:16px">
+                    <div
+                        style="font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">
+                        <i class="ri-lightbulb-line" style="color:#f59e0b"></i> Oportunidades Políticas
+                    </div>
+                    <ul id="mg-oportunidades"
+                        style="margin:0;padding-left:18px;color:var(--text-main);font-size:13px;line-height:1.8"></ul>
+                </div>
+
+                <!-- Sugestão Tráfego Pago -->
+                <div class="stat-card"
+                    style="padding:16px;background:rgba(26,58,107,0.15);border-color:rgba(26,58,107,0.4)">
+                    <div
+                        style="font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">
+                        <i class="ri-advertisement-line" style="color:#818cf8"></i> Copy para Tráfego Pago
+                    </div>
+                    <p id="mg-copy-ad" style="color:#a5b4fc;font-size:13px;line-height:1.6;margin:0;font-style:italic">
+                    </p>
+                </div>
+            </div>
+
+            <!-- Temas encontrados -->
+            <div style="margin-bottom:20px">
+                <div
+                    style="font-size:13px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px">
+                    Temas Encontrados
+                </div>
+                <div id="mg-temas-grid"
+                    style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px"></div>
+            </div>
+        </div>
+
+        <!-- Estado vazio / loading -->
+        <div id="radar-mg-empty" style="text-align:center;padding:60px 20px;color:var(--text-muted)">
+            <i class="ri-map-2-line" style="font-size:48px;opacity:.3;display:block;margin-bottom:12px"></i>
+            <p>Digite o nome de uma cidade mineira para iniciar a pesquisa.</p>
+        </div>
+
+        <!-- Pesquisas anteriores -->
+        <div id="radar-mg-historico" style="margin-top:24px;display:none">
+            <div
+                style="font-size:13px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px">
+                Pesquisas Anteriores
+            </div>
+            <div id="mg-historico-lista" style="display:flex;flex-direction:column;gap:8px"></div>
+        </div>
+    </div>
+
+    <!-- MAPA ELEITORAL VIEW -->
+    <div class="main hidden" id="view-mapa-eleitoral">
+        <div class="page-header">
+            <div class="page-title">
+                <h1><i class="ri-bar-chart-grouped-line" style="color:#1a3a6b"></i> Mapa Eleitoral — <span
+                        id="me-region-title">Vale do Rio Doce</span></h1>
+                <p>Potencial eleitoral para Deputado Estadual | Aliança Nikolas + Bruno + Matheus</p>
+            </div>
+            <select id="me-region-select" class="filter-select" onchange="switchMapaRegion(this.value)"
+                style="min-width:220px;font-size:0.9rem;padding:10px 14px;background:var(--bg-card);border:1px solid var(--accent-primary);color:var(--text-main);border-radius:8px;font-weight:600">
+                <option value="rio-doce">🗺️ Vale do Rio Doce</option>
+                <option value="jequitinhonha">🗺️ Vale do Jequitinhonha</option>
+                <option value="mucuri">🗺️ Vale do Mucuri</option>
+            </select>
+        </div>
+
+        <!-- Header Banner -->
+        <div
+            style="background:linear-gradient(135deg,#0f172a 0%,#1e293b 50%,#0f2347 100%);border:1px solid rgba(26,58,107,0.5);border-radius:16px;padding:28px 32px;margin-bottom:24px;position:relative;overflow:hidden">
+            <div
+                style="position:absolute;top:-20px;right:-20px;width:200px;height:200px;background:radial-gradient(circle,rgba(26,58,107,0.3),transparent);border-radius:50%">
+            </div>
+            <div style="position:relative;z-index:1">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+                    <span
+                        style="background:#1a3a6b;color:#7ba4d4;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;letter-spacing:.5px">ESTRATÉGIA
+                        2026</span>
+                </div>
+                <h2 id="me-banner-title" style="font-size:1.5rem;margin-bottom:6px;color:#fff">O Vale do Rio Doce
+                    precisa de um Deputado Estadual aliado</h2>
+                <p id="me-banner-desc" style="color:#94a3b8;font-size:0.9rem;max-width:700px;line-height:1.5">Nikolas
+                    Ferreira e Bruno
+                    Engler já dominam a região. Matheus Braga é o candidato ideal para canalizar esses votos para a
+                    Assembleia Legislativa.</p>
+            </div>
+        </div>
+
+        <!-- Stats Cards -->
+        <div class="stats-grid" id="me-stats" style="margin-bottom:24px">
+            <div class="stat-card" style="border-left:3px solid #3b82f6">
+                <div class="stat-label">Votos Nikolas <span style="color:#3b82f6">Dep. Federal</span></div>
+                <div class="stat-value" id="me-total-nikolas" style="color:#3b82f6">—</div>
+                <div class="stat-sub">na região do Vale</div>
+            </div>
+            <div class="stat-card" style="border-left:3px solid #8b5cf6">
+                <div class="stat-label">Votos Bruno <span style="color:#8b5cf6">Dep. Estadual</span></div>
+                <div class="stat-value" id="me-total-engler" style="color:#8b5cf6">—</div>
+                <div class="stat-sub">na região do Vale</div>
+            </div>
+            <div class="stat-card" style="border-left:3px solid #f59e0b">
+                <div class="stat-label">Potencial Combinado <i class="ri-fire-fill" style="color:#f59e0b"></i></div>
+                <div class="stat-value" id="me-total-combinado" style="color:#f59e0b">—</div>
+                <div class="stat-sub">votos da aliança na região</div>
+            </div>
+            <div class="stat-card" style="border-left:3px solid #22c55e">
+                <div class="stat-label">Cidades Mapeadas <i class="ri-map-pin-line" style="color:#22c55e"></i></div>
+                <div class="stat-value" id="me-total-cidades" style="color:#22c55e">—</div>
+                <div class="stat-sub">em 7 regiões polo</div>
+            </div>
+        </div>
+
+        <!-- Region Breakdown -->
+        <div class="dash-row" style="margin-bottom:24px">
+            <div class="chart-box">
+                <div class="chart-header"><i class="ri-bar-chart-2-fill" style="color:#1a3a6b"></i> Votos por Região
+                    Polo</div>
+                <div id="me-regions-chart" style="padding:12px 0"></div>
+            </div>
+            <div class="chart-box">
+                <div class="chart-header"><i class="ri-pie-chart-2-fill" style="color:#f59e0b"></i> Distribuição por
+                    Polo</div>
+                <div style="position:relative;width:200px;height:200px;margin:16px auto">
+                    <canvas id="me-donut-chart"></canvas>
+                </div>
+                <div id="me-donut-legend"
+                    style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:12px"></div>
+            </div>
+        </div>
+
+        <!-- Top Cities Ranking -->
+        <div class="chart-box" style="margin-bottom:24px">
+            <div class="chart-header" style="margin-bottom:16px">
+                <i class="ri-trophy-fill" style="color:#f59e0b"></i> Ranking de Cidades — Top 20
+                <div style="margin-left:auto;display:flex;gap:8px">
+                    <button id="btn-sort-nikolas" onclick="sortMapaTable('nikolas')" class="export-btn"
+                        style="font-size:11px;padding:5px 12px;background:#3b82f6">Nikolas</button>
+                    <button id="btn-sort-engler" onclick="sortMapaTable('engler')" class="export-btn"
+                        style="font-size:11px;padding:5px 12px;background:#8b5cf6">Bruno</button>
+                    <button id="btn-sort-total" onclick="sortMapaTable('total')" class="export-btn"
+                        style="font-size:11px;padding:5px 12px;background:#f59e0b">Combinado</button>
+                </div>
+            </div>
+            <table class="radar-table" id="me-ranking-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Cidade</th>
+                        <th>Polo</th>
+                        <th style="text-align:right;color:#3b82f6">Nikolas</th>
+                        <th style="text-align:right;color:#8b5cf6">Bruno</th>
+                        <th style="text-align:right;color:#f59e0b">Total</th>
+                        <th style="width:200px">Proporção</th>
+                    </tr>
+                </thead>
+                <tbody id="me-ranking-body"></tbody>
+            </table>
+        </div>
+
+        <!-- Full City List by Region -->
+        <div class="chart-box">
+            <div class="chart-header" style="margin-bottom:12px">
+                <i class="ri-list-check-2" style="color:#1a3a6b"></i> Todas as Cidades por Região
+                <input id="me-search" type="text" placeholder="Buscar cidade..." class="filter-input"
+                    style="margin-left:auto;width:200px;font-size:12px" oninput="filterMapaCidades()">
+            </div>
+            <div id="me-all-regions"></div>
+        </div>
+    </div>
+
+    <!-- SIMULADOR DE CONQUISTA VIEW -->
+    <div class="main hidden" id="view-simulador">
+        <div class="page-header">
+            <div class="page-title">
+                <h1><i class="ri-crosshair-2-line" style="color:#f59e0b"></i> Simulador de Conquista</h1>
+                <p>Plano estratégico para deputado estadual | 178 cidades mapeadas</p>
+            </div>
+        </div>
+
+        <!-- Conversion Slider -->
+        <div
+            style="background:linear-gradient(135deg,#0f172a 0%,#1e293b 50%,#0f2347 100%);border:1px solid rgba(26,58,107,0.5);border-radius:16px;padding:28px 32px;margin-bottom:24px;position:relative;overflow:hidden">
+            <div
+                style="position:absolute;top:-20px;right:-20px;width:200px;height:200px;background:radial-gradient(circle,rgba(245,158,11,0.15),transparent);border-radius:50%">
+            </div>
+            <div style="position:relative;z-index:1">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+                    <span
+                        style="background:#f59e0b;color:#000;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;letter-spacing:.5px">SIMULADOR</span>
+                    <span style="color:#94a3b8;font-size:13px">Se Matheus capturar <strong id="sim-pct-label"
+                            style="color:#f59e0b;font-size:16px">40%</strong> da base eleitoral de Nikolas +
+                        Bruno...</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:16px">
+                    <span style="color:#64748b;font-size:12px;font-weight:600">30%</span>
+                    <input type="range" id="sim-slider" min="30" max="70" value="40" step="5"
+                        oninput="updateSimConversion(this.value)" style="flex:1;accent-color:#f59e0b;height:8px">
+                    <span style="color:#64748b;font-size:12px;font-weight:600">70%</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;margin-top:16px;flex-wrap:wrap;gap:12px">
+                    <div style="text-align:center">
+                        <div
+                            style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">
+                            Base total aliança</div>
+                        <div id="sim-base-total" style="font-size:1.8rem;font-weight:700;color:#fff">—</div>
+                    </div>
+                    <div style="text-align:center">
+                        <div
+                            style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">
+                            Projeção Matheus</div>
+                        <div id="sim-projecao" style="font-size:1.8rem;font-weight:700;color:#f59e0b">—</div>
+                    </div>
+                    <div style="text-align:center">
+                        <div
+                            style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">
+                            Meta para eleger</div>
+                        <div style="font-size:1.8rem;font-weight:700;color:#22c55e">80.000</div>
+                    </div>
+                    <div style="text-align:center">
+                        <div
+                            style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">
+                            Status</div>
+                        <div id="sim-status" style="font-size:1.4rem;font-weight:700">—</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Priority Tier Cards -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px" id="sim-tiers">
+            <div class="stat-card" style="border-left:3px solid #ef4444">
+                <div class="stat-label"><span
+                        style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#ef4444;margin-right:4px"></span>
+                    Prioridade MÁXIMA</div>
+                <div class="stat-value" id="sim-tier-max" style="color:#ef4444">—</div>
+                <div class="stat-sub" id="sim-tier-max-desc">5.000+ votos combinados</div>
+            </div>
+            <div class="stat-card" style="border-left:3px solid #f59e0b">
+                <div class="stat-label"><span
+                        style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#f59e0b;margin-right:4px"></span>
+                    Prioridade ALTA</div>
+                <div class="stat-value" id="sim-tier-alta" style="color:#f59e0b">—</div>
+                <div class="stat-sub" id="sim-tier-alta-desc">1.000–5.000 votos</div>
+            </div>
+            <div class="stat-card" style="border-left:3px solid #3b82f6">
+                <div class="stat-label"><span
+                        style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#3b82f6;margin-right:4px"></span>
+                    Prioridade MÉDIA</div>
+                <div class="stat-value" id="sim-tier-media" style="color:#3b82f6">—</div>
+                <div class="stat-sub" id="sim-tier-media-desc">500–1.000 votos</div>
+            </div>
+            <div class="stat-card" style="border-left:3px solid #6b7280">
+                <div class="stat-label"><span
+                        style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#6b7280;margin-right:4px"></span>
+                    Manutenção</div>
+                <div class="stat-value" id="sim-tier-manut" style="color:#6b7280">—</div>
+                <div class="stat-sub" id="sim-tier-manut-desc">Abaixo de 500</div>
+            </div>
+        </div>
+
+        <!-- Region Breakdown -->
+        <div class="chart-box" style="margin-bottom:24px">
+            <div class="chart-header"><i class="ri-map-pin-2-fill" style="color:#1a3a6b"></i> Projeção por Região</div>
+            <div id="sim-regions-bars" style="padding:12px 0"></div>
+        </div>
+
+        <!-- Campaign Table -->
+        <div class="chart-box">
+            <div class="chart-header" style="margin-bottom:12px">
+                <i class="ri-crosshair-2-line" style="color:#f59e0b"></i> Plano de Campanha — Todas as Cidades
+                <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+                    <select id="sim-filter-tier" class="filter-select"
+                        style="font-size:12px;padding:5px 10px;min-width:140px" onchange="filterSimTable()">
+                        <option value="">Todas Prioridades</option>
+                        <option value="maxima">🔴 Máxima</option>
+                        <option value="alta">🟡 Alta</option>
+                        <option value="media">🔵 Média</option>
+                        <option value="manut">⚪ Manutenção</option>
+                    </select>
+                    <select id="sim-filter-status" class="filter-select"
+                        style="font-size:12px;padding:5px 10px;min-width:140px" onchange="filterSimTable()">
+                        <option value="">Todos Status</option>
+                        <option value="nao_iniciado">🔴 Não iniciado</option>
+                        <option value="em_trabalho">🟡 Em trabalho</option>
+                        <option value="consolidado">🟢 Consolidado</option>
+                    </select>
+                    <input id="sim-search" type="text" placeholder="Buscar cidade..." class="filter-input"
+                        style="width:160px;font-size:12px" oninput="filterSimTable()">
+                </div>
+            </div>
+            <table class="radar-table" id="sim-table">
+                <thead>
+                    <tr>
+                        <th style="width:30px">#</th>
+                        <th>Prioridade</th>
+                        <th>Cidade</th>
+                        <th>Região</th>
+                        <th style="text-align:right">Base Aliança</th>
+                        <th style="text-align:right;color:#f59e0b">Meta Matheus</th>
+                        <th style="width:120px">Barra</th>
+                        <th style="width:150px">Status Campanha</th>
+                    </tr>
+                </thead>
+                <tbody id="sim-table-body"></tbody>
+            </table>
+            <div style="margin-top:16px;display:flex;justify-content:space-between;align-items:center;padding:0 4px">
+                <span id="sim-table-count" style="font-size:12px;color:var(--text-muted)"></span>
+                <span id="sim-progress-summary" style="font-size:12px;color:var(--text-muted)"></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- COLETAR DADOS VIEW -->
+    <div class="main hidden" id="view-coletar">
+        <div class="page-header">
+            <div class="page-title">
+                <h1><i class="ri-download-cloud-2-line" style="color:#10b981"></i> Coletar Dados</h1>
+                <p>Scraping curado — cole URLs de posts para análise inteligente</p>
+            </div>
+        </div>
+
+        <!-- Input Form -->
+        <div
+            style="flex-shrink:0;background:linear-gradient(135deg,#0f172a 0%,#1e293b 50%,#0a2e1a 100%);border:1px solid rgba(16,185,129,0.3);border-radius:16px;padding:28px 32px;margin-bottom:24px;position:relative;overflow:hidden">
+            <div
+                style="position:absolute;top:-20px;right:-20px;width:200px;height:200px;background:radial-gradient(circle,rgba(16,185,129,0.12),transparent);border-radius:50%">
+            </div>
+            <div style="position:relative;z-index:1">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+                    <span
+                        style="background:#10b981;color:#000;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;letter-spacing:.5px">COLETA
+                        CURADA</span>
+                    <span style="color:#94a3b8;font-size:13px">Cole URLs de posts do Instagram para extrair e analisar
+                        comentários com IA</span>
+                </div>
+                <div style="display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap">
+                    <input id="coleta-contexto" type="text"
+                        placeholder="Contexto (ex: Nikolas Ferreira, Bruno Engler...)" class="filter-input"
+                        style="flex:1;min-width:250px;padding:12px 16px;font-size:0.9rem;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:#fff;border-radius:8px"
+                        value="Nikolas Ferreira">
+                </div>
+                <textarea id="coleta-urls" placeholder="Cole as URLs dos posts do Instagram (uma por linha):
+https://www.instagram.com/p/XXXXX/
+https://www.instagram.com/p/YYYYY/"
+                    style="width:100%;min-height:100px;padding:12px 16px;font-size:0.85rem;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:#fff;border-radius:8px;resize:vertical;font-family:monospace"></textarea>
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px">
+                    <span id="coleta-url-count" style="font-size:12px;color:#64748b">0 URLs detectadas</span>
+                    <button id="btn-coletar" onclick="iniciarColeta()" class="export-btn"
+                        style="background:linear-gradient(135deg,#10b981,#059669);padding:10px 24px;font-size:14px;font-weight:600">
+                        <i class="ri-search-eye-line"></i> Analisar Comentários
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading -->
+        <div id="coleta-loading" style="display:none;text-align:center;padding:40px">
+            <div style="font-size:2rem;margin-bottom:12px;animation:pulse 1.5s ease infinite">&#128270;</div>
+            <div style="color:#10b981;font-weight:600;font-size:1.1rem">Analisando comentários...</div>
+            <div style="color:#94a3b8;font-size:13px;margin-top:4px">Buscando via Apify → Filtrando qualidade →
+                Classificando com IA</div>
+        </div>
+
+        <!-- Results -->
+        <div id="coleta-results" style="display:none">
+            <!-- Stats Cards -->
+            <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:24px">
+                <div class="stat-card" style="border-left:3px solid #64748b">
+                    <div class="stat-label">Brutos encontrados</div>
+                    <div class="stat-value" id="col-total-bruto" style="color:#64748b">—</div>
+                </div>
+                <div class="stat-card" style="border-left:3px solid #ef4444">
+                    <div class="stat-label">Descartados (lixo)</div>
+                    <div class="stat-value" id="col-descartados" style="color:#ef4444">—</div>
+                </div>
+                <div class="stat-card" style="border-left:3px solid #22c55e">
+                    <div class="stat-label">👍 Positivos</div>
+                    <div class="stat-value" id="col-positivos" style="color:#22c55e">—</div>
+                </div>
+                <div class="stat-card" style="border-left:3px solid #ef4444">
+                    <div class="stat-label">👎 Negativos</div>
+                    <div class="stat-value" id="col-negativos" style="color:#ef4444">—</div>
+                </div>
+                <div class="stat-card" style="border-left:3px solid #f59e0b">
+                    <div class="stat-label">➖ Neutros</div>
+                    <div class="stat-value" id="col-neutros" style="color:#f59e0b">—</div>
+                </div>
+            </div>
+
+            <!-- Category Breakdown -->
+            <div class="chart-box" style="margin-bottom:24px">
+                <div class="chart-header"><i class="ri-pie-chart-2-fill" style="color:#10b981"></i> Categorias
+                    Identificadas</div>
+                <div id="col-categorias" style="padding:12px 0"></div>
+            </div>
+
+            <!-- Comments List -->
+            <div class="chart-box">
+                <div class="chart-header" style="margin-bottom:12px">
+                    <i class="ri-chat-3-fill" style="color:#10b981"></i> Comentários Analisados
+                    <div style="margin-left:auto;display:flex;gap:8px">
+                        <select id="col-filter-sent" class="filter-select" style="font-size:12px;padding:5px 10px"
+                            onchange="filterColResults()">
+                            <option value="">Todos</option>
+                            <option value="Positivo">👍 Positivos</option>
+                            <option value="Negativo">👎 Negativos</option>
+                            <option value="Neutro">➖ Neutros</option>
+                        </select>
+                        <input id="col-filter-text" type="text" placeholder="Buscar..." class="filter-input"
+                            style="width:160px;font-size:12px" oninput="filterColResults()">
+                    </div>
+                </div>
+                <div id="col-comments-list"></div>
+                <div id="col-comments-count"
+                    style="font-size:12px;color:var(--text-muted);margin-top:12px;padding:0 4px"></div>
+            </div>
+        </div>
+
+        <!-- History -->
+        <div class="chart-box" style="margin-top:24px">
+            <div class="chart-header"><i class="ri-history-fill" style="color:#64748b"></i> Histórico de Coletas</div>
+            <div id="col-history" style="padding:12px 0;color:var(--text-muted);font-size:13px">Carregando...</div>
+        </div>
+    </div>
+
+    <script>
+        // State
+        let currentChartDonut = null;
+        let currentChartBar = null;
+        let radarSentimentChartInst = null;
+        let adversarios = [];
+
+        // Mobile Menu Toggle
+        function toggleMobileMenu() {
+            const sidebar = document.querySelector('.sidebar');
+            const overlay = document.querySelector('.sidebar-overlay');
+            const icon = document.getElementById('burger-icon');
+
+            sidebar.classList.toggle('active');
+            overlay.classList.toggle('active');
+
+            if (sidebar.classList.contains('active')) {
+                icon.className = 'ri-close-line';
+            } else {
+                icon.className = 'ri-menu-line';
+            }
+        }
+
+        // Navigation
+        function nav(view, el) {
+            document.querySelectorAll('.main').forEach(d => d.classList.add('hidden'));
+            document.getElementById('view-' + view).classList.remove('hidden');
+
+            document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+            el.classList.add('active');
+
+            if (window.innerWidth <= 768) {
+                const sidebar = document.querySelector('.sidebar');
+                const overlay = document.querySelector('.sidebar-overlay');
+                const icon = document.getElementById('burger-icon');
+                sidebar.classList.remove('active');
+                overlay.classList.remove('active');
+                if (icon) icon.className = 'ri-menu-line';
+            }
+
+            if (view === 'dashboard') loadData();
+            if (view === 'feedbacks') {
+                document.getElementById('filtro-status').value = 'ativos';
+                aplicarFiltros();
+            }
+            if (view === 'regions' || view === 'categories') loadConfigViews();
+            if (view === 'radar-comentarios') {
+                // NUNCA dispara scraper automaticamente — apenas re-exibe dados já carregados
+                if (_comentariosCompletos.length > 0) {
+                    filtrarEExibir();
+                } else {
+                    // Tentar carregar dados salvos em disco (sem disparar Apify)
+                    _carregarCacheDisco();
+                }
+            }
+            if (view === 'radar-noticias') buscarNoticias();
+            if (view === 'radar-mg') { inicializarMapaMG(); carregarPesquisasAnteriores(); }
+            if (view === 'mapa-eleitoral') loadMapaEleitoral();
+            if (view === 'simulador') loadSimulador();
+            if (view === 'coletar') loadColetaHistory();
+        }
+
+        // Fetch Logic
+        async function loadData() {
+            const [evRes, cfgRes] = await Promise.all([fetch('/api/events'), fetch('/api/config')]);
+            const events = await evRes.json();
+            const config = await cfgRes.json();
+
+            document.getElementById('kpi-today').innerText = events.length;
+
+            const regCount = {};
+            events.forEach(e => {
+                if (e.region && e.region !== 'N/A') {
+                    regCount[e.region] = (regCount[e.region] || 0) + 1;
+                }
+            });
+            const topReg = Object.keys(regCount).length ? Object.keys(regCount).reduce((a, b) => regCount[a] > regCount[b] ? a : b) : "Nenhuma";
+            document.getElementById('kpi-region').innerText = topReg;
+            document.getElementById('kpi-region-count').innerText = (regCount[topReg] || 0) + " feedbacks";
+
+            const catCount = {};
+            events.forEach(e => catCount[e.category] = (catCount[e.category] || 0) + 1);
+            const topCat = Object.keys(catCount).length ? Object.keys(catCount).reduce((a, b) => catCount[a] > catCount[b] ? a : b) : "N/A";
+            document.getElementById('kpi-cat').innerText = topCat;
+            document.getElementById('kpi-cat-count').innerText = (catCount[topCat] || 0) + " feedbacks";
+
+            renderCharts(events, config.categories);
+            loadAiPulse();
+        }
+
+        async function loadAiPulse() {
+            try {
+                const res = await fetch('/api/ai-pulse');
+                const data = await res.json();
+
+                const summaryEl = document.getElementById('ai-pulse-summary');
+                const updatedEl = document.getElementById('ai-pulse-updated');
+                const cardEl = document.getElementById('ai-pulse-card');
+
+                summaryEl.innerText = data.summary || 'Sem análise disponível';
+
+                if (data.updated_at) {
+                    updatedEl.innerText = `${data.feedbacks_count || 0} feedbacks • Atualizado: ${formatarTempo(data.updated_at)}`;
+                }
+
+                const statusColors = {
+                    'good': '#22c55e',
+                    'warning': '#f59e0b',
+                    'critical': '#ef4444',
+                    'waiting': '#6b7280',
+                    'error': '#6b7280'
+                };
+                cardEl.style.borderLeftColor = statusColors[data.status] || '#a855f7';
+
+            } catch (e) {
+                console.error('Erro ao carregar AI Pulse:', e);
+                document.getElementById('ai-pulse-summary').innerText = 'Erro ao carregar análise';
+            }
+        }
+
+        function formatarTempo(timestamp) {
+            if (!timestamp) return 'Desconhecido';
+
+            let data;
+            if (timestamp.indexOf('/') > -1) {
+                const [datePart, timePart] = timestamp.split(' ');
+                const [dia, mes, ano] = datePart.split('/');
+                const [hora, minuto] = timePart.split(':');
+                data = new Date(`20${ano}-${mes}-${dia}T${hora}:${minuto}:00`);
+            } else {
+                data = new Date(timestamp);
+            }
+
+            const agora = new Date();
+            const diffMs = agora - data;
+            const diffMin = Math.floor(diffMs / 60000);
+            const diffHoras = Math.floor(diffMin / 60);
+
+            if (diffMin < 1) return 'Agora mesmo';
+            if (diffMin < 60) return `Há ${diffMin} min`;
+            if (diffHoras < 24) return `Há ${diffHoras}h`;
+
+            const opcoes = { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' };
+            return data.toLocaleString('pt-BR', opcoes);
+        }
+
+        function parseThread(rawMessage) {
+            if (!rawMessage) return [{ label: 'original', text: '', time: null }];
+
+            const regex = /\n\n\[Atualiza[çc][ãa]o(?:\s+(\d{2}:\d{2}))?\]:\s*/gi;
+
+            let lastIndex = 0;
+            let match;
+            let segTexts = [];
+            let segTimes = [];
+
+            while ((match = regex.exec(rawMessage)) !== null) {
+                segTexts.push(rawMessage.slice(lastIndex, match.index).trim());
+                segTimes.push(match[1] || null);
+                lastIndex = match.index + match[0].length;
+            }
+            segTexts.push(rawMessage.slice(lastIndex).trim());
+
+            return segTexts.map((t, i) => ({
+                label: i === 0 ? 'original' : 'update',
+                text: t,
+                time: i === 0 ? null : segTimes[i - 1]
+            }));
+        }
+
+        function fmtHHMM(isoTs) {
+            if (!isoTs) return '';
+            try {
+                const d = new Date(isoTs);
+                return d.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
+            } catch { return ''; }
+        }
+
+        let totalFeedbacks = 0;
+        let _allEventsCache = [];
+
+        function getCategoryColor(category) {
+            const map = {
+                'Propostas & Projetos': '#1a3a6b',
+                'Infraestrutura & Obras': '#f59e0b',
+                'Saúde & Educação': '#38bdf8',
+                'Segurança Pública': '#ef4444',
+                'Transporte & Mobilidade': '#818cf8',
+                'Meio Ambiente': '#16a34a',
+                'Desenvolvimento Econômico': '#84cc16',
+                'Assistência Social': '#f97316',
+            };
+            return map[category] || '#6b7280';
+        }
+
+        async function loadFeedbacks(filterUrl = '/api/events') {
+            const res = await fetch(filterUrl);
+            let events = await res.json();
+            const currentStatusFilter = document.getElementById('filtro-status')?.value || 'ativos';
+            if (currentStatusFilter === 'ativos') {
+                events = events.filter(e => (e.status || 'aberto') !== 'resolvido');
+            }
+            _allEventsCache = events;
+            const container = document.getElementById('feed-list-container');
+            container.innerHTML = '';
+
+            const countEl = document.getElementById('filter-count');
+            if (filterUrl === '/api/events') {
+                totalFeedbacks = events.length;
+                countEl.innerText = `${events.length} feedbacks`;
+            } else {
+                countEl.innerText = `Mostrando ${events.length} de ${totalFeedbacks} feedbacks`;
+            }
+
+            if (events.length === 0) {
+                container.innerHTML = '<p style="color:var(--text-muted)">Nenhum feedback encontrado com esses filtros.</p>';
+                return;
+            }
+
+            events.forEach(e => {
+                let urgencyColor = '#3b82f6';
+                const u = (e.urgency || '').toLowerCase();
+                if (u.includes('crit') || u.includes('crít')) urgencyColor = '#ef4444';
+                else if (u.includes('urge')) urgencyColor = '#f59e0b';
+                else if (u.includes('aten')) urgencyColor = '#fcd34d';
+                else if (u.includes('posi')) urgencyColor = '#10b981';
+
+                const status = e.status || 'aberto';
+                const statusConfig = {
+                    'aberto': { color: '#EF4444', label: 'Aberto', icon: 'ri-error-warning-line' },
+                    'em_andamento': { color: '#F59E0B', label: 'Em Andamento', icon: 'ri-loader-4-line' },
+                    'resolvido': { color: '#10B981', label: 'Resolvido', icon: 'ri-checkbox-circle-line' }
+                };
+                const sc = statusConfig[status] || statusConfig['aberto'];
+                const statusDropdownHtml = `
+                    <div class="status-dropdown" style="position:relative;">
+                        <button onclick="event.stopPropagation(); toggleStatusMenu(${e.id})" class="status-btn" style="background:${sc.color}20; color:${sc.color}; border:1px solid ${sc.color}; padding:4px 10px; border-radius:4px; cursor:pointer; font-size:0.75rem; font-weight:600; display:flex; align-items:center; gap:4px;">
+                            <i class="${sc.icon}"></i> ${sc.label} <i class="ri-arrow-down-s-line"></i>
+                        </button>
+                        <div id="status-menu-${e.id}" class="status-menu hidden" style="position:absolute; right:0; top:100%; background:var(--bg-card); border:1px solid var(--border); border-radius:6px; padding:4px; z-index:100; min-width:140px; margin-top:4px;">
+                            <div onclick="event.stopPropagation(); updateStatus(${e.id}, 'aberto')" style="padding:8px 12px; cursor:pointer; border-radius:4px; display:flex; align-items:center; gap:6px; color:#EF4444;" onmouseover="this.style.background='var(--bg-hover)'" onmouseout="this.style.background='transparent'"><i class="ri-error-warning-line"></i> Aberto</div>
+                            <div onclick="event.stopPropagation(); updateStatus(${e.id}, 'em_andamento')" style="padding:8px 12px; cursor:pointer; border-radius:4px; display:flex; align-items:center; gap:6px; color:#F59E0B;" onmouseover="this.style.background='var(--bg-hover)'" onmouseout="this.style.background='transparent'"><i class="ri-loader-4-line"></i> Em Andamento</div>
+                            <div onclick="event.stopPropagation(); updateStatus(${e.id}, 'resolvido')" style="padding:8px 12px; cursor:pointer; border-radius:4px; display:flex; align-items:center; gap:6px; color:#10B981;" onmouseover="this.style.background='var(--bg-hover)'" onmouseout="this.style.background='transparent'"><i class="ri-checkbox-circle-line"></i> Resolvido</div>
+                        </div>
+                    </div>`;
+
+                const thread = parseThread(e.message);
+                const updateCount = thread.length - 1;
+                const firstMsg = thread[0].text;
+                const updateBadge = updateCount > 0
+                    ? `<div class="update-badge"><i class="ri-chat-3-line"></i> ${updateCount} atualiza${updateCount === 1 ? 'ção' : 'ções'}</div>`
+                    : '';
+
+                container.innerHTML += `
+                    <div class="feedback-card clickable" onclick="openThreadModal(${e.id})" data-id="${e.id}">
+                        <div class="fb-header">
+                            <span class="fb-tag" style="background:${getCategoryColor(e.category)}20; color:${getCategoryColor(e.category)}; border:1px solid ${getCategoryColor(e.category)}">${e.category}</span>
+                            <div class="fb-time" title="${e.timestamp}"><i class="ri-time-line"></i> ${formatarTempo(e.timestamp)}</div>
+                        </div>
+                        <div class="fb-msg">${firstMsg}</div>
+                        ${updateBadge}
+                        <div class="fb-footer" style="margin-top:10px;">
+                            <span><span class="priority-dot" style="background:${urgencyColor}"></span>${e.urgency || 'Neutro'}</span>
+                            ${statusDropdownHtml}
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function openThreadModal(eventId) {
+            const e = _allEventsCache.find(ev => ev.id === eventId);
+            if (!e) return;
+            const u = (e.urgency || '').toLowerCase();
+            let urgencyColor = '#3b82f6';
+            if (u.includes('crit') || u.includes('crít')) urgencyColor = '#ef4444';
+            else if (u.includes('urge')) urgencyColor = '#f59e0b';
+            else if (u.includes('aten')) urgencyColor = '#fcd34d';
+            else if (u.includes('posi')) urgencyColor = '#10b981';
+
+            const rawSender = e.remoteJid || e.sender || '';
+            const senderNumber = rawSender.replace('@s.whatsapp.net', '').replace(/\D/g, '');
+            const displayPhone = senderNumber ? `📱 ${senderNumber.replace(/^55/, '').replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3')}` : 'Número desconhecido';
+            const displayName = e.name || e.sender_name || 'Cidadão';
+            const whatsappLink = senderNumber ? `<a href="https://wa.me/${senderNumber}" target="_blank" class="whatsapp-contact-btn" style="text-decoration:none;"><i class="ri-phone-fill"></i></a>` : '';
+
+            const thread = parseThread(e.message);
+            const timelineHtml = thread.map((item, idx) => {
+                const timeBadge = idx === 0
+                    ? (e.timestamp ? `<span class="msg-time-badge"><i class="ri-time-line"></i> ${fmtHHMM(e.timestamp)}</span>` : '')
+                    : (item.time ? `<span class="msg-time-badge update-time"><i class="ri-time-line"></i> ${item.time}</span>` : '');
+                return `
+                <div class="thread-item">
+                    <div class="thread-line"></div>
+                    <div class="thread-dot ${item.label}">${idx === 0 ? '<i class="ri-message-2-line"></i>' : '<i class="ri-refresh-line"></i>'}</div>
+                    <div class="thread-content">
+                        <div class="thread-content-label ${item.label}" style="display:flex;align-items:center;justify-content:space-between;">
+                            <span>${idx === 0 ? 'Mensagem Original' : `Atualização ${idx}`}</span>
+                            ${timeBadge}
+                        </div>
+                        <div class="thread-content-text">${item.text}</div>
+                    </div>
+                </div>`;
+            }).join('');
+
+            const status = e.status || 'aberto';
+            const sc = { 'aberto': { color: '#EF4444', label: 'Aberto', icon: 'ri-error-warning-line' }, 'em_andamento': { color: '#F59E0B', label: 'Em Andamento', icon: 'ri-loader-4-line' }, 'resolvido': { color: '#10B981', label: 'Resolvido', icon: 'ri-checkbox-circle-line' } }[status] || { color: '#EF4444', label: 'Aberto', icon: 'ri-error-warning-line' };
+            const showStatus = u.includes('urge') || u.includes('crit') || u.includes('crít');
+            const statusHtmlModal = showStatus ? `
+                <div class="status-dropdown" style="position:relative;">
+                    <button onclick="toggleStatusMenu('modal-${e.id}')" style="background:${sc.color}20; color:${sc.color}; border:1px solid ${sc.color}; padding:5px 12px; border-radius:6px; cursor:pointer; font-size:0.8rem; font-weight:600; display:flex; align-items:center; gap:5px;">
+                        <i class="${sc.icon}"></i> ${sc.label} <i class="ri-arrow-down-s-line"></i>
+                    </button>
+                    <div id="status-menu-modal-${e.id}" class="status-menu hidden" style="position:absolute; right:0; bottom:100%; background:var(--bg-card); border:1px solid var(--border); border-radius:6px; padding:4px; z-index:200; min-width:140px; margin-bottom:4px;">
+                        <div onclick="updateStatus(${e.id}, 'aberto'); closeThreadModal()" style="padding:8px 12px; cursor:pointer; border-radius:4px; display:flex; align-items:center; gap:6px; color:#EF4444;" onmouseover="this.style.background='var(--bg-hover)'" onmouseout="this.style.background='transparent'"><i class="ri-error-warning-line"></i> Aberto</div>
+                        <div onclick="updateStatus(${e.id}, 'em_andamento'); closeThreadModal()" style="padding:8px 12px; cursor:pointer; border-radius:4px; display:flex; align-items:center; gap:6px; color:#F59E0B;" onmouseover="this.style.background='var(--bg-hover)'" onmouseout="this.style.background='transparent'"><i class="ri-loader-4-line"></i> Em Andamento</div>
+                        <div onclick="updateStatus(${e.id}, 'resolvido'); closeThreadModal()" style="padding:8px 12px; cursor:pointer; border-radius:4px; display:flex; align-items:center; gap:6px; color:#10B981;" onmouseover="this.style.background='var(--bg-hover)'" onmouseout="this.style.background='transparent'"><i class="ri-checkbox-circle-line"></i> Resolvido</div>
+                    </div>
+                </div>` : `<span style="font-size:0.8rem; color:${urgencyColor};"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${urgencyColor};margin-right:5px;"></span>${e.urgency || 'Neutro'}</span>`;
+
+            document.getElementById('thread-modal-body').innerHTML = `
+                <div class="thread-header">
+                    <div>
+                        <div style="font-size:1.1rem; font-weight:700; display:flex; align-items:center; gap:8px;"><i class="ri-chat-3-fill" style="color:#1a3a6b;"></i> ${displayName}</div>
+                        <div class="thread-sender">${displayPhone} ${whatsappLink} <span style="color:var(--border)">|</span> <span style="background:${getCategoryColor(e.category)}20;color:${getCategoryColor(e.category)};border:1px solid ${getCategoryColor(e.category)};font-size:0.7rem;font-weight:700;padding:2px 8px;border-radius:4px;">${e.category}</span></div>
+                    </div>
+                    <button onclick="closeThreadModal()" style="background:transparent;border:none;color:var(--text-muted);font-size:1.4rem;cursor:pointer;line-height:1;">×</button>
+                </div>
+                <div class="thread-timeline">${timelineHtml}</div>
+                <div class="thread-footer">
+                    ${statusHtmlModal}
+                    <div style="font-size:0.78rem; color:var(--text-muted); display:flex; flex-direction:column; align-items:flex-end; gap:2px;">
+                        <span><i class="ri-time-line"></i> Aberto: ${formatarTempo(e.timestamp)}</span>
+                        ${status === 'resolvido' && e.resolved_at ? `<span style="color:#10b981;"><i class="ri-checkbox-circle-line"></i> Resolvido: ${formatarTempo(e.resolved_at)}</span>` : ''}
+                    </div>
+                </div>
+            `;
+            document.getElementById('thread-modal-overlay').classList.remove('hidden');
+        }
+
+        function closeThreadModal() {
+            document.getElementById('thread-modal-overlay').classList.add('hidden');
+        }
+
+        function aplicarFiltros() {
+            const categoria = document.getElementById('filtro-categoria').value;
+            const prioridade = document.getElementById('filtro-prioridade').value;
+            const status = document.getElementById('filtro-status').value;
+
+            let params = [];
+            if (categoria) params.push(`categoria=${encodeURIComponent(categoria)}`);
+            if (prioridade) params.push(`prioridade=${encodeURIComponent(prioridade)}`);
+            if (status && status !== 'ativos') params.push(`status=${encodeURIComponent(status)}`);
+
+            const url = '/api/events' + (params.length ? '?' + params.join('&') : '');
+            loadFeedbacks(url);
+        }
+
+        function limparFiltros() {
+            document.getElementById('filtro-categoria').value = '';
+            document.getElementById('filtro-prioridade').value = '';
+            document.getElementById('filtro-status').value = 'ativos';
+            aplicarFiltros();
+        }
+
+        async function popularFiltrosCategorias() {
+            const res = await fetch('/api/config');
+            const config = await res.json();
+            const select = document.getElementById('filtro-categoria');
+            select.innerHTML = '<option value="">Todas Categorias</option>';
+            config.categories.forEach(cat => {
+                select.innerHTML += `<option value="${cat.name}">${cat.name}</option>`;
+            });
+        }
+
+        function toggleExportMenu(section) {
+            const menu = document.getElementById('export-menu-' + section);
+            document.querySelectorAll('.export-menu').forEach(m => {
+                if (m.id !== 'export-menu-' + section) m.classList.add('hidden');
+            });
+            menu.classList.toggle('hidden');
+        }
+
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.export-dropdown')) {
+                document.querySelectorAll('.export-menu').forEach(m => m.classList.add('hidden'));
+            }
+        });
+
+        function toggleStatusMenu(id) {
+            const menu = document.getElementById('status-menu-' + id);
+            document.querySelectorAll('.status-menu').forEach(m => {
+                if (m.id !== 'status-menu-' + id) m.classList.add('hidden');
+            });
+            menu.classList.toggle('hidden');
+        }
+
+        async function updateStatus(feedbackId, newStatus) {
+            try {
+                const res = await fetch('/api/feedback/' + feedbackId + '/status', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: newStatus })
+                });
+                if (res.ok) {
+                    aplicarFiltros();
+                } else {
+                    alert('Erro ao atualizar status');
+                }
+            } catch (err) {
+                console.error('Error updating status:', err);
+            }
+        }
+
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.status-dropdown')) {
+                document.querySelectorAll('.status-menu').forEach(m => m.classList.add('hidden'));
+            }
+        });
+
+        async function loadConfigViews() {
+            const res = await fetch('/api/config');
+            const config = await res.json();
+
+            const rGrid = document.getElementById('regions-grid');
+            rGrid.innerHTML = '';
+            config.regions.forEach(r => {
+                rGrid.innerHTML += `
+                    <div class="manage-card">
+                        <h3>${r.name} <i class="ri-map-pin-line"></i></h3>
+                        <h2>${r.count}</h2>
+                        <p>Feedbacks recebidos</p>
+                        <div class="btn-delete" onclick="delItem('regions', '${r.name}')">Excluir</div>
+                    </div>
+                `;
+            });
+
+            const cGrid = document.getElementById('categories-grid');
+            cGrid.innerHTML = '';
+            config.categories.forEach(c => {
+                cGrid.innerHTML += `
+                    <div class="manage-card" style="border-left: 4px solid ${c.color}">
+                        <h3>${c.name} <i class="ri-price-tag-3-fill" style="color:${c.color}"></i></h3>
+                        <h2>${c.count}</h2>
+                        <p>Feedbacks recebidos</p>
+                        <div class="btn-delete" onclick="delItem('categories', '${c.name}')">Excluir</div>
+                    </div>
+                `;
+            });
+        }
+
+        // Charts
+        let currentChartTimeline = null;
+
+        function renderCharts(events, catDef) {
+            // ===== 1. TIMELINE POR HORA =====
+            const hourCounts = {};
+            events.forEach(e => {
+                if (e.timestamp) {
+                    let hour;
+                    if (e.timestamp.includes('T')) {
+                        const date = new Date(e.timestamp);
+                        hour = date.getHours().toString().padStart(2, '0') + ':00';
+                    } else if (e.timestamp.includes('/')) {
+                        const timePart = e.timestamp.split(' ')[1];
+                        hour = timePart.split(':')[0].padStart(2, '0') + ':00';
+                    }
+                    if (hour) {
+                        hourCounts[hour] = (hourCounts[hour] || 0) + 1;
+                    }
+                }
+            });
+
+            const allHours = Object.keys(hourCounts).sort();
+            const timelineLabels = allHours.length > 0 ? allHours : ['--'];
+            const timelineData = allHours.length > 0 ? allHours.map(h => hourCounts[h]) : [0];
+
+            if (currentChartTimeline) currentChartTimeline.destroy();
+            const ctxTimeline = document.getElementById('timelineChart').getContext('2d');
+            const gradient = ctxTimeline.createLinearGradient(0, 0, 0, 200);
+            gradient.addColorStop(0, 'rgba(26, 58, 107, 0.6)');
+            gradient.addColorStop(1, 'rgba(26, 58, 107, 0.05)');
+
+            currentChartTimeline = new Chart(ctxTimeline, {
+                type: 'line',
+                data: {
+                    labels: timelineLabels,
+                    datasets: [{
+                        label: 'Feedbacks',
+                        data: timelineData,
+                        borderColor: '#1a3a6b',
+                        backgroundColor: gradient,
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: '#1a3a6b',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointRadius: 5,
+                        pointHoverRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#1f2937',
+                            titleColor: '#fff',
+                            bodyColor: '#d1d5db',
+                            borderColor: '#374151',
+                            borderWidth: 1,
+                            padding: 12,
+                            displayColors: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            grid: { color: '#23252e' },
+                            beginAtZero: true,
+                            ticks: { color: '#9ca3af' }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { color: '#9ca3af' }
+                        }
+                    }
+                }
+            });
+
+            // ===== 2. SENTIMENT BARS =====
+            const sentimentCounts = { 'Positivo': 0, 'Neutro': 0, 'Urgente': 0, 'Critico': 0 };
+            events.forEach(e => {
+                const s = e.urgency || 'Neutro';
+                if (s in sentimentCounts) sentimentCounts[s]++;
+                else if (s.includes('Crít')) sentimentCounts['Critico']++;
+            });
+
+            const total = Object.values(sentimentCounts).reduce((a, b) => a + b, 0) || 1;
+            const sentimentColors = {
+                'Positivo': { bg: 'linear-gradient(90deg, #22c55e, #16a34a)', color: '#22c55e' },
+                'Neutro': { bg: 'linear-gradient(90deg, #3b82f6, #2563eb)', color: '#3b82f6' },
+                'Urgente': { bg: 'linear-gradient(90deg, #f59e0b, #d97706)', color: '#f59e0b' },
+                'Critico': { bg: 'linear-gradient(90deg, #ef4444, #dc2626)', color: '#ef4444' }
+            };
+
+            const sentimentContainer = document.getElementById('sentiment-bars');
+            sentimentContainer.innerHTML = Object.entries(sentimentCounts).map(([name, count]) => {
+                const pct = ((count / total) * 100).toFixed(0);
+                const cfg = sentimentColors[name];
+                return `
+                    <div style="margin-bottom: 16px;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 0.85rem;">
+                            <span style="color: ${cfg.color}; font-weight: 600;">${name}</span>
+                            <span style="color: #9ca3af;">${count} (${pct}%)</span>
+                        </div>
+                        <div style="background: #1f2937; border-radius: 8px; height: 12px; overflow: hidden;">
+                            <div style="background: ${cfg.bg}; width: ${pct}%; height: 100%; border-radius: 8px; transition: width 0.5s ease;"></div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            // ===== 3. DONUT COM LEGENDA =====
+            const catCount = {};
+            events.forEach(e => catCount[e.category] = (catCount[e.category] || 0) + 1);
+
+            const labels = catDef.map(c => c.name);
+            const dataVal = catDef.map(c => catCount[c.name] || 0);
+            const colors = catDef.map(c => c.color);
+            const totalFeedbacksDonut = dataVal.reduce((a, b) => a + b, 0);
+
+            document.getElementById('donut-total').innerText = totalFeedbacksDonut;
+
+            const legendContainer = document.getElementById('donut-legend');
+            legendContainer.innerHTML = catDef.map((cat, i) => {
+                const count = catCount[cat.name] || 0;
+                const pct = totalFeedbacksDonut > 0 ? ((count / totalFeedbacksDonut) * 100).toFixed(0) : 0;
+                return `
+                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #23252e;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <div style="width: 12px; height: 12px; border-radius: 3px; background: ${cat.color};"></div>
+                            <span style="color: #e5e7eb;">${cat.name}</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="color: #9ca3af; font-size: 0.8rem;">${pct}%</span>
+                            <span style="color: white; font-weight: 600;">${count}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            if (currentChartDonut) currentChartDonut.destroy();
+            currentChartDonut = new Chart(document.getElementById('donutChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: dataVal,
+                        backgroundColor: colors,
+                        borderWidth: 0,
+                        cutout: '75%',
+                        hoverOffset: 10
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#1f2937',
+                            titleColor: '#fff',
+                            bodyColor: '#d1d5db',
+                            borderColor: '#374151',
+                            borderWidth: 1,
+                            padding: 12
+                        }
+                    }
+                }
+            });
+        }
+
+        // Actions
+        async function addItem(endpoint) {
+            const name = prompt("Nome:");
+            if (name) {
+                await fetch('/api/' + endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: name, color: '#' + Math.floor(Math.random() * 16777215).toString(16) })
+                });
+                nav(endpoint, document.querySelector(`.nav-item[onclick*="${endpoint}"]`));
+            }
+        }
+        async function delItem(endpoint, name) {
+            if (confirm('Excluir?')) {
+                await fetch('/api/' + endpoint, {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: name })
+                });
+                nav(endpoint, document.querySelector(`.nav-item[onclick*="${endpoint}"]`));
+            }
+        }
+
+        async function loadTopInsights() {
+            try {
+                const res = await fetch('/api/analytics/top');
+                const data = await res.json();
+
+                const compContainer = document.getElementById('top-compliments-list');
+                if (data.compliments.length > 0) {
+                    compContainer.innerHTML = data.compliments.map((item, index) => `
+                        <div style="display:flex; justify-content:space-between; margin-bottom:12px; border-bottom:1px solid #23252e; padding-bottom:8px;">
+                            <span style="font-weight:500">
+                                <span style="background:#22c55e20; color:#22c55e; padding:2px 6px; border-radius:4px; font-size:0.8rem; margin-right:8px">#${index + 1}</span>
+                                ${item.topic}
+                            </span>
+                            <span style="color:#22c55e; font-weight:bold">${item.count} <small style="opacity:0.6; font-weight:normal">menções</small></span>
+                        </div>
+                    `).join('');
+                } else {
+                    compContainer.innerHTML = '<p style="color:var(--text-muted)">Sem elogios registrados ainda.</p>';
+                }
+
+                const probContainer = document.getElementById('top-problems-list');
+                if (data.problems.length > 0) {
+                    probContainer.innerHTML = data.problems.map((item, index) => `
+                        <div style="display:flex; justify-content:space-between; margin-bottom:12px; border-bottom:1px solid #23252e; padding-bottom:8px;">
+                            <span style="font-weight:500">
+                                <span style="background:#ef444420; color:#ef4444; padding:2px 6px; border-radius:4px; font-size:0.8rem; margin-right:8px">#${index + 1}</span>
+                                ${item.topic}
+                            </span>
+                            <span style="color:#ef4444; font-weight:bold">${item.count} <small style="opacity:0.6; font-weight:normal">reclamações</small></span>
+                        </div>
+                    `).join('');
+                } else {
+                    probContainer.innerHTML = '<p style="color:var(--text-muted)">Sem problemas críticos ainda.</p>';
+                }
+            } catch (e) { console.error("Error loading insights:", e); }
+        }
+
+        // ===== RADAR DE COMENTÁRIOS =====
+
+        function addAdversario(event) {
+            if (event.key !== 'Enter') return;
+            const input = document.getElementById('radar-adversario-input');
+            const nome = input.value.trim();
+            if (!nome || adversarios.includes(nome)) { input.value = ''; return; }
+            adversarios.push(nome);
+            renderAdversariosTags();
+            input.value = '';
+        }
+
+        function removeAdversario(nome) {
+            adversarios = adversarios.filter(a => a !== nome);
+            renderAdversariosTags();
+        }
+
+        function renderAdversariosTags() {
+            const container = document.getElementById('adversarios-tags');
+            container.innerHTML = adversarios.map(nome => `
+                <span class="adversario-tag">
+                    ${nome}
+                    <button onclick="removeAdversario('${nome}')" title="Remover">×</button>
+                </span>
+            `).join('');
+        }
+
+        // _comentariosCompletos = todos os dados da última busca (nunca filtrado)
+        // _comentariosAtual    = dados exibidos no momento (após filtros client-side)
+        let _comentariosCompletos = [];
+        let _comentariosAtual = [];
+
+        async function _carregarCacheDisco() {
+            // Carrega dados salvos em disco SEM disparar Apify — apenas leitura
+            try {
+                const res = await fetch('/api/radar-comentarios/cache');
+                const saved = await res.json();
+                if (Array.isArray(saved) && saved.length > 0) {
+                    _comentariosCompletos = saved;
+                    _popularDropdownPoliticos(saved, '');
+                    filtrarEExibir();
+                }
+            } catch { /* silencioso — sem dados salvos, ok */ }
+        }
+
+
+        let _isBuscandoComentarios = false;
+
+        async function buscarComentarios() {
+            if (_isBuscandoComentarios) return; // Lock against double clicks
+
+            // Chamado APENAS pelo botão "Buscar Comentários" — faz requisição ao servidor
+            const cliente = document.getElementById('radar-cliente').value.trim();
+            const username = document.getElementById('radar-instagram').value.trim().replace('@', '');
+            const politico = cliente;   // usar só o nome digitado, nunca o dropdown
+
+            const tbody = document.getElementById('comentarios-tbody');
+            tbody.innerHTML = `<tr><td colspan="6" style="color:var(--text-muted);text-align:center;padding:24px">
+                <i class="ri-loader-4-line"></i> Buscando comentários no Instagram${username ? ' @' + username : ''}...
+                ${username ? '<br><span style="font-size:0.78rem;opacity:0.6">Isso pode levar até 60 segundos na primeira busca</span>' : ''}
+            </td></tr>`;
+
+            let url = `/api/radar-comentarios?periodo=30d`;
+            if (politico) url += `&politico=${encodeURIComponent(politico)}`;
+            if (username) url += `&username=${encodeURIComponent(username)}`;
+
+            const btn = document.querySelector('button[onclick="buscarComentarios()"]');
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="ri-loader-4-line"></i> Buscando...';
+                btn.style.opacity = '0.7';
+                btn.style.cursor = 'not-allowed';
+            }
+
+            _isBuscandoComentarios = true;
+
+            try {
+                const res = await fetch(url);
+                const data = await res.json();
+                // Só atualizar se recebemos dados reais
+                if (Array.isArray(data) && data.length > 0) {
+                    _comentariosCompletos = data;
+                    // Persistir username/politico no localStorage para restaurar após F5
+                    if (username) {
+                        localStorage.setItem('ig_username', username);
+                        localStorage.setItem('ig_politico', politico);
+                    }
+                    // Atualizar dropdown com nomes do resultado antes de filtrar
+                    _popularDropdownPoliticos(data, politico);
+                    filtrarEExibir();
+                } else if (_comentariosCompletos.length > 0) {
+                    // Manter dados anteriores e apenas re-exibir
+                    filtrarEExibir();
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="6" style="color:var(--text-muted);text-align:center;padding:24px">Nenhum comentário encontrado. Verifique o @ do Instagram e tente novamente.</td></tr>';
+                }
+            } catch (e) {
+                console.error("Erro na busca de comentários:", e);
+                const tbody = document.getElementById('comentarios-tbody');
+                tbody.innerHTML = `<tr><td colspan="6" style="color:#ef4444;text-align:center;padding:24px">
+                    ❌ Falha ao buscar comentários. Verifique a conexão.
+                </td></tr>`;
+            } finally {
+                _isBuscandoComentarios = false;
+                const btn = document.querySelector('button[onclick="buscarComentarios()"]');
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="ri-search-eye-line"></i> Buscar Comentários';
+                    btn.style.opacity = '1';
+                    btn.style.cursor = 'pointer';
+                }
+            }
+        }
+
+        // Restaurar inputs do último scraper após F5
+        (function () {
+            const u = localStorage.getItem('ig_username');
+            const p = localStorage.getItem('ig_politico');
+            if (u) document.getElementById('radar-instagram').value = '@' + u;
+            if (p) document.getElementById('radar-cliente').value = p;
+        })();
+
+        function _popularDropdownPoliticos(dados, nomeBuscado) {
+            const nomes = [...new Set(dados.map(c => c.perfil_monitorado).filter(Boolean))];
+            const sel = document.getElementById('filtro-politico-radar');
+            sel.innerHTML = '<option value="">Todos os políticos</option>';
+            nomes.forEach(n => {
+                sel.innerHTML += `<option value="${n}">${n}</option>`;
+            });
+            // Pré-selecionar o nome usado na busca se existir
+            if (nomeBuscado && nomes.includes(nomeBuscado)) sel.value = nomeBuscado;
+        }
+
+        function filtrarEExibir() {
+            // Filtra _comentariosCompletos client-side (sem nova requisição)
+            if (!_comentariosCompletos.length) return;
+
+            const periodo = document.getElementById('filtro-periodo').value;
+            const filtPolitico = document.getElementById('filtro-politico-radar').value;
+
+            let filtrados = _comentariosCompletos;
+
+            // Filtro por político
+            if (filtPolitico) {
+                filtrados = filtrados.filter(c => c.perfil_monitorado === filtPolitico);
+            }
+
+            // Filtro por período (client-side)
+            const dias = { '24h': 1, '7d': 7, '30d': 30 }[periodo] || 7;
+            const corte = new Date(Date.now() - dias * 86400 * 1000);
+            const porData = filtrados.filter(c => { try { return new Date(c.data) >= corte; } catch { return true; } });
+            // Só aplicar filtro de data se sobrar algum resultado
+            if (porData.length > 0) filtrados = porData;
+
+            _comentariosAtual = filtrados;
+            renderComentarios(filtrados);
+        }
+
+        function renderComentarios(comentarios) {
+            // Habilitar botão de estratégia se tiver dados carregados
+            const btnEst = document.getElementById('btn-estrategia');
+            if (btnEst) {
+                const temDados = _comentariosCompletos.length > 0;
+                btnEst.disabled = !temDados;
+                btnEst.style.opacity = temDados ? '1' : '0.5';
+                btnEst.style.cursor = temDados ? 'pointer' : 'not-allowed';
+            }
+            // Render pulse per post
+            renderPulse(comentarios);
+
+            // Update count
+            const countEl = document.getElementById('radar-count');
+            countEl.innerText = `${comentarios.length} comentário${comentarios.length !== 1 ? 's' : ''}`;
+
+            // Fill table
+            const tbody = document.getElementById('comentarios-tbody');
+            if (comentarios.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="color:var(--text-muted);text-align:center;padding:20px">Nenhum comentário encontrado. Verifique o @ do Instagram e tente novamente.</td></tr>';
+            } else {
+                const fonteIcons = {
+                    'Instagram': '<i class="ri-instagram-line" style="color:#e1306c"></i>',
+                    'YouTube': '<i class="ri-youtube-line" style="color:#ff0000"></i>',
+                    'Twitter/X': '<i class="ri-twitter-x-line" style="color:#fff"></i>'
+                };
+
+                tbody.innerHTML = comentarios.map(c => {
+                    const sentBadgeClass = { 'Positivo': 'positivo', 'Negativo': 'negativo', 'Neutro': 'neutro' }[c.sentimento] || 'neutro';
+                    const dataFmt = new Date(c.data).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                    const usuario = c.usuario ? `<span style="color:#8b949e;font-size:0.75rem">@${c.usuario}</span>` : '';
+                    const postLink = c.post_url ? `<a href="${c.post_url}" target="_blank" style="color:#1a3a6b;font-size:0.7rem"><i class="ri-external-link-line"></i></a>` : '';
+                    const catColor = getCategoryColor(c.categoria);
+                    const catBadge = c.categoria
+                        ? `<span style="background:${catColor}20;color:${catColor};border:1px solid ${catColor};font-size:0.68rem;padding:2px 6px;border-radius:4px;white-space:nowrap">${c.categoria}</span>`
+                        : '';
+                    return `
+                        <tr>
+                            <td><span class="fonte-badge">${fonteIcons[c.fonte] || ''} ${c.fonte}</span></td>
+                            <td>${usuario} ${postLink}</td>
+                            <td style="max-width:280px;color:#d1d5db;font-size:0.82rem">${c.trecho}</td>
+                            <td><span class="sentimento-badge ${sentBadgeClass}">${c.sentimento}</span></td>
+                            <td>${catBadge}</td>
+                            <td style="color:var(--text-muted);white-space:nowrap;font-size:0.8rem">${dataFmt}</td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+
+            // Pie chart
+            const sentCounts = { 'Positivo': 0, 'Negativo': 0, 'Neutro': 0 };
+            comentarios.forEach(c => { if (c.sentimento in sentCounts) sentCounts[c.sentimento]++; });
+
+            if (radarSentimentChartInst) radarSentimentChartInst.destroy();
+            const ctx = document.getElementById('radarSentimentChart').getContext('2d');
+            radarSentimentChartInst = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(sentCounts),
+                    datasets: [{
+                        data: Object.values(sentCounts),
+                        backgroundColor: ['#22c55e', '#ef4444', '#3b82f6'],
+                        borderWidth: 0,
+                        cutout: '65%',
+                        hoverOffset: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#1f2937',
+                            titleColor: '#fff',
+                            bodyColor: '#d1d5db',
+                            padding: 10
+                        }
+                    }
+                }
+            });
+
+            // Legend
+            const legendEl = document.getElementById('radar-sentiment-legend');
+            const totalSent = Object.values(sentCounts).reduce((a, b) => a + b, 0) || 1;
+            const sentColors = { 'Positivo': '#22c55e', 'Negativo': '#ef4444', 'Neutro': '#3b82f6' };
+            legendEl.innerHTML = Object.entries(sentCounts).map(([k, v]) => `
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0">
+                    <div style="display:flex;align-items:center;gap:7px">
+                        <div style="width:10px;height:10px;border-radius:2px;background:${sentColors[k]}"></div>
+                        <span style="color:#d1d5db">${k}</span>
+                    </div>
+                    <span style="color:#9ca3af">${v} (${((v / totalSent) * 100).toFixed(0)}%)</span>
+                </div>
+            `).join('');
+        }
+
+        // ===== PULSE POR POST =====
+
+        function renderPulse(comentarios) {
+            const container = document.getElementById('pulse-posts');
+            const section = document.getElementById('pulse-section');
+            if (!container) return;
+
+            const postMap = {};
+            comentarios.forEach(c => {
+                const key = c.post_url || '__sem_url__';
+                if (!postMap[key]) {
+                    postMap[key] = { url: c.post_url, data: c.data, total: 0, pos: 0, neg: 0, neutro: 0, categorias: {} };
+                }
+                postMap[key].total++;
+                if (c.sentimento === 'Positivo') postMap[key].pos++;
+                else if (c.sentimento === 'Negativo') postMap[key].neg++;
+                else postMap[key].neutro++;
+                postMap[key].categorias[c.categoria] = (postMap[key].categorias[c.categoria] || 0) + 1;
+            });
+
+            const posts = Object.values(postMap)
+                .filter(p => p.url)
+                .sort((a, b) => new Date(b.data) - new Date(a.data));
+
+            if (!posts.length) { section.style.display = 'none'; return; }
+            section.style.display = 'block';
+
+            container.innerHTML = posts.map((post, i) => {
+                const pPos = Math.round(post.pos * 100 / post.total);
+                const pNeg = Math.round(post.neg * 100 / post.total);
+                const pNeutro = 100 - pPos - pNeg;
+                const topCat = Object.entries(post.categorias).sort((a, b) => b[1] - a[1])[0]?.[0] || '';
+                const emoji = pPos > pNeg ? '🟢' : pNeg > pPos ? '🔴' : '🟡';
+                const label = pPos > pNeg ? 'Favorável' : pNeg > pPos ? 'Tensão' : 'Misto';
+                const dataFmt = new Date(post.data).toLocaleDateString('pt-BR');
+                const catColor = getCategoryColor(topCat);
+                return `
+                <div style="background:#161b22;border:1px solid #23252e;border-radius:12px;padding:16px;min-width:175px;flex:0 0 auto">
+                    <div style="font-size:0.72rem;color:#8b949e">Post ${i + 1} · ${dataFmt}</div>
+                    <div style="font-size:1.4rem;margin:6px 0;display:flex;align-items:center;gap:6px">
+                        ${emoji}
+                        <span style="font-size:0.82rem;color:#e6edf3;font-weight:600">${label}</span>
+                    </div>
+                    <div style="background:#23252e;border-radius:6px;height:8px;overflow:hidden;display:flex;margin:8px 0">
+                        <div style="width:${pPos}%;background:#22c55e;transition:width .4s"></div>
+                        <div style="width:${pNeg}%;background:#ef4444;transition:width .4s"></div>
+                        <div style="width:${pNeutro}%;background:#3b82f6;transition:width .4s"></div>
+                    </div>
+                    <div style="font-size:0.7rem;color:#8b949e">🟢 ${pPos}% · 🔴 ${pNeg}% · ${post.total} coment.</div>
+                    ${topCat ? `<div style="margin-top:8px"><span style="background:${catColor}20;color:${catColor};font-size:0.67rem;padding:2px 8px;border-radius:10px">${topCat}</span></div>` : ''}
+                    ${post.url ? `<a href="${post.url}" target="_blank" style="font-size:0.68rem;color:#4b5563;display:block;margin-top:8px">Ver post <i class="ri-external-link-line"></i></a>` : ''}
+                </div>`;
+            }).join('');
+        }
+
+        // ===== TALKING POINTS / ESTRATÉGIA IA =====
+
+        async function gerarEstrategia() {
+            if (!_comentariosAtual.length) return;
+            const btn = document.getElementById('btn-estrategia');
+            const box = document.getElementById('estrategia-box');
+            const politico = document.getElementById('radar-cliente').value.trim() || 'o político';
+
+            btn.innerHTML = '<i class="ri-loader-4-line"></i> Analisando...';
+            btn.disabled = true;
+            box.style.display = 'block';
+            box.innerHTML = '<div style="color:#8b949e;text-align:center;padding:24px"><i class="ri-loader-4-line"></i> Gerando estratégia com IA...</div>';
+
+            try {
+                const res = await fetch('/api/talking-points', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ comentarios: _comentariosAtual, politico })
+                });
+                const data = await res.json();
+                renderEstrategia(data);
+            } catch (e) {
+                box.innerHTML = '<div style="color:#ef4444;padding:16px">Erro ao gerar estratégia. Tente novamente.</div>';
+            } finally {
+                btn.innerHTML = '<i class="ri-lightbulb-line"></i> Gerar Estratégia IA';
+                btn.disabled = false;
+                btn.style.opacity = '1';
+            }
+        }
+
+        function renderEstrategia(data) {
+            const box = document.getElementById('estrategia-box');
+            const tps = (data.talking_points || []).map((tp, i) => `
+                <div style="display:flex;gap:12px;padding:12px;background:#0d1117;border-radius:8px;margin-bottom:8px">
+                    <span style="background:#1a3a6b;color:#fff;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:0.72rem;flex-shrink:0">${i + 1}</span>
+                    <span style="color:#e6edf3;font-size:0.87rem;line-height:1.5">${tp}</span>
+                </div>`).join('');
+
+            box.innerHTML = `
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+                    <i class="ri-lightbulb-flash-line" style="color:#f59e0b;font-size:1.3rem"></i>
+                    <span style="font-weight:600;color:#e6edf3;font-size:1rem">Estratégia da Semana</span>
+                </div>
+                <div style="background:#1a3a6b18;border:1px solid #1a3a6b50;border-radius:8px;padding:14px;margin-bottom:16px;color:#93c5fd;font-size:0.87rem;line-height:1.6">
+                    ${data.situacao || ''}
+                </div>
+                <div style="font-size:0.72rem;color:#8b949e;margin-bottom:10px;font-weight:600;letter-spacing:0.06em">TALKING POINTS PRIORITÁRIOS</div>
+                ${tps}
+                ${data.oportunidade ? `
+                <div style="background:#f59e0b18;border:1px solid #f59e0b40;border-radius:8px;padding:14px;margin-top:12px">
+                    <div style="color:#f59e0b;font-size:0.72rem;font-weight:600;margin-bottom:6px">💡 OPORTUNIDADE IDENTIFICADA</div>
+                    <p style="color:#fcd34d;font-size:0.87rem;margin:0;line-height:1.5">${data.oportunidade}</p>
+                </div>` : ''}`;
+        }
+
+        // ===== RADAR DE NOTÍCIAS =====
+
+        async function buscarNoticias() {
+            const politico = (document.getElementById('filtro-politico-noticias').value || '').trim();
+            const sentimento = document.getElementById('filtro-sentimento-noticias').value;
+
+            const container = document.getElementById('noticias-timeline');
+            container.innerHTML = '<p style="color:var(--text-muted)"><i class="ri-loader-4-line"></i> Buscando notícias reais no Google News…</p>';
+
+            let params = [];
+            if (politico) params.push(`politico=${encodeURIComponent(politico)}`);
+            if (sentimento) params.push(`sentimento=${encodeURIComponent(sentimento)}`);
+
+            const url = '/api/radar-noticias' + (params.length ? '?' + params.join('&') : '');
+
+            try {
+                const res = await fetch(url);
+                const data = await res.json();
+                renderNoticias(data);
+            } catch (e) {
+                console.error('Erro ao buscar notícias:', e);
+            }
+        }
+
+        function renderNoticias(noticias) {
+            const countEl = document.getElementById('noticias-count');
+            countEl.innerText = `${noticias.length} notícia${noticias.length !== 1 ? 's' : ''}`;
+
+            const container = document.getElementById('noticias-timeline');
+
+            if (noticias.length === 0) {
+                container.innerHTML = '<p style="color:var(--text-muted)">Nenhuma notícia encontrada com os filtros aplicados.</p>';
+                return;
+            }
+
+            const sentBadgeClass = { 'Positivo': 'positivo', 'Negativo': 'negativo', 'Neutro': 'neutro' };
+            const veiculoColors = {
+                'G1': '#e74c3c', 'UOL': '#2ecc71', 'Folha': '#1a3a6b',
+                'Estadão': '#8e44ad', 'R7': '#e67e22'
+            };
+
+            container.innerHTML = noticias.map(n => {
+                const dataFmt = new Date(n.data + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
+                const sentClass = sentBadgeClass[n.sentimento] || 'neutro';
+                const veiculoColor = veiculoColors[n.veiculo] || '#6b7280';
+
+                return `
+                    <div class="news-card">
+                        <div class="news-header">
+                            <div class="news-titulo">${n.titulo}</div>
+                            <span class="sentimento-badge ${sentClass}" style="flex-shrink:0">${n.sentimento}</span>
+                        </div>
+                        <div class="news-resumo">${n.resumo}</div>
+                        <div class="news-footer">
+                            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                                <span style="background:${veiculoColor}25;color:${veiculoColor};border:1px solid ${veiculoColor}50;padding:2px 10px;border-radius:4px;font-size:0.75rem;font-weight:700">${n.veiculo}</span>
+                                <span style="color:#7ba4d4;font-size:0.78rem"><i class="ri-user-line"></i> ${n.politico}</span>
+                                <span><i class="ri-calendar-line"></i> ${dataFmt}</span>
+                            </div>
+                            <a href="${n.url}" target="_blank" class="news-link">
+                                <i class="ri-external-link-line"></i> Ver notícia
+                            </a>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Init
+        loadData();
+        loadTopInsights();
+        popularFiltrosCategorias();
+        setInterval(() => { loadData(); loadTopInsights(); }, 5000);
+
+        // ========== SISTEMA DE ALERTAS CRÍTICOS ==========
+        let ultimoFeedbackId = 0;
+
+        async function verificarNovosFeedbacks() {
+            try {
+                const res = await fetch('/api/events');
+                const feedbacks = await res.json();
+
+                if (feedbacks.length > 0) {
+                    feedbacks.sort((a, b) => b.id - a.id);
+                    const maisRecente = feedbacks[0];
+
+                    if (maisRecente.id > ultimoFeedbackId) {
+                        const u = (maisRecente.urgency || '').toLowerCase();
+                        if (u.includes('crit') || u.includes('crít')) {
+                            mostrarAlerta(maisRecente, 'critico');
+                        } else if (u.includes('urge')) {
+                            mostrarAlerta(maisRecente, 'urgente');
+                        }
+                    }
+
+                    if (ultimoFeedbackId === 0) {
+                        ultimoFeedbackId = maisRecente.id;
+                    } else {
+                        ultimoFeedbackId = Math.max(ultimoFeedbackId, maisRecente.id);
+                    }
+                }
+            } catch (e) {
+                console.error('Erro ao verificar novos feedbacks:', e);
+            }
+        }
+
+        function mostrarAlerta(feedback, tipo) {
+            if (Notification.permission === 'granted') {
+                new Notification(tipo === 'critico' ? '🚨 ALERTA CRÍTICO!' : '⚠️ Feedback Urgente', {
+                    body: feedback.message,
+                    tag: 'feedback-' + feedback.id
+                });
+            }
+
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alerta-critico';
+            alertDiv.id = 'alerta-' + feedback.id;
+            alertDiv.innerHTML = `
+                <button class="close-btn" onclick="this.parentElement.remove()">×</button>
+                <strong>${tipo === 'critico' ? '🚨 ALERTA CRÍTICO' : '⚠️ URGENTE'}</strong>
+                <p>"${feedback.message}"</p>
+                <small>${feedback.category} - ${feedback.timestamp}</small>
+            `;
+
+            const alertasExistentes = document.querySelectorAll('.alerta-critico');
+            if (alertasExistentes.length > 0) {
+                const offset = alertasExistentes.length * 120;
+                alertDiv.style.top = (20 + offset) + 'px';
+            }
+
+            document.body.appendChild(alertDiv);
+            setTimeout(() => alertDiv.remove(), 10000);
+        }
+
+        if ('Notification' in window && Notification.permission === 'default') {
+            Notification.requestPermission();
+        }
+
+        // ============================================================
+        // RADAR MG
+        // ============================================================
+
+        const MG_CATEGORIA_CORES = {
+            'saude': '#38bdf8',
+            'transporte': '#818cf8',
+            'seguranca': '#ef4444',
+            'educacao': '#38bdf8',
+            'infraestrutura': '#f59e0b',
+            'meio_ambiente': '#16a34a',
+            'economia': '#84cc16',
+            'outros': '#6b7280'
+        };
+
+        const MG_SENTIMENTO_CORES = {
+            'positivo': '#22c55e',
+            'negativo': '#ef4444',
+            'neutro': '#3b82f6',
+            'misto': '#f59e0b'
+        };
+
+        async function pesquisarCidade() {
+            const cidade = document.getElementById('radar-mg-cidade').value.trim();
+            const periodo = document.getElementById('radar-mg-periodo').value;
+            if (!cidade) { alert('Digite o nome de uma cidade de Minas Gerais.'); return; }
+
+            const btn = document.getElementById('btn-pesquisar-mg');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="ri-loader-4-line"></i> Pesquisando...';
+            document.getElementById('radar-mg-empty').style.display = 'block';
+            document.getElementById('radar-mg-empty').innerHTML =
+                '<i class="ri-loader-4-line" style="font-size:48px;opacity:.3;display:block;margin-bottom:12px"></i>' +
+                '<p>Coletando dados sobre ' + cidade + '... isso pode levar alguns minutos.</p>';
+            document.getElementById('radar-mg-resultado').style.display = 'none';
+
+            try {
+                const res = await fetch('/api/radar-mg/pesquisar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ cidade: cidade, periodo_dias: parseInt(periodo) })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Erro desconhecido');
+                renderRadarMg(data);
+            } catch (e) {
+                document.getElementById('radar-mg-empty').innerHTML =
+                    '<i class="ri-error-warning-line" style="font-size:48px;color:#ef4444;display:block;margin-bottom:12px"></i>' +
+                    '<p style="color:#ef4444">Erro: ' + e.message + '</p>';
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="ri-search-line"></i> Pesquisar';
+            }
+        }
+
+        function renderRadarMg(data) {
+            document.getElementById('radar-mg-empty').style.display = 'none';
+            document.getElementById('radar-mg-resultado').style.display = 'block';
+
+            document.getElementById('mg-resumo').innerText = data.resumo || 'Sem resumo disponível.';
+            document.getElementById('mg-total-posts').innerText = data.total_posts || 0;
+
+            const sent = (data.sentimento_geral || 'neutro').toLowerCase();
+            const sentBadge = document.getElementById('mg-sentimento-badge');
+            sentBadge.className = 'sentimento-badge ' + sent;
+            sentBadge.innerText = sent.charAt(0).toUpperCase() + sent.slice(1);
+
+            const opList = document.getElementById('mg-oportunidades');
+            opList.innerHTML = '';
+            (data.oportunidades_politicas || []).forEach(op => {
+                const li = document.createElement('li');
+                li.innerText = op;
+                opList.appendChild(li);
+            });
+
+            document.getElementById('mg-copy-ad').innerText = data.sugestao_trafego_pago || '';
+            renderTemasRadar(data.temas || []);
+            const totalMencoes = (data.temas || []).reduce((s, t) => s + (t.mencoes || 0), 0);
+            atualizarMapaMG(data.cidade || '', data.sentimento_geral || 'neutro', totalMencoes);
+            carregarPesquisasAnteriores();
+        }
+
+        function renderTemasRadar(temas) {
+            const grid = document.getElementById('mg-temas-grid');
+            grid.innerHTML = '';
+            if (!temas.length) {
+                grid.innerHTML = '<p style="color:var(--text-muted)">Nenhum tema identificado.</p>';
+                return;
+            }
+            temas.forEach(t => {
+                const cor = MG_CATEGORIA_CORES[t.categoria] || '#6b7280';
+                const sentCor = MG_SENTIMENTO_CORES[t.sentimento_predominante] || '#6b7280';
+                const exemplos = (t.exemplos || []).slice(0, 2)
+                    .map(ex => '<li style="color:var(--text-muted);font-size:12px;line-height:1.5">"' + ex + '"</li>')
+                    .join('');
+                grid.innerHTML += `
+                    <div class="feedback-card" style="padding:14px">
+                        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+                            <span style="font-size:13px;font-weight:600;color:var(--text-main)">${t.tema}</span>
+                            <span style="background:${sentCor}22;color:${sentCor};font-size:10px;padding:2px 8px;border-radius:4px;white-space:nowrap">${t.sentimento_predominante}</span>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+                            <span style="font-size:10px;padding:2px 8px;border-radius:4px;background:${cor}22;color:${cor};text-transform:capitalize">${(t.categoria || '').replace('_', ' ')}</span>
+                            <span style="font-size:11px;color:var(--text-muted)"><i class="ri-chat-1-line"></i> ${t.mencoes} menções</span>
+                        </div>
+                        ${exemplos ? '<ul style="margin:0;padding-left:14px">' + exemplos + '</ul>' : ''}
+                    </div>`;
+            });
+        }
+
+        let _mapaLeaflet = null;
+        let _mapaMarkers = {};  // { cidadeNorm: circleMarker }
+
+        async function inicializarMapaMG() {
+            if (_mapaLeaflet) {
+                _mapaLeaflet.invalidateSize();
+                return;
+            }
+            _mapaLeaflet = L.map('mapa-mg', { zoomControl: true, attributionControl: false })
+                .setView([-18.5, -44.5], 6);
+
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                subdomains: 'abcd',
+                maxZoom: 19
+            }).addTo(_mapaLeaflet);
+
+            const norm = s => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+            try {
+                const res = await fetch('/static/cidades_mg.json');
+                const cidades = await res.json();
+
+                const grandes = ['Belo Horizonte', 'Uberlândia', 'Contagem', 'Governador Valadares', 'Betim'];
+                const medias = ['Ipatinga', 'Coronel Fabriciano', 'Timóteo', 'Caratinga', 'João Monlevade',
+                    'Itabira', 'Santa Luzia', 'Sabará', 'Nova Lima', 'Vespasiano', 'Lagoa Santa', 'Caeté'];
+
+                cidades.forEach(c => {
+                    const raio = grandes.includes(c.cidade) ? 10 : medias.includes(c.cidade) ? 7 : 5;
+                    const marker = L.circleMarker([c.latitude, c.longitude], {
+                        radius: raio,
+                        fillColor: '#4a5568',
+                        color: '#718096',
+                        weight: 1.5,
+                        fillOpacity: 0.85
+                    }).addTo(_mapaLeaflet);
+
+                    marker.bindTooltip(c.cidade, { direction: 'top', className: 'leaflet-tooltip-dark' });
+
+                    marker.on('click', () => {
+                        document.getElementById('radar-mg-cidade').value = c.cidade;
+                        pesquisarCidade();
+                    });
+
+                    _mapaMarkers[norm(c.cidade)] = { marker, raio };
+                });
+            } catch (e) {
+                console.error('Erro ao carregar cidades_mg.json:', e);
+            }
+        }
+
+        function atualizarCorCidade(nomeCidade, sentimento, mencoes) {
+            const cores = {
+                'positivo': '#48bb78',
+                'negativo': '#fc8181',
+                'neutro': '#ecc94b',
+                'misto': '#9f7aea'
+            };
+            const cor = cores[(sentimento || '').toLowerCase()] || '#ecc94b';
+            const norm = s => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+            const chave = norm(nomeCidade);
+
+            // Fuzzy match
+            let alvo = _mapaMarkers[chave];
+            if (!alvo) {
+                for (const k of Object.keys(_mapaMarkers)) {
+                    if (k.includes(chave) || chave.includes(k)) { alvo = _mapaMarkers[k]; break; }
+                }
+            }
+            if (!alvo) return;
+
+            alvo.marker.setStyle({
+                fillColor: cor,
+                color: '#fff',
+                weight: 2,
+                radius: alvo.raio + 4,
+                fillOpacity: 1
+            });
+
+            alvo.marker.setRadius(alvo.raio + 4);
+
+            // Pan para a cidade
+            _mapaLeaflet.panTo(alvo.marker.getLatLng(), { animate: true, duration: 0.8 });
+        }
+
+        function atualizarMapaMG(nomeCidade, sentimento, mencoes) {
+            atualizarCorCidade(nomeCidade, sentimento, mencoes);
+        }
+
+        async function carregarPesquisasAnteriores() {
+            try {
+                const res = await fetch('/api/radar-mg/pesquisas');
+                const data = await res.json();
+                const pesquisas = data.pesquisas || [];
+                const historico = document.getElementById('radar-mg-historico');
+                const lista = document.getElementById('mg-historico-lista');
+                if (!pesquisas.length) { historico.style.display = 'none'; return; }
+                historico.style.display = 'block';
+                lista.innerHTML = '';
+                pesquisas.forEach(p => {
+                    const statusCor = p.status === 'concluido' ? '#22c55e' : p.status === 'erro' ? '#ef4444' : '#f59e0b';
+                    const dataFmt = p.created_at ? new Date(p.created_at).toLocaleDateString('pt-BR') : '';
+                    lista.innerHTML += `
+                        <div class="feedback-card" style="padding:12px 16px;display:flex;align-items:center;gap:12px;cursor:pointer"
+                             onclick="document.getElementById('radar-mg-cidade').value='${p.cidade}'; pesquisarCidade()">
+                            <i class="ri-map-pin-line" style="color:#1a3a6b;font-size:16px"></i>
+                            <div style="flex:1">
+                                <span style="font-size:13px;font-weight:600;color:var(--text-main)">${p.cidade} - ${p.estado || 'MG'}</span>
+                                <span style="font-size:11px;color:var(--text-muted);margin-left:8px">${dataFmt}</span>
+                            </div>
+                            <span style="font-size:11px;color:${statusCor};text-transform:capitalize">${p.status}</span>
+                            <span style="font-size:11px;color:var(--text-muted)">${p.total_posts || 0} posts</span>
+                        </div>`;
+                });
+            } catch (e) {
+                console.error('Erro ao carregar pesquisas anteriores:', e);
+            }
+        }
+
+        verificarNovosFeedbacks();
+        setInterval(verificarNovosFeedbacks, 10000);
+
+        // ====== MAPA ELEITORAL ======
+        let _meCache = {};
+        let _meDonutChart = null;
+        let _meSortField = 'total';
+        let _meCurrentRegion = 'rio-doce';
+
+        const _meRegionMeta = {
+            'rio-doce': {
+                title: 'Vale do Rio Doce',
+                bannerTitle: 'O Vale do Rio Doce precisa de um Deputado Estadual aliado',
+                bannerDesc: 'Nikolas Ferreira e Bruno Engler já dominam a região. Matheus Braga é o candidato ideal para canalizar esses votos para a Assembleia Legislativa.'
+            },
+            'jequitinhonha': {
+                title: 'Vale do Jequitinhonha',
+                bannerTitle: 'O Jequitinhonha é território fértil para a aliança PL',
+                bannerDesc: 'Com quase 20 mil votos do Nikolas e mais de 6 mil do Bruno, o Vale do Jequitinhonha representa uma base eleitoral estratégica para Matheus Braga.'
+            },
+            'mucuri': {
+                title: 'Vale do Mucuri',
+                bannerTitle: 'Teófilo Otoni e região — domínio absoluto de Nikolas',
+                bannerDesc: 'Com quase 7 mil votos só em Teófilo Otoni, o Vale do Mucuri é território consolidado. Matheus Braga pode herdar essa força na disputa estadual.'
+            }
+        };
+
+        async function loadMapaEleitoral() {
+            const region = _meCurrentRegion;
+            if (_meCache[region]) {
+                renderMapaEleitoral(_meCache[region]);
+                return;
+            }
+            try {
+                const res = await fetch('/api/mapa-eleitoral/dados/' + region);
+                _meCache[region] = await res.json();
+                renderMapaEleitoral(_meCache[region]);
+            } catch (e) {
+                console.error('Erro mapa eleitoral:', e);
+            }
+        }
+
+        function switchMapaRegion(region) {
+            _meCurrentRegion = region;
+            _meSortField = 'total';
+            const meta = _meRegionMeta[region];
+            document.getElementById('me-region-title').textContent = meta.title;
+            document.getElementById('me-banner-title').textContent = meta.bannerTitle;
+            document.getElementById('me-banner-desc').textContent = meta.bannerDesc;
+            document.getElementById('me-search').value = '';
+            loadMapaEleitoral();
+        }
+
+        function renderMapaEleitoral(data) {
+            const polos = data.polos;
+            let totalNik = 0, totalEng = 0, totalCidades = 0;
+            const allCities = [];
+
+            polos.forEach(polo => {
+                polo.cidades.forEach(c => {
+                    totalNik += c.nikolas;
+                    totalEng += c.engler;
+                    totalCidades++;
+                    allCities.push({ ...c, polo: polo.nome });
+                });
+            });
+
+            // Stats
+            document.getElementById('me-total-nikolas').textContent = totalNik.toLocaleString('pt-BR');
+            document.getElementById('me-total-engler').textContent = totalEng.toLocaleString('pt-BR');
+            document.getElementById('me-total-combinado').textContent = (totalNik + totalEng).toLocaleString('pt-BR');
+            document.getElementById('me-total-cidades').textContent = totalCidades;
+
+            // Region bars — redesign premium
+            const regDiv = document.getElementById('me-regions-chart');
+            const maxPoloTotal = Math.max(...polos.map(p => p.cidades.reduce((s, c) => s + c.nikolas + c.engler, 0)));
+            const maxNik = Math.max(...polos.map(p => p.cidades.reduce((s, c) => s + c.nikolas, 0)));
+            const maxEng = Math.max(...polos.map(p => p.cidades.reduce((s, c) => s + c.engler, 0)));
+
+            // Legenda global
+            const legendHtml = `
+                <div style="display:flex;gap:20px;margin-bottom:20px;padding-bottom:14px;border-bottom:1px solid rgba(255,255,255,0.07);">
+                    <span style="display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:600;color:#93c5fd;">
+                        <span style="display:inline-block;width:28px;height:4px;border-radius:2px;background:linear-gradient(90deg,#1d4ed8,#3b82f6);"></span>
+                        Nikolas Ferreira
+                    </span>
+                    <span style="display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:600;color:#c4b5fd;">
+                        <span style="display:inline-block;width:28px;height:4px;border-radius:2px;background:linear-gradient(90deg,#5b21b6,#8b5cf6);"></span>
+                        Bruno Engler
+                    </span>
+                </div>`;
+
+            regDiv.innerHTML = legendHtml + polos.map((polo, idx) => {
+                const pNik = polo.cidades.reduce((s, c) => s + c.nikolas, 0);
+                const pEng = polo.cidades.reduce((s, c) => s + c.engler, 0);
+                const pTotal = pNik + pEng;
+                const nikPct = Math.max(2, (pNik / maxNik * 92)).toFixed(1);
+                const engPct = Math.max(2, (pEng / maxEng * 92)).toFixed(1);
+                const domina = pNik > pEng ? '#3b82f6' : '#8b5cf6';
+                const animDelay = idx * 35;
+                return `
+                <div style="margin-bottom:22px;animation:fadeSlideIn 0.4s ease both;animation-delay:${animDelay}ms;"
+                     onmouseover="this.style.background='rgba(255,255,255,0.03)';this.style.borderRadius='10px';"
+                     onmouseout="this.style.background='transparent';">
+                    <!-- Cabeçalho do polo -->
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding:0 2px;">
+                        <div style="display:flex;align-items:center;gap:10px;">
+                            <span style="display:inline-block;width:3px;height:18px;border-radius:2px;background:${domina};flex-shrink:0;"></span>
+                            <span style="font-size:13px;font-weight:700;letter-spacing:0.01em;color:#f1f5f9;">${polo.nome}</span>
+                            <span style="font-size:10px;color:var(--text-muted);background:rgba(255,255,255,0.06);padding:2px 7px;border-radius:10px;">${polo.cidades.length} cidades</span>
+                        </div>
+                        <span style="font-size:12px;font-weight:700;color:#e2e8f0;">
+                            ${pTotal.toLocaleString('pt-BR')} <span style="font-weight:400;color:var(--text-muted);font-size:10px;">votos</span>
+                        </span>
+                    </div>
+
+                    <!-- Barra Nikolas -->
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:7px;">
+                        <div style="flex:1;height:9px;border-radius:5px;background:rgba(255,255,255,0.05);overflow:hidden;">
+                            <div style="height:100%;width:${nikPct}%;background:linear-gradient(90deg,#1d4ed8,#60a5fa);border-radius:5px;transition:width 0.6s cubic-bezier(.23,1,.32,1);"></div>
+                        </div>
+                        <span style="min-width:60px;text-align:right;font-size:12px;font-weight:700;color:#93c5fd;font-variant-numeric:tabular-nums;">${pNik.toLocaleString('pt-BR')}</span>
+                    </div>
+
+                    <!-- Barra Engler -->
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <div style="flex:1;height:9px;border-radius:5px;background:rgba(255,255,255,0.05);overflow:hidden;">
+                            <div style="height:100%;width:${engPct}%;background:linear-gradient(90deg,#5b21b6,#a78bfa);border-radius:5px;transition:width 0.6s cubic-bezier(.23,1,.32,1);animation-delay:${animDelay + 80}ms;"></div>
+                        </div>
+                        <span style="min-width:60px;text-align:right;font-size:12px;font-weight:700;color:#c4b5fd;font-variant-numeric:tabular-nums;">${pEng.toLocaleString('pt-BR')}</span>
+                    </div>
+                </div>`;
+            }).join('');
+
+
+            // Donut
+            const donutColors = ['#3b82f6', '#8b5cf6', '#f59e0b', '#22c55e', '#ef4444', '#06b6d4', '#ec4899'];
+            const poloLabels = polos.map(p => p.nome);
+            const poloTotals = polos.map(p => p.cidades.reduce((s, c) => s + c.nikolas + c.engler, 0));
+            const ctx = document.getElementById('me-donut-chart');
+            if (_meDonutChart) _meDonutChart.destroy();
+            _meDonutChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: { labels: poloLabels, datasets: [{ data: poloTotals, backgroundColor: donutColors, borderWidth: 0 }] },
+                options: { cutout: '60%', plugins: { legend: { display: false } }, responsive: true, maintainAspectRatio: true }
+            });
+            document.getElementById('me-donut-legend').innerHTML = poloLabels.map((l, i) =>
+                `<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--text-muted)"><span style="width:8px;height:8px;border-radius:2px;background:${donutColors[i]}"></span>${l}</span>`
+            ).join('');
+
+            // Ranking table
+            renderMapaTable(allCities);
+
+            // All regions detail
+            renderAllRegions(polos);
+        }
+
+        function renderMapaTable(cities) {
+            const sorted = [...cities].sort((a, b) => {
+                if (_meSortField === 'nikolas') return b.nikolas - a.nikolas;
+                if (_meSortField === 'engler') return b.engler - a.engler;
+                return (b.nikolas + b.engler) - (a.nikolas + a.engler);
+            });
+            const top = sorted.slice(0, 20);
+            const maxTotal = top[0] ? (top[0].nikolas + top[0].engler) : 1;
+            const tbody = document.getElementById('me-ranking-body');
+            tbody.innerHTML = top.map((c, i) => {
+                const total = c.nikolas + c.engler;
+                const nikPct = (c.nikolas / total * 100).toFixed(0);
+                const engPct = 100 - nikPct;
+                return `<tr>
+                    <td style="font-weight:700;color:${i < 3 ? '#f59e0b' : 'var(--text-muted)'}">${i < 3 ? ['🥇', '🥈', '🥉'][i] : i + 1}</td>
+                    <td style="font-weight:600">${c.cidade}</td>
+                    <td style="color:var(--text-muted);font-size:12px">${c.polo}</td>
+                    <td style="text-align:right;color:#3b82f6;font-weight:600">${c.nikolas.toLocaleString('pt-BR')}</td>
+                    <td style="text-align:right;color:#8b5cf6;font-weight:600">${c.engler.toLocaleString('pt-BR')}</td>
+                    <td style="text-align:right;color:#f59e0b;font-weight:700">${total.toLocaleString('pt-BR')}</td>
+                    <td><div style="display:flex;height:14px;border-radius:4px;overflow:hidden;background:rgba(255,255,255,0.03)">
+                        <div style="width:${nikPct}%;background:#3b82f6"></div>
+                        <div style="width:${engPct}%;background:#8b5cf6"></div>
+                    </div></td>
+                </tr>`;
+            }).join('');
+        }
+
+        function sortMapaTable(field) {
+            _meSortField = field;
+            const data = _meCache[_meCurrentRegion];
+            if (data) {
+                const allCities = [];
+                data.polos.forEach(p => p.cidades.forEach(c => allCities.push({ ...c, polo: p.nome })));
+                renderMapaTable(allCities);
+            }
+            document.getElementById('btn-sort-nikolas').style.opacity = field === 'nikolas' ? '1' : '0.5';
+            document.getElementById('btn-sort-engler').style.opacity = field === 'engler' ? '1' : '0.5';
+            document.getElementById('btn-sort-total').style.opacity = field === 'total' ? '1' : '0.5';
+        }
+
+        function renderAllRegions(polos) {
+            const container = document.getElementById('me-all-regions');
+            container.innerHTML = polos.map(polo => {
+                const sorted = [...polo.cidades].sort((a, b) => (b.nikolas + b.engler) - (a.nikolas + a.engler));
+                const poloTotal = sorted.reduce((s, c) => s + c.nikolas + c.engler, 0);
+                return `<details style="margin-bottom:12px;border:1px solid var(--border);border-radius:10px;overflow:hidden" class="me-region-detail">
+                    <summary style="padding:14px 18px;cursor:pointer;display:flex;align-items:center;gap:10px;background:var(--bg-hover);font-weight:600;font-size:13px">
+                        <i class="ri-map-pin-2-fill" style="color:#1a3a6b"></i>
+                        ${polo.nome}
+                        <span style="margin-left:auto;color:var(--text-muted);font-weight:400;font-size:12px">${sorted.length} cidades • ${poloTotal.toLocaleString('pt-BR')} votos</span>
+                    </summary>
+                    <div style="padding:8px 12px">
+                        <table class="radar-table" style="font-size:12px">
+                            <thead><tr><th>Cidade</th><th style="text-align:right;color:#3b82f6">Nikolas</th><th style="text-align:right;color:#8b5cf6">Bruno</th><th style="text-align:right;color:#f59e0b">Total</th></tr></thead>
+                            <tbody>${sorted.map(c => `<tr class="me-city-row" data-city="${c.cidade.toLowerCase()}">
+                                <td>${c.cidade}</td>
+                                <td style="text-align:right;color:#3b82f6">${c.nikolas.toLocaleString('pt-BR')}</td>
+                                <td style="text-align:right;color:#8b5cf6">${c.engler.toLocaleString('pt-BR')}</td>
+                                <td style="text-align:right;color:#f59e0b;font-weight:600">${(c.nikolas + c.engler).toLocaleString('pt-BR')}</td>
+                            </tr>`).join('')}</tbody>
+                        </table>
+                    </div>
+                </details>`;
+            }).join('');
+        }
+
+        function filterMapaCidades() {
+            const q = document.getElementById('me-search').value.toLowerCase();
+            document.querySelectorAll('.me-city-row').forEach(row => {
+                row.style.display = row.dataset.city.includes(q) ? '' : 'none';
+            });
+            if (q) document.querySelectorAll('.me-region-detail').forEach(d => d.open = true);
+        }
+        // ====== SIMULADOR DE CONQUISTA ======
+        let _simAllCities = [];
+        let _simLoaded = false;
+        let _simConversionPct = 40;
+        const SIM_META_ELEICAO = 80000;
+        const SIM_REGIONS = [
+            { key: 'rio-doce', label: 'Vale do Rio Doce' }
+        ];
+
+        function getSimCityStatus(cityKey) {
+            try { const d = JSON.parse(localStorage.getItem('sim_status') || '{}'); return d[cityKey] || 'nao_iniciado'; }
+            catch { return 'nao_iniciado'; }
+        }
+
+        function setSimCityStatus(cityKey, status) {
+            try {
+                const d = JSON.parse(localStorage.getItem('sim_status') || '{}');
+                d[cityKey] = status;
+                localStorage.setItem('sim_status', JSON.stringify(d));
+                updateSimProgressSummary();
+            } catch { }
+        }
+
+        async function loadSimulador() {
+            if (_simLoaded && _simAllCities.length) {
+                renderSimulador();
+                return;
+            }
+            try {
+                const results = await Promise.all(
+                    SIM_REGIONS.map(r => fetch('/api/mapa-eleitoral/dados/' + r.key).then(res => res.json()))
+                );
+                _simAllCities = [];
+                results.forEach((data, i) => {
+                    const regionLabel = data.regiao || SIM_REGIONS[i].label;
+                    data.polos.forEach(polo => {
+                        polo.cidades.forEach(c => {
+                            _simAllCities.push({
+                                cidade: c.cidade,
+                                nikolas: c.nikolas,
+                                engler: c.engler,
+                                total: c.nikolas + c.engler,
+                                polo: polo.nome,
+                                regiao: regionLabel,
+                                key: (c.cidade + '_' + polo.nome).toLowerCase().replace(/\s/g, '_')
+                            });
+                        });
+                    });
+                });
+                _simAllCities.sort((a, b) => b.total - a.total);
+                _simLoaded = true;
+                renderSimulador();
+            } catch (e) {
+                console.error('Erro simulador:', e);
+            }
+        }
+
+        function getCityTier(total) {
+            if (total >= 5000) return { tier: 'maxima', label: '🔴 MÁXIMA', color: '#ef4444' };
+            if (total >= 1000) return { tier: 'alta', label: '🟡 ALTA', color: '#f59e0b' };
+            if (total >= 500) return { tier: 'media', label: '🔵 MÉDIA', color: '#3b82f6' };
+            return { tier: 'manut', label: '⚪ Base', color: '#6b7280' };
+        }
+
+        function renderSimulador() {
+            const pct = _simConversionPct / 100;
+            const baseTotal = _simAllCities.reduce((s, c) => s + c.total, 0);
+            const projecao = Math.round(baseTotal * pct);
+
+            // Stats
+            document.getElementById('sim-base-total').textContent = baseTotal.toLocaleString('pt-BR');
+            document.getElementById('sim-projecao').textContent = projecao.toLocaleString('pt-BR');
+            document.getElementById('sim-pct-label').textContent = _simConversionPct + '%';
+
+            const diff = projecao - SIM_META_ELEICAO;
+            const statusEl = document.getElementById('sim-status');
+            if (diff >= 0) {
+                statusEl.innerHTML = `<span style="color:#22c55e">✅ +${diff.toLocaleString('pt-BR')}</span>`;
+            } else {
+                statusEl.innerHTML = `<span style="color:#ef4444">⚠️ ${diff.toLocaleString('pt-BR')}</span>`;
+            }
+
+            // Tiers
+            const tiers = { maxima: [], alta: [], media: [], manut: [] };
+            _simAllCities.forEach(c => { tiers[getCityTier(c.total).tier].push(c); });
+            const tierVotes = k => tiers[k].reduce((s, c) => s + c.total, 0);
+            document.getElementById('sim-tier-max').textContent = tiers.maxima.length + ' cidades';
+            document.getElementById('sim-tier-max-desc').textContent = tierVotes('maxima').toLocaleString('pt-BR') + ' votos combinados';
+            document.getElementById('sim-tier-alta').textContent = tiers.alta.length + ' cidades';
+            document.getElementById('sim-tier-alta-desc').textContent = tierVotes('alta').toLocaleString('pt-BR') + ' votos combinados';
+            document.getElementById('sim-tier-media').textContent = tiers.media.length + ' cidades';
+            document.getElementById('sim-tier-media-desc').textContent = tierVotes('media').toLocaleString('pt-BR') + ' votos combinados';
+            document.getElementById('sim-tier-manut').textContent = tiers.manut.length + ' cidades';
+            document.getElementById('sim-tier-manut-desc').textContent = tierVotes('manut').toLocaleString('pt-BR') + ' votos combinados';
+
+            // Region bars
+            const regionMap = {};
+            _simAllCities.forEach(c => {
+                if (!regionMap[c.regiao]) regionMap[c.regiao] = { total: 0, count: 0 };
+                regionMap[c.regiao].total += c.total;
+                regionMap[c.regiao].count++;
+            });
+            const maxRegTotal = Math.max(...Object.values(regionMap).map(r => r.total));
+            const regBarsEl = document.getElementById('sim-regions-bars');
+            regBarsEl.innerHTML = Object.entries(regionMap).map(([name, r]) => {
+                const proj = Math.round(r.total * pct);
+                const barPct = (r.total / maxRegTotal * 100).toFixed(0);
+                const projPct = (proj / maxRegTotal * 100).toFixed(0);
+                return `<div style="margin-bottom:14px">
+                    <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
+                        <span style="font-weight:600">${name}</span>
+                        <span style="color:var(--text-muted)">${r.count} cidades • Base: ${r.total.toLocaleString('pt-BR')} → <span style="color:#f59e0b;font-weight:600">Meta: ${proj.toLocaleString('pt-BR')}</span></span>
+                    </div>
+                    <div style="position:relative;height:24px;border-radius:6px;overflow:hidden;background:rgba(255,255,255,0.03)">
+                        <div style="width:${barPct}%;height:100%;background:rgba(255,255,255,0.08);border-radius:6px"></div>
+                        <div style="position:absolute;top:0;left:0;width:${projPct}%;height:100%;background:linear-gradient(90deg,#d97706,#f59e0b);border-radius:6px;display:flex;align-items:center;padding:0 8px">
+                            <span style="font-size:10px;font-weight:700;color:#000">${proj.toLocaleString('pt-BR')} votos</span>
+                        </div>
+                    </div>
+                </div>`;
+            }).join('');
+
+            // Table
+            renderSimTable();
+        }
+
+        function renderSimTable() {
+            const pct = _simConversionPct / 100;
+            const tbody = document.getElementById('sim-table-body');
+            const maxTotal = _simAllCities[0] ? _simAllCities[0].total : 1;
+
+            tbody.innerHTML = _simAllCities.map((c, i) => {
+                const tier = getCityTier(c.total);
+                const meta = Math.round(c.total * pct);
+                const barW = (c.total / maxTotal * 100).toFixed(0);
+                const status = getSimCityStatus(c.key);
+                const statusConfig = {
+                    'nao_iniciado': { color: '#ef4444', label: '🔴 Não iniciado' },
+                    'em_trabalho': { color: '#f59e0b', label: '🟡 Em trabalho' },
+                    'consolidado': { color: '#22c55e', label: '🟢 Consolidado' }
+                };
+                const sc = statusConfig[status];
+                return `<tr class="sim-row" data-tier="${tier.tier}" data-status="${status}" data-city="${c.cidade.toLowerCase()}" data-regiao="${c.regiao.toLowerCase()}">
+                    <td style="font-weight:700;color:var(--text-muted)">${i + 1}</td>
+                    <td><span style="font-size:11px;font-weight:700;color:${tier.color}">${tier.label}</span></td>
+                    <td style="font-weight:600">${c.cidade}</td>
+                    <td style="color:var(--text-muted);font-size:12px">${c.regiao}<br><span style="font-size:10px;opacity:.7">${c.polo}</span></td>
+                    <td style="text-align:right;font-weight:600">${c.total.toLocaleString('pt-BR')}</td>
+                    <td style="text-align:right;color:#f59e0b;font-weight:700">${meta.toLocaleString('pt-BR')}</td>
+                    <td><div style="height:14px;border-radius:4px;overflow:hidden;background:rgba(255,255,255,0.03)">
+                        <div style="width:${barW}%;height:100%;background:${tier.color};opacity:0.7;border-radius:4px"></div>
+                    </div></td>
+                    <td><select onchange="setSimCityStatus('${c.key}',this.value)" style="background:${sc.color}15;color:${sc.color};border:1px solid ${sc.color};padding:4px 8px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;width:100%">
+                        <option value="nao_iniciado" ${status === 'nao_iniciado' ? 'selected' : ''}>🔴 Não iniciado</option>
+                        <option value="em_trabalho" ${status === 'em_trabalho' ? 'selected' : ''}>🟡 Em trabalho</option>
+                        <option value="consolidado" ${status === 'consolidado' ? 'selected' : ''}>🟢 Consolidado</option>
+                    </select></td>
+                </tr>`;
+            }).join('');
+
+            updateSimProgressSummary();
+            filterSimTable();
+        }
+
+        function updateSimConversion(val) {
+            _simConversionPct = parseInt(val);
+            renderSimulador();
+        }
+
+        function filterSimTable() {
+            const tierFilter = document.getElementById('sim-filter-tier').value;
+            const statusFilter = document.getElementById('sim-filter-status').value;
+            const search = document.getElementById('sim-search').value.toLowerCase();
+            let shown = 0;
+            document.querySelectorAll('.sim-row').forEach(row => {
+                const matchTier = !tierFilter || row.dataset.tier === tierFilter;
+                const matchStatus = !statusFilter || row.dataset.status === statusFilter;
+                const matchSearch = !search || row.dataset.city.includes(search) || row.dataset.regiao.includes(search);
+                const visible = matchTier && matchStatus && matchSearch;
+                row.style.display = visible ? '' : 'none';
+                if (visible) shown++;
+            });
+            document.getElementById('sim-table-count').textContent = `Mostrando ${shown} de ${_simAllCities.length} cidades`;
+        }
+
+        function updateSimProgressSummary() {
+            let nao = 0, trab = 0, cons = 0;
+            _simAllCities.forEach(c => {
+                const s = getSimCityStatus(c.key);
+                if (s === 'consolidado') cons++;
+                else if (s === 'em_trabalho') trab++;
+                else nao++;
+            });
+            const total = _simAllCities.length;
+            const pctDone = total ? Math.round((cons / total) * 100) : 0;
+            const el = document.getElementById('sim-progress-summary');
+            if (el) el.innerHTML = `🔴 ${nao} não iniciadas • 🟡 ${trab} em trabalho • 🟢 ${cons} consolidadas (${pctDone}% concluído)`;
+        }
+
+        // ====== COLETAR DADOS ======
+        let _coletaResults = [];
+
+        // URL counter on textarea input
+        document.addEventListener('DOMContentLoaded', () => {
+            const ta = document.getElementById('coleta-urls');
+            if (ta) ta.addEventListener('input', () => {
+                const urls = ta.value.split('\n').filter(u => u.trim().includes('instagram.com'));
+                document.getElementById('coleta-url-count').textContent = urls.length + ' URLs do Instagram detectadas';
+            });
+        });
+
+        let _isColetandoDados = false;
+
+        async function iniciarColeta() {
+            if (_isColetandoDados) return; // Lock against double clicks
+
+            const urls = document.getElementById('coleta-urls').value
+                .split('\n')
+                .map(u => u.trim())
+                .filter(u => u.includes('instagram.com') || u.includes('twitter.com') || u.includes('x.com'));
+            const contexto = document.getElementById('coleta-contexto').value.trim() || 'político';
+
+            if (!urls.length) {
+                alert('Cole pelo menos 1 URL válida do Instagram!');
+                return;
+            }
+
+            document.getElementById('coleta-loading').style.display = 'block';
+            document.getElementById('coleta-results').style.display = 'none';
+            const btn = document.getElementById('btn-coletar');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="ri-loader-4-line"></i> Processando...';
+            btn.style.opacity = '0.7';
+            btn.style.cursor = 'not-allowed';
+
+            _isColetandoDados = true;
+
+            try {
+                const res = await fetch('/api/coletar-dados', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ urls, contexto })
+                });
+                const data = await res.json();
+
+                if (data.error && !data.comentarios) {
+                    alert('Erro: ' + data.error);
+                    return;
+                }
+
+                _coletaResults = data.comentarios || [];
+                renderColetaResults(data);
+
+            } catch (e) {
+                alert('Erro ao conectar com servidor: ' + e.message);
+            } finally {
+                _isColetandoDados = false;
+                document.getElementById('coleta-loading').style.display = 'none';
+                const btn = document.getElementById('btn-coletar');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="ri-search-eye-line"></i> Analisar Comentários';
+                btn.style.opacity = '1';
+                btn.style.cursor = 'pointer';
+                loadColetaHistory();
+            }
+        }
+
+        function renderColetaResults(data) {
+            document.getElementById('coleta-results').style.display = 'block';
+
+            // Stats
+            document.getElementById('col-total-bruto').textContent = (data.total_bruto || 0).toLocaleString('pt-BR');
+            document.getElementById('col-descartados').textContent = (data.descartados || 0).toLocaleString('pt-BR');
+            const r = data.resumo || {};
+            document.getElementById('col-positivos').textContent = (r.positivos || 0).toLocaleString('pt-BR');
+            document.getElementById('col-negativos').textContent = (r.negativos || 0).toLocaleString('pt-BR');
+            document.getElementById('col-neutros').textContent = (r.neutros || 0).toLocaleString('pt-BR');
+
+            // Categories
+            const cats = r.categorias || {};
+            const catEntries = Object.entries(cats).sort((a, b) => b[1] - a[1]);
+            const maxCat = catEntries[0] ? catEntries[0][1] : 1;
+            const catColors = ['#10b981', '#3b82f6', '#f59e0b', '#8b5cf6', '#ef4444', '#ec4899', '#06b6d4', '#84cc16'];
+            document.getElementById('col-categorias').innerHTML = catEntries.map(([cat, count], i) => {
+                const pct = (count / maxCat * 100).toFixed(0);
+                const color = catColors[i % catColors.length];
+                return `<div style="margin-bottom:10px">
+                    <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">
+                        <span style="font-weight:600">${cat}</span>
+                        <span style="color:var(--text-muted)">${count} comentários</span>
+                    </div>
+                    <div style="height:18px;border-radius:4px;overflow:hidden;background:rgba(255,255,255,0.03)">
+                        <div style="width:${pct}%;height:100%;background:${color};border-radius:4px;display:flex;align-items:center;padding:0 6px">
+                            <span style="font-size:9px;font-weight:700;color:#fff">${pct}%</span>
+                        </div>
+                    </div>
+                </div>`;
+            }).join('');
+
+            // Comments list
+            renderColetaComments();
+        }
+
+        function renderColetaComments() {
+            const sentColors = { 'Positivo': '#22c55e', 'Negativo': '#ef4444', 'Neutro': '#f59e0b' };
+            const sentIcons = { 'Positivo': '👍', 'Negativo': '👎', 'Neutro': '➖' };
+
+            document.getElementById('col-comments-list').innerHTML = _coletaResults.map(c => {
+                const sc = sentColors[c.sentimento] || '#64748b';
+                const icon = sentIcons[c.sentimento] || '•';
+                const dataFmt = c.data ? new Date(c.data).toLocaleDateString('pt-BR') : '';
+                return `<div class="col-comment-row" data-sent="${c.sentimento}" data-text="${(c.texto || '').toLowerCase()}" style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;gap:12px;align-items:flex-start">
+                    <span style="font-size:18px;margin-top:2px">${icon}</span>
+                    <div style="flex:1;min-width:0">
+                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap">
+                            <span style="font-weight:600;font-size:12px;color:${sc};border:1px solid ${sc};padding:1px 8px;border-radius:10px">${c.sentimento}</span>
+                            <span style="font-size:11px;color:var(--text-muted);background:var(--bg-hover);padding:1px 8px;border-radius:10px">${c.categoria || 'Geral'}</span>
+                            ${c.usuario ? `<span style="font-size:11px;color:#3b82f6">@${c.usuario}</span>` : ''}
+                            ${c.likes > 0 ? `<span style="font-size:11px;color:var(--text-muted)">❤️ ${c.likes}</span>` : ''}
+                            <span style="font-size:11px;color:var(--text-muted);margin-left:auto">${dataFmt}</span>
+                        </div>
+                        <div style="font-size:13px;line-height:1.5;color:var(--text-main)">${c.texto}</div>
+                    </div>
+                </div>`;
+            }).join('');
+
+            filterColResults();
+        }
+
+        function filterColResults() {
+            const sentFilter = document.getElementById('col-filter-sent').value;
+            const textFilter = document.getElementById('col-filter-text').value.toLowerCase();
+            let shown = 0;
+            document.querySelectorAll('.col-comment-row').forEach(row => {
+                const matchSent = !sentFilter || row.dataset.sent === sentFilter;
+                const matchText = !textFilter || row.dataset.text.includes(textFilter);
+                const visible = matchSent && matchText;
+                row.style.display = visible ? '' : 'none';
+                if (visible) shown++;
+            });
+            document.getElementById('col-comments-count').textContent = `Mostrando ${shown} de ${_coletaResults.length} comentários`;
+        }
+
+        async function loadColetaHistory() {
+            try {
+                const res = await fetch('/api/coletas');
+                const coletas = await res.json();
+                const el = document.getElementById('col-history');
+                if (!coletas.length) {
+                    el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted)">Nenhuma coleta realizada ainda. Cole URLs acima e clique em Analisar!</div>';
+                    return;
+                }
+                el.innerHTML = coletas.slice(0, 50).map((c, i) => {
+                    const dataFmt = new Date(c.data).toLocaleString('pt-BR');
+                    const r = c.resumo || {};
+                    const ctx = (c.contexto || 'Coleta').replace(/'/g, "\\'");
+                    return `<div onclick="loadColetaDetails('${ctx}')" style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-bottom:1px solid var(--border);cursor:pointer;transition:0.2s;${i === 0 ? 'background:rgba(16,185,129,0.05)' : ''}" onmouseover="this.style.backgroundColor='var(--bg-hover)'" onmouseout="this.style.backgroundColor='${i === 0 ? 'rgba(16,185,129,0.05)' : 'transparent'}'">
+                        <div>
+                            <div style="font-weight:600;font-size:13px">${c.contexto || 'Coleta'}</div>
+                            <div style="font-size:11px;color:var(--text-muted)">${dataFmt} • ${c.urls?.length || 0} URLs • ${c.total_analisados || 0} analisados</div>
+                        </div>
+                        <div style="display:flex;gap:12px;font-size:12px;font-weight:600">
+                            <span style="color:#22c55e">👍 ${r.positivos || 0}</span>
+                            <span style="color:#ef4444">👎 ${r.negativos || 0}</span>
+                            <span style="color:#f59e0b">➖ ${r.neutros || 0}</span>
+                        </div>
+                    </div>`;
+                }).join('');
+            } catch {
+                document.getElementById('col-history').innerHTML = '<div style="color:var(--text-muted);padding:12px">Erro ao carregar histórico</div>';
+            }
+        }
+
+        async function loadColetaDetails(contexto) {
+            document.getElementById('coleta-loading').style.display = 'block';
+            document.getElementById('coleta-results').style.display = 'none';
+            document.getElementById('btn-coletar').disabled = true;
+            document.getElementById('btn-coletar').innerHTML = '<i class="ri-loader-4-line"></i> Carregando...';
+
+            try {
+                const res = await fetch(`/api/coletas/detalhes?contexto=${encodeURIComponent(contexto)}`);
+                const data = await res.json();
+
+                if (data.error && !data.comentarios) {
+                    alert('Erro ao carregar detalhes: ' + data.error);
+                    return;
+                }
+
+                _coletaResults = data.comentarios || [];
+                renderColetaResults(data);
+
+                // Scroll até a seção de resultados (não ao topo, pois o formulário ocupa espaço acima)
+                document.getElementById('coleta-results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+            } catch (e) {
+                alert('Erro ao conectar com servidor: ' + e.message);
+            } finally {
+                document.getElementById('coleta-loading').style.display = 'none';
+                document.getElementById('btn-coletar').disabled = false;
+                document.getElementById('btn-coletar').innerHTML = '<i class="ri-search-eye-line"></i> Analisar Comentários';
+            }
+        }
+
+        // AUTO-REFRESH
+        setInterval(() => {
+            const dashboardVisible = !document.getElementById('view-dashboard').classList.contains('hidden');
+            const feedbacksVisible = !document.getElementById('view-feedbacks').classList.contains('hidden');
+            const regionsVisible = !document.getElementById('view-regions').classList.contains('hidden');
+            const categoriesVisible = !document.getElementById('view-categories').classList.contains('hidden');
+
+            if (dashboardVisible) { loadData(); loadTopInsights(); }
+            if (feedbacksVisible) { aplicarFiltros(); }
+            if (regionsVisible || categoriesVisible) { loadConfigViews(); }
+        }, 5000);
+
+        // Close thread modal on Esc
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') closeThreadModal(); });
+
+        // Load notícias on startup (background)
+        buscarNoticias();
+    </script>
+
+    <!-- Thread Timeline Modal -->
+    <div id="thread-modal-overlay" class="modal-overlay hidden" onclick="if(event.target===this) closeThreadModal()">
+        <div class="modal-thread-box" id="thread-modal-body">
+            <!-- Populated by openThreadModal() -->
+        </div>
+    </div>
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js').catch(() => { });
+            });
+        }
+    </script>
+</body>
+
+</html>
