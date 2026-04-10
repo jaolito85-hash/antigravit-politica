@@ -1286,19 +1286,57 @@ def get_top_analytics():
 
 
 # =============================================================================
-# INSTAGRAM SCRAPER — Instaloader (gratuito, sem API key)
+# INSTAGRAM SCRAPER — Instaloader (gratuito)
+# Requer login: configurar IG_USERNAME e IG_PASSWORD no .env / Coolify
 # Estratégia: perfil → últimos N posts → comentários de cada post → IA classifica
-# Lib: instaloader (pip install instaloader)
 # =============================================================================
 
 _instagram_cache = {}
 CACHE_TTL = 3600  # 1 hora
+_instaloader_instance = None
+
+
+def _get_instaloader():
+    """Retorna instância singleton do Instaloader com sessão logada."""
+    global _instaloader_instance
+    if _instaloader_instance is not None:
+        return _instaloader_instance
+
+    import instaloader
+    L = instaloader.Instaloader(
+        download_pictures=False,
+        download_videos=False,
+        download_video_thumbnails=False,
+        download_geotags=False,
+        download_comments=False,
+        save_metadata=False,
+        compress_json=False
+    )
+
+    ig_user = os.getenv("IG_USERNAME", "").strip()
+    ig_pass = os.getenv("IG_PASSWORD", "").strip()
+
+    if ig_user and ig_pass:
+        try:
+            L.login(ig_user, ig_pass)
+            print(f"✅ [Instaloader] Logado como @{ig_user}")
+            _instaloader_instance = L
+            return L
+        except Exception as e:
+            print(f"⚠️ [Instaloader] Erro no login @{ig_user}: {e}")
+            # Tenta continuar sem login (posts públicos funcionam, comentários não)
+            _instaloader_instance = L
+            return L
+    else:
+        print("⚠️ [Instaloader] IG_USERNAME/IG_PASSWORD não configurados. Comentários podem falhar.")
+        _instaloader_instance = L
+        return L
 
 
 def _instaloader_get_posts(username: str, n_posts: int = 5) -> list:
     """Busca os últimos N posts de um perfil público via Instaloader."""
     import instaloader
-    L = instaloader.Instaloader()
+    L = _get_instaloader()
     try:
         profile = instaloader.Profile.from_username(L.context, username)
         posts = []
@@ -1313,7 +1351,7 @@ def _instaloader_get_posts(username: str, n_posts: int = 5) -> list:
 
 
 def _instaloader_get_comments_from_post(post, max_comments: int = 150) -> list:
-    """Extrai comentários de um post do Instaloader."""
+    """Extrai comentários de um post do Instaloader (requer login)."""
     comments = []
     try:
         for comment in post.get_comments():
@@ -1335,13 +1373,12 @@ def _instaloader_get_comments_from_url(url: str, max_comments: int = 150) -> lis
     """Extrai comentários de uma URL de post do Instagram via Instaloader."""
     import instaloader
     import re
-    # Extrair shortcode da URL
     match = re.search(r'/(?:p|reel)/([A-Za-z0-9_-]+)', url)
     if not match:
         print(f"[Instaloader] URL inválida: {url}")
         return []
     shortcode = match.group(1)
-    L = instaloader.Instaloader()
+    L = _get_instaloader()
     try:
         post = instaloader.Post.from_shortcode(L.context, shortcode)
         return _instaloader_get_comments_from_post(post, max_comments)
