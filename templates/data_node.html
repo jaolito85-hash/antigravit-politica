@@ -1246,6 +1246,226 @@
             padding-top: 12px;
             border-top: 1px solid var(--border);
         }
+
+        /* ═══════════════════════════════════════════════
+           IBGE Intelligence Card — Government Dossier
+           ═══════════════════════════════════════════════ */
+        .ibge-card {
+            background: linear-gradient(168deg, #0d1117 0%, #111827 50%, #0c1322 100%);
+            border: 1px solid rgba(59, 130, 246, 0.15);
+            border-radius: 12px;
+            padding: 0;
+            overflow: hidden;
+            position: relative;
+            transition: border-color 0.4s ease, box-shadow 0.4s ease;
+        }
+        .ibge-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background:
+                repeating-linear-gradient(
+                    0deg,
+                    transparent,
+                    transparent 2px,
+                    rgba(59, 130, 246, 0.015) 2px,
+                    rgba(59, 130, 246, 0.015) 4px
+                );
+            pointer-events: none;
+            z-index: 0;
+        }
+        .ibge-card:hover {
+            border-color: rgba(59, 130, 246, 0.3);
+            box-shadow: 0 0 24px rgba(59, 130, 246, 0.06), inset 0 0 40px rgba(59, 130, 246, 0.02);
+        }
+
+        /* Header */
+        .ibge-card__header {
+            position: relative;
+            z-index: 1;
+            padding: 14px 16px 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .ibge-card__badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.6rem;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: #60a5fa;
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            border-radius: 4px;
+            padding: 3px 8px;
+            width: fit-content;
+            margin-bottom: 6px;
+        }
+        .ibge-card__badge i {
+            font-size: 0.7rem;
+        }
+        .ibge-card__cidade {
+            font-size: 1.15rem;
+            font-weight: 800;
+            color: #f0f6fc;
+            letter-spacing: -0.02em;
+            line-height: 1.2;
+        }
+        .ibge-card__estado {
+            font-size: 0.65rem;
+            color: #4b5563;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        /* Divider */
+        .ibge-card__divider {
+            position: relative;
+            z-index: 1;
+            height: 1px;
+            margin: 0 16px;
+            background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.25) 20%, rgba(59, 130, 246, 0.25) 80%, transparent);
+        }
+
+        /* Metrics Grid */
+        .ibge-card__metrics {
+            position: relative;
+            z-index: 1;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1px;
+            padding: 12px;
+            background: transparent;
+        }
+        .ibge-metric {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 10px;
+            border-radius: 8px;
+            transition: background 0.25s ease;
+            animation: ibgeMetricIn 0.4s ease both;
+        }
+        .ibge-metric[data-delay="0"] { animation-delay: 0.05s; }
+        .ibge-metric[data-delay="1"] { animation-delay: 0.12s; }
+        .ibge-metric[data-delay="2"] { animation-delay: 0.19s; }
+        .ibge-metric[data-delay="3"] { animation-delay: 0.26s; }
+        @keyframes ibgeMetricIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .ibge-metric:hover {
+            background: rgba(255, 255, 255, 0.025);
+        }
+
+        .ibge-metric__icon {
+            flex-shrink: 0;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.95rem;
+            color: var(--metric-color);
+            background: color-mix(in srgb, var(--metric-color) 10%, transparent);
+            border: 1px solid color-mix(in srgb, var(--metric-color) 18%, transparent);
+        }
+
+        .ibge-metric__data {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            min-width: 0;
+        }
+        .ibge-metric__value {
+            font-size: 1rem;
+            font-weight: 800;
+            color: #e5e7eb;
+            letter-spacing: -0.02em;
+            line-height: 1.3;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .ibge-metric__label {
+            font-size: 0.62rem;
+            color: #6b7280;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            line-height: 1.4;
+        }
+        .ibge-metric__year {
+            font-size: 0.56rem;
+            color: #374151;
+            font-weight: 600;
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* Footer */
+        .ibge-card__footer {
+            position: relative;
+            z-index: 1;
+            margin: 0 12px 12px;
+            padding: 10px 12px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            animation: ibgeMetricIn 0.4s ease 0.32s both;
+        }
+        .ibge-footer__item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex: 1;
+            min-width: 0;
+        }
+        .ibge-footer__item i {
+            font-size: 0.8rem;
+            color: #4b5563;
+            flex-shrink: 0;
+        }
+        .ibge-footer__label {
+            font-size: 0.58rem;
+            color: #4b5563;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+            flex-shrink: 0;
+        }
+        .ibge-footer__value {
+            font-size: 0.72rem;
+            color: #9ca3af;
+            font-weight: 600;
+            margin-left: auto;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .ibge-footer__separator {
+            width: 1px;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.06);
+            flex-shrink: 0;
+        }
+
+        /* Loading pulse for metric values */
+        .ibge-metric__value.loading {
+            color: #374151;
+            animation: ibgePulse 1.2s ease-in-out infinite;
+        }
+        @keyframes ibgePulse {
+            0%, 100% { opacity: 0.4; }
+            50% { opacity: 0.8; }
+        }
     </style>
     <!-- Leaflet -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -1680,34 +1900,76 @@
                 </div>
 
                 <!-- Dados IBGE da Cidade -->
-                <div class="stat-card"
-                    style="padding:16px;background:rgba(16,185,129,0.08);border-color:rgba(16,185,129,0.3)">
-                    <div
-                        style="font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;">
-                        <span><i class="ri-bar-chart-box-line" style="color:#10b981"></i> Dados IBGE</span>
-                        <span id="ibge-cidade-label" style="color:#10b981;font-weight:700;font-size:11px;"></span>
+                <div class="ibge-card" id="ibge-card-wrapper">
+                    <!-- Header com badge IBGE -->
+                    <div class="ibge-card__header">
+                        <div class="ibge-card__badge">
+                            <i class="ri-government-line"></i>
+                            <span>IBGE</span>
+                        </div>
+                        <div class="ibge-card__cidade" id="ibge-cidade-label">--</div>
+                        <div class="ibge-card__estado">Minas Gerais</div>
                     </div>
-                    <div id="ibge-data-container" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-                        <div style="text-align:center;padding:8px;background:rgba(255,255,255,0.03);border-radius:8px;">
-                            <div style="font-size:1.1rem;font-weight:800;color:#10b981;" id="ibge-populacao">--</div>
-                            <div style="font-size:0.65rem;color:var(--text-muted);margin-top:2px;">Habitantes</div>
+
+                    <!-- Linha divisória com glow -->
+                    <div class="ibge-card__divider"></div>
+
+                    <!-- Grid de métricas -->
+                    <div class="ibge-card__metrics">
+                        <div class="ibge-metric" data-delay="0">
+                            <div class="ibge-metric__icon" style="--metric-color:#34d399">
+                                <i class="ri-group-line"></i>
+                            </div>
+                            <div class="ibge-metric__data">
+                                <span class="ibge-metric__value" id="ibge-populacao">--</span>
+                                <span class="ibge-metric__label">Habitantes</span>
+                                <span class="ibge-metric__year" id="ibge-pop-ano"></span>
+                            </div>
                         </div>
-                        <div style="text-align:center;padding:8px;background:rgba(255,255,255,0.03);border-radius:8px;">
-                            <div style="font-size:1.1rem;font-weight:800;color:#3b82f6;" id="ibge-pib">--</div>
-                            <div style="font-size:0.65rem;color:var(--text-muted);margin-top:2px;">PIB per capita</div>
+                        <div class="ibge-metric" data-delay="1">
+                            <div class="ibge-metric__icon" style="--metric-color:#60a5fa">
+                                <i class="ri-money-dollar-circle-line"></i>
+                            </div>
+                            <div class="ibge-metric__data">
+                                <span class="ibge-metric__value" id="ibge-pib">--</span>
+                                <span class="ibge-metric__label">PIB per capita</span>
+                                <span class="ibge-metric__year" id="ibge-pib-ano"></span>
+                            </div>
                         </div>
-                        <div style="text-align:center;padding:8px;background:rgba(255,255,255,0.03);border-radius:8px;">
-                            <div style="font-size:1.1rem;font-weight:800;color:#f59e0b;" id="ibge-idh">--</div>
-                            <div style="font-size:0.65rem;color:var(--text-muted);margin-top:2px;">IDH</div>
+                        <div class="ibge-metric" data-delay="2">
+                            <div class="ibge-metric__icon" style="--metric-color:#fbbf24">
+                                <i class="ri-bar-chart-grouped-line"></i>
+                            </div>
+                            <div class="ibge-metric__data">
+                                <span class="ibge-metric__value" id="ibge-idh">--</span>
+                                <span class="ibge-metric__label">IDHM</span>
+                                <span class="ibge-metric__year" id="ibge-idh-ano"></span>
+                            </div>
                         </div>
-                        <div style="text-align:center;padding:8px;background:rgba(255,255,255,0.03);border-radius:8px;">
-                            <div style="font-size:1.1rem;font-weight:800;color:#a78bfa;" id="ibge-area">--</div>
-                            <div style="font-size:0.65rem;color:var(--text-muted);margin-top:2px;">Área km²</div>
+                        <div class="ibge-metric" data-delay="3">
+                            <div class="ibge-metric__icon" style="--metric-color:#c084fc">
+                                <i class="ri-map-pin-range-line"></i>
+                            </div>
+                            <div class="ibge-metric__data">
+                                <span class="ibge-metric__value" id="ibge-area">--</span>
+                                <span class="ibge-metric__label">Área km²</span>
+                            </div>
                         </div>
                     </div>
-                    <div id="ibge-extras" style="margin-top:8px;font-size:0.72rem;color:var(--text-muted);line-height:1.6;display:none;">
-                        <div><i class="ri-government-line" style="color:#6366f1;margin-right:4px;"></i> <span id="ibge-prefeito">--</span></div>
-                        <div><i class="ri-building-line" style="color:#f59e0b;margin-right:4px;"></i> <span id="ibge-densidade">--</span> hab/km²</div>
+
+                    <!-- Footer: prefeito + densidade -->
+                    <div class="ibge-card__footer" id="ibge-extras" style="display:none;">
+                        <div class="ibge-footer__item">
+                            <i class="ri-user-star-line"></i>
+                            <span class="ibge-footer__label">Prefeito</span>
+                            <span class="ibge-footer__value" id="ibge-prefeito">--</span>
+                        </div>
+                        <div class="ibge-footer__separator"></div>
+                        <div class="ibge-footer__item">
+                            <i class="ri-building-4-line"></i>
+                            <span class="ibge-footer__label">Densidade</span>
+                            <span class="ibge-footer__value"><span id="ibge-densidade">--</span> hab/km²</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -3585,22 +3847,40 @@ https://www.instagram.com/p/YYYYY/"
             const extras = document.getElementById('ibge-extras');
             label.innerText = cidade;
 
-            // Reset
-            ['ibge-populacao','ibge-pib','ibge-idh','ibge-area'].forEach(id => {
-                document.getElementById(id).innerText = '...';
+            // Loading state com animação
+            const valueIds = ['ibge-populacao','ibge-pib','ibge-idh','ibge-area'];
+            valueIds.forEach(id => {
+                const el = document.getElementById(id);
+                el.innerText = '...';
+                el.classList.add('loading');
+            });
+            ['ibge-pop-ano','ibge-pib-ano','ibge-idh-ano'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.innerText = '';
             });
             extras.style.display = 'none';
+
+            // Re-trigger entrada animada das métricas
+            document.querySelectorAll('.ibge-metric').forEach(el => {
+                el.style.animation = 'none';
+                el.offsetHeight; // reflow
+                el.style.animation = '';
+            });
 
             try {
                 const res = await fetch('/api/ibge/' + encodeURIComponent(cidade));
                 if (!res.ok) {
-                    document.getElementById('ibge-populacao').innerText = 'N/D';
-                    document.getElementById('ibge-pib').innerText = 'N/D';
-                    document.getElementById('ibge-idh').innerText = 'N/D';
-                    document.getElementById('ibge-area').innerText = 'N/D';
+                    valueIds.forEach(id => {
+                        const el = document.getElementById(id);
+                        el.innerText = 'N/D';
+                        el.classList.remove('loading');
+                    });
                     return;
                 }
                 const d = await res.json();
+
+                // Remover loading e popular valores
+                valueIds.forEach(id => document.getElementById(id).classList.remove('loading'));
 
                 document.getElementById('ibge-populacao').innerText = d.populacao
                     ? d.populacao.toLocaleString('pt-BR') : 'N/D';
@@ -3609,15 +3889,31 @@ https://www.instagram.com/p/YYYYY/"
                 document.getElementById('ibge-idh').innerText = d.idh
                     ? d.idh.toFixed(3) : 'N/D';
                 document.getElementById('ibge-area').innerText = d.area_km2
-                    ? d.area_km2.toLocaleString('pt-BR', {maximumFractionDigits:0}) : 'N/D';
+                    ? d.area_km2.toLocaleString('pt-BR', {maximumFractionDigits:0}) + ' km²' : 'N/D';
 
+                // Anos de referência
+                if (d.populacao_ano) document.getElementById('ibge-pop-ano').innerText = d.populacao_ano;
+                if (d.pib_ano) document.getElementById('ibge-pib-ano').innerText = d.pib_ano;
+                if (d.idh_ano) document.getElementById('ibge-idh-ano').innerText = d.idh_ano;
+
+                // Footer: prefeito + densidade
+                let showExtras = false;
+                if (d.prefeito) {
+                    document.getElementById('ibge-prefeito').innerText = d.prefeito;
+                    showExtras = true;
+                }
                 if (d.densidade) {
                     document.getElementById('ibge-densidade').innerText = d.densidade.toLocaleString('pt-BR');
-                    extras.style.display = 'block';
+                    showExtras = true;
                 }
+                if (showExtras) extras.style.display = 'flex';
             } catch (e) {
                 console.error('Erro IBGE:', e);
-                document.getElementById('ibge-populacao').innerText = 'Erro';
+                valueIds.forEach(id => {
+                    const el = document.getElementById(id);
+                    el.innerText = 'Erro';
+                    el.classList.remove('loading');
+                });
             }
         }
 

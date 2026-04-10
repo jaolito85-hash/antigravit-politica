@@ -2686,19 +2686,30 @@ def radar_mg_listar_pesquisas():
 
 @app.route('/api/ibge/<cidade>')
 def ibge_cidade(cidade):
-    """Busca dados do IBGE para uma cidade de MG via API pública"""
+    """Busca dados do IBGE via API de pesquisas (mesma usada pelo IBGE Cidades)"""
     try:
-        from urllib.parse import quote
         import unicodedata
 
-        def normalize(s):
+        def normalize(s: str) -> str:
             """Remove acentos para comparação"""
             return unicodedata.normalize('NFKD', s).encode('ASCII', 'ignore').decode('ASCII').lower()
+
+        def extrair_ultimo_valor(item: dict) -> tuple:
+            """Extrai o valor mais recente de um item da API de pesquisas IBGE"""
+            res_list = item.get('res', [])
+            if not res_list:
+                return None, None
+            serie = res_list[0].get('res', {})
+            for ano in sorted(serie.keys(), reverse=True):
+                val = serie[ano]
+                if val is not None:
+                    return val, ano
+            return None, None
 
         cidade_norm = normalize(cidade)
 
         # 1. Buscar código do município via API de localidades
-        loc_url = f"https://servicodados.ibge.gov.br/api/v1/localidades/estados/MG/municipios"
+        loc_url = "https://servicodados.ibge.gov.br/api/v1/localidades/estados/MG/municipios"
         loc_resp = requests.get(loc_url, timeout=10)
         municipios = loc_resp.json() if loc_resp.status_code == 200 else []
 
@@ -2711,7 +2722,6 @@ def ibge_cidade(cidade):
                 break
 
         if not codigo:
-            # Busca parcial
             for m in municipios:
                 if cidade_norm in normalize(m.get('nome', '')):
                     codigo = m['id']
@@ -2721,67 +2731,51 @@ def ibge_cidade(cidade):
         if not codigo:
             return jsonify({'error': f'Cidade "{cidade}" não encontrada no IBGE', 'cidade': cidade}), 404
 
-        # 2. Buscar indicadores via API de agregados (populacao, PIB, area)
         resultado = {
             'cidade': nome_oficial,
             'codigo_ibge': codigo,
             'estado': 'MG'
         }
 
-        # Populacao estimada 2021 - Agregado 6579
+        # 2. Indicadores via API de pesquisas (mesma do site IBGE Cidades)
+        # 29171=população estimada, 47001=PIB per capita, 29167=área, 29170=prefeito
         try:
-            pop_url = f"https://servicodados.ibge.gov.br/api/v3/agregados/6579/periodos/-1/variaveis/9324?localidades=N6[{codigo}]"
-            pop_resp = requests.get(pop_url, timeout=10)
-            if pop_resp.status_code == 200:
-                pop_data = pop_resp.json()
-                series = pop_data[0]['resultados'][0]['series'][0]['serie']
-                ultimo_ano = max(series.keys())
-                resultado['populacao'] = int(series[ultimo_ano])
-                resultado['populacao_ano'] = ultimo_ano
-        except Exception:
-            pass
+            url = f"https://servicodados.ibge.gov.br/api/v1/pesquisas/-/indicadores/29171|47001|29167|29170/resultados/{codigo}"
+            resp = requests.get(url, timeout=15)
+            if resp.status_code == 200:
+                for item in resp.json():
+                    ind_id = item.get('id')
+                    val, ano = extrair_ultimo_valor(item)
+                    if not val:
+                        continue
+                    if ind_id == 29171:
+                        resultado['populacao'] = int(val)
+                        resultado['populacao_ano'] = ano
+                    elif ind_id == 47001:
+                        resultado['pib_per_capita'] = round(float(val), 2)
+                        resultado['pib_ano'] = ano
+                    elif ind_id == 29167:
+                        resultado['area_km2'] = round(float(val), 3)
+                    elif ind_id == 29170:
+                        resultado['prefeito'] = val.title()
+        except Exception as e:
+            print(f"[IBGE] Erro pesquisas panorama: {e}")
 
-        # PIB per capita - Agregado 5938
+        # 3. IDHM via pesquisa 10111 (Atlas Brasil / PNUD)
         try:
-            pib_url = f"https://servicodados.ibge.gov.br/api/v3/agregados/5938/periodos/-1/variaveis/37?localidades=N6[{codigo}]"
-            pib_resp = requests.get(pib_url, timeout=10)
-            if pib_resp.status_code == 200:
-                pib_data = pib_resp.json()
-                series = pib_data[0]['resultados'][0]['series'][0]['serie']
-                ultimo_ano = max(series.keys())
-                val = series[ultimo_ano]
-                resultado['pib_per_capita'] = float(val) if val and val != '-' else None
-                resultado['pib_ano'] = ultimo_ano
-        except Exception:
-            pass
-
-        # Area territorial - Agregado 1301 (ou via metadados)
-        try:
-            area_url = f"https://servicodados.ibge.gov.br/api/v3/agregados/1301/periodos/-1/variaveis/615?localidades=N6[{codigo}]"
-            area_resp = requests.get(area_url, timeout=10)
-            if area_resp.status_code == 200:
-                area_data = area_resp.json()
-                series = area_data[0]['resultados'][0]['series'][0]['serie']
-                ultimo_ano = max(series.keys())
-                val = series[ultimo_ano]
-                resultado['area_km2'] = float(val) if val and val != '-' else None
-        except Exception:
-            pass
-
-        # IDH via pesquisa IDHM (Atlas Brasil usa código IBGE)
-        try:
-            idh_url = f"https://servicodados.ibge.gov.br/api/v3/agregados/1092/periodos/-1/variaveis/7?localidades=N6[{codigo}]"
+            idh_url = f"https://servicodados.ibge.gov.br/api/v1/pesquisas/10111/indicadores/329756/resultados/{codigo}"
             idh_resp = requests.get(idh_url, timeout=10)
             if idh_resp.status_code == 200:
-                idh_data = idh_resp.json()
-                series = idh_data[0]['resultados'][0]['series'][0]['serie']
-                ultimo_ano = max(series.keys())
-                val = series[ultimo_ano]
-                resultado['idh'] = float(val) if val and val != '-' else None
-        except Exception:
-            pass
+                dados = idh_resp.json()
+                if dados:
+                    val, ano = extrair_ultimo_valor(dados[0])
+                    if val:
+                        resultado['idh'] = float(val)
+                        resultado['idh_ano'] = ano
+        except Exception as e:
+            print(f"[IBGE] Erro IDHM: {e}")
 
-        # Densidade demográfica
+        # 4. Densidade demográfica (calculada)
         if resultado.get('populacao') and resultado.get('area_km2'):
             resultado['densidade'] = round(resultado['populacao'] / resultado['area_km2'], 1)
 
