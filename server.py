@@ -1286,35 +1286,68 @@ def get_top_analytics():
 
 
 # =============================================================================
-# INSTAGRAM SCRAPER — Apify Integration
+# INSTAGRAM SCRAPER — Instaloader (gratuito, sem API key)
 # Estratégia: perfil → últimos N posts → comentários de cada post → IA classifica
-# Actor: apify/instagram-scraper  (docs: https://apify.com/apify/instagram-scraper)
-# Configurar: APIFY_TOKEN no .env e no Coolify
+# Lib: instaloader (pip install instaloader)
 # =============================================================================
 
-APIFY_TOKEN = os.getenv("APIFY_TOKEN", "")
 _instagram_cache = {}
 CACHE_TTL = 3600  # 1 hora
 
 
-def _apify_run(actor_slug, payload, timeout=150):
-    """Dispara um actor no Apify e retorna os itens do dataset resultante."""
-    run_url = (
-        f"https://api.apify.com/v2/acts/{actor_slug}/runs"
-        f"?token={APIFY_TOKEN}&waitForFinish=120"
-    )
-    run_resp = requests.post(run_url, json=payload, timeout=timeout)
-    run_resp.raise_for_status()
-    dataset_id = run_resp.json().get("data", {}).get("defaultDatasetId")
-    if not dataset_id:
+def _instaloader_get_posts(username: str, n_posts: int = 5) -> list:
+    """Busca os últimos N posts de um perfil público via Instaloader."""
+    import instaloader
+    L = instaloader.Instaloader()
+    try:
+        profile = instaloader.Profile.from_username(L.context, username)
+        posts = []
+        for post in profile.get_posts():
+            if len(posts) >= n_posts:
+                break
+            posts.append(post)
+        return posts
+    except Exception as e:
+        print(f"[Instaloader] Erro ao buscar posts de @{username}: {e}")
         return []
-    items_url = (
-        f"https://api.apify.com/v2/datasets/{dataset_id}/items"
-        f"?token={APIFY_TOKEN}&format=json&clean=true"
-    )
-    items_resp = requests.get(items_url, timeout=30)
-    items_resp.raise_for_status()
-    return items_resp.json()
+
+
+def _instaloader_get_comments_from_post(post, max_comments: int = 150) -> list:
+    """Extrai comentários de um post do Instaloader."""
+    comments = []
+    try:
+        for comment in post.get_comments():
+            if len(comments) >= max_comments:
+                break
+            comments.append({
+                "text": comment.text or "",
+                "ownerUsername": comment.owner.username if comment.owner else "",
+                "timestamp": comment.created_at_utc.isoformat() if comment.created_at_utc else "",
+                "postUrl": f"https://www.instagram.com/p/{post.shortcode}/",
+                "likesCount": comment.likes_count if hasattr(comment, 'likes_count') else 0,
+            })
+    except Exception as e:
+        print(f"[Instaloader] Erro ao buscar comentários do post {post.shortcode}: {e}")
+    return comments
+
+
+def _instaloader_get_comments_from_url(url: str, max_comments: int = 150) -> list:
+    """Extrai comentários de uma URL de post do Instagram via Instaloader."""
+    import instaloader
+    import re
+    # Extrair shortcode da URL
+    match = re.search(r'/(?:p|reel)/([A-Za-z0-9_-]+)', url)
+    if not match:
+        print(f"[Instaloader] URL inválida: {url}")
+        return []
+    shortcode = match.group(1)
+    L = instaloader.Instaloader()
+    try:
+        post = instaloader.Post.from_shortcode(L.context, shortcode)
+        return _instaloader_get_comments_from_post(post, max_comments)
+    except Exception as e:
+        print(f"[Instaloader] Erro ao buscar post {shortcode}: {e}")
+        return []
 
 
 def _classificar_chunk(textos, politico):
@@ -1383,20 +1416,14 @@ def _classificar_batch(textos, politico, chunk_size=30):
     return results
 
 
-def fetch_instagram_comments(username, politico, n_posts=5, comments_per_post=200):
+def fetch_instagram_comments(username, politico, n_posts=5, comments_per_post=150):
     """
-    Fluxo dois passos:
-      1. apify~instagram-scraper  → pega os N posts mais recentes do perfil
-         (latestComments é só preview de 3-5, ignoramos — usamos só shortCode/url/timestamp)
-      2. apify~instagram-comment-scraper → pega TODOS os comentários de cada post
-         (directUrls=[post_url_1,...], resultsLimit=comments_per_post por post)
-    Resultado cacheado por 1h para economizar crédito Apify.
+    Busca comentários do Instagram via Instaloader (gratuito).
+    Fluxo: perfil público → últimos N posts → comentários → IA classifica.
+    Resultado cacheado por 1h.
     """
-    if not APIFY_TOKEN:
-        return None
-
     username_clean = username.lstrip("@").strip()
-    chave = f"ig2_{username_clean}_{n_posts}"  # ig2_ para não conflitar com cache antigo
+    chave = f"ig_{username_clean}_{n_posts}"
     agora_ts = time_now()
 
     if chave in _instagram_cache:
@@ -1404,51 +1431,24 @@ def fetch_instagram_comments(username, politico, n_posts=5, comments_per_post=20
             print(f"📸 Cache hit Instagram @{username_clean}")
             return _instagram_cache[chave]["data"]
 
-    profile_url = f"https://www.instagram.com/{username_clean}/"
-    print(f"📸 [1/2] Buscando posts de @{username_clean}...")
+    print(f"📸 [1/2] Buscando posts de @{username_clean} via Instaloader...")
 
     try:
         # ── PASSO 1: pegar posts do perfil ─────────────────────────────────
-        posts = _apify_run("apify~instagram-scraper", {
-            "directUrls": [profile_url],
-            "resultsType": "posts",
-            "resultsLimit": n_posts,
-            "proxy": {"useApifyProxy": True}
-        })
+        posts = _instaloader_get_posts(username_clean, n_posts)
 
         if not posts:
             print(f"⚠️ Nenhum post encontrado para @{username_clean}")
             return None
 
-        # Ordenar por timestamp — mais recente primeiro
-        def _ts(p):
-            t = p.get("timestamp") or p.get("taken_at_timestamp") or 0
-            return t if isinstance(t, (int, float)) else 0
+        print(f"✅ {len(posts)} posts. [2/2] Buscando comentários...")
 
-        posts_sorted = sorted(posts, key=_ts, reverse=True)[:n_posts]
-
-        # Extrair URLs dos posts
-        post_urls = []
-        for p in posts_sorted:
-            url = p.get("url") or (
-                f"https://www.instagram.com/p/{p['shortCode']}/"
-                if p.get("shortCode") else None
-            )
-            if url:
-                post_urls.append(url)
-
-        if not post_urls:
-            print("⚠️ Não foi possível extrair URLs dos posts")
-            return None
-
-        print(f"✅ {len(post_urls)} posts. [2/2] Buscando todos os comentários...")
-
-        # ── PASSO 2: buscar TODOS os comentários dos posts ──────────────────
-        # Retorna: text, ownerUsername, timestamp, postUrl
-        raw_comments = _apify_run("apify~instagram-comment-scraper", {
-            "directUrls": post_urls,
-            "resultsLimit": comments_per_post,  # por URL/post
-        })
+        # ── PASSO 2: buscar comentários dos posts ──────────────────────────
+        raw_comments = []
+        for post in posts:
+            comments = _instaloader_get_comments_from_post(post, comments_per_post)
+            raw_comments.extend(comments)
+            print(f"  📝 Post {post.shortcode}: {len(comments)} comentários")
 
         if not raw_comments:
             print("⚠️ Nenhum comentário encontrado nos posts")
@@ -1456,7 +1456,7 @@ def fetch_instagram_comments(username, politico, n_posts=5, comments_per_post=20
 
         print(f"✅ {len(raw_comments)} comentários brutos. Classificando em batch...")
 
-        # ── PASSO 3: batch classify — UMA chamada OpenAI para todos ────────
+        # ── PASSO 3: batch classify ────────────────────────────────────────
         textos = [(c.get("text") or "").strip() for c in raw_comments]
         indices_validos = [i for i, t in enumerate(textos) if len(t) >= 5]
         textos_validos = [textos[i] for i in indices_validos]
@@ -1473,9 +1473,6 @@ def fetch_instagram_comments(username, politico, n_posts=5, comments_per_post=20
                 continue
 
             data_c = c.get("timestamp") or datetime.utcnow().isoformat()
-            if isinstance(data_c, (int, float)):
-                from datetime import timezone as tz
-                data_c = datetime.fromtimestamp(data_c, tz=tz.utc).isoformat()
 
             cl = cl_map.get(i, default_cl)
             resultados.append({
@@ -1493,13 +1490,11 @@ def fetch_instagram_comments(username, politico, n_posts=5, comments_per_post=20
 
         print(f"✅ {len(resultados)} comentários prontos para @{username_clean}")
         _instagram_cache[chave] = {"ts": agora_ts, "data": resultados}
-        # Persistir em disco para sobreviver a reloads de página e reinícios do servidor
         save_json(LAST_COMMENTS_FILE, {
             "username": username_clean,
             "politico": politico,
             "comentarios": resultados
         })
-        # Persistir no Supabase (permanente)
         if supabase:
             try:
                 rows = []
@@ -1520,7 +1515,6 @@ def fetch_instagram_comments(username, politico, n_posts=5, comments_per_post=20
                     print(f"💾 {len(rows)} comentários salvos no Supabase")
             except Exception as se:
                 print(f"⚠️ Erro ao salvar no Supabase: {se}")
-        print(f"💾 Comentários persistidos em last_ig_comments.json")
         return resultados
 
     except Exception as e:
@@ -1532,7 +1526,7 @@ def fetch_instagram_comments(username, politico, n_posts=5, comments_per_post=20
 @app.route("/api/radar-comentarios")
 def radar_comentarios():
     """
-    Com APIFY_TOKEN + username: busca comentários reais do Instagram.
+    Com username: busca comentários reais do Instagram via Instaloader.
     Sem token ou username: retorna dados mock.
     """
     from datetime import timedelta, timezone
@@ -1540,12 +1534,10 @@ def radar_comentarios():
     politico = request.args.get('politico', '')
     username = request.args.get('username', '')
 
-    # Dados reais do Instagram
-    if APIFY_TOKEN and username:
+    # Dados reais do Instagram via Instaloader
+    if username:
         real_data = fetch_instagram_comments(username, politico or username)
         if real_data is not None:
-            # Não filtramos por data: já buscamos os N posts mais recentes,
-            # filtrar por período cortaria comentários de posts mais antigos
             return jsonify(real_data)
 
     # Fallback: último scrape real salvo em disco (nunca dados fictícios)
@@ -1555,7 +1547,7 @@ def radar_comentarios():
 
 @app.route("/api/radar-comentarios/cache")
 def radar_comentarios_cache():
-    """Retorna comentários salvos no Supabase SEM disparar Apify."""
+    """Retorna comentários salvos no Supabase (cache persistente)."""
     if supabase:
         try:
             resp = supabase.table('comentarios_politicos') \
@@ -1619,7 +1611,7 @@ def _filtrar_qualidade(comentarios):
 @app.route("/api/coletar-dados", methods=["POST"])
 def coletar_dados():
     """
-    Recebe URLs de posts do Instagram → scraper Apify → filtra qualidade → IA classifica.
+    Recebe URLs de posts do Instagram → Instaloader → filtra qualidade → IA classifica.
     Body: { "urls": ["https://instagram.com/p/..."], "contexto": "Nikolas Ferreira" }
     """
     data = request.get_json(force=True) or {}
@@ -1629,9 +1621,6 @@ def coletar_dados():
     if not urls:
         return jsonify({"error": "Nenhuma URL fornecida"}), 400
 
-    if not APIFY_TOKEN:
-        return jsonify({"error": "APIFY_TOKEN não configurado no servidor"}), 500
-
     # Normalizar URLs
     post_urls = [u.strip() for u in urls if u.strip()]
     if not post_urls:
@@ -1640,11 +1629,12 @@ def coletar_dados():
     try:
         print(f"📥 Coletar Dados: {len(post_urls)} URLs para analisar...")
 
-        # Passo 1: Buscar comentários via Apify
-        raw_comments = _apify_run("apify~instagram-comment-scraper", {
-            "directUrls": post_urls,
-            "resultsLimit": 150,
-        })
+        # Passo 1: Buscar comentários via Instaloader
+        raw_comments = []
+        for url in post_urls:
+            comments = _instaloader_get_comments_from_url(url, max_comments=150)
+            raw_comments.extend(comments)
+            print(f"  📝 {url}: {len(comments)} comentários")
 
         if not raw_comments:
             return jsonify({"error": "Nenhum comentário encontrado nessas URLs", "total_bruto": 0}), 200
