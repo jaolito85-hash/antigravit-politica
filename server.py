@@ -822,7 +822,8 @@ Responda APENAS em JSON com este formato exato:
 {{
   "categoria": "Propostas & Projetos" | "Infraestrutura & Obras" | "Saúde & Educação" | "Segurança Pública" | "Transporte & Mobilidade" | "Meio Ambiente" | "Desenvolvimento Econômico" | "Assistência Social",
   "sentimento": "Positivo" | "Critico" | "Urgente" | "Neutro",
-  "regiao": "Centro" | "Zona Norte" | "Zona Sul" | "Zona Leste" | "Zona Oeste" | "Distrito Industrial" | "Zona Rural" | "N/A"
+  "regiao": "Centro" | "Zona Norte" | "Zona Sul" | "Zona Leste" | "Zona Oeste" | "Distrito Industrial" | "Zona Rural" | "N/A",
+  "cidade": "nome da cidade mencionada em MG ou N/A se não identificável"
 }}
 
 Regras de categoria:
@@ -833,7 +834,11 @@ Regras de categoria:
 - Critico = corrupção comprovada, emergências, denúncias graves
 - Urgente = promessas não cumpridas, descaso, problemas graves sem solução
 - Positivo = elogios, projetos aprovados, agradecimentos
-- Neutro = perguntas, sugestões, informações neutras'''
+- Neutro = perguntas, sugestões, informações neutras
+
+Regras de cidade:
+- Identifique a cidade de Minas Gerais mencionada no texto (ex: Belo Horizonte, Uberlândia, Contagem, Betim, Ipatinga, etc.)
+- Se não houver cidade identificável, retorne "N/A"'''
 
         response = client.chat.completions.create(
             model="gpt-4o-mini",
@@ -1081,6 +1086,7 @@ def get_events():
     regiao = request.args.get('regiao')
     prioridade = request.args.get('prioridade')
     status_filter = request.args.get('status')
+    cidade = request.args.get('cidade')
 
     if categoria:
         feedbacks = [f for f in feedbacks if f.get('category') == categoria]
@@ -1090,6 +1096,8 @@ def get_events():
         feedbacks = [f for f in feedbacks if f.get('urgency') == prioridade]
     if status_filter:
         feedbacks = [f for f in feedbacks if f.get('status', 'aberto') == status_filter]
+    if cidade:
+        feedbacks = [f for f in feedbacks if f.get('city') == cidade]
 
     return jsonify(feedbacks)
 
@@ -1125,7 +1133,7 @@ def export_csv():
     feedbacks = get_feedbacks()
 
     output = StringIO()
-    writer = csv.DictWriter(output, fieldnames=['id', 'message', 'category', 'urgency', 'timestamp', 'status', 'sender', 'name', 'region'])
+    writer = csv.DictWriter(output, fieldnames=['id', 'message', 'category', 'urgency', 'timestamp', 'status', 'sender', 'name', 'region', 'city'])
     writer.writeheader()
 
     for fb in feedbacks:
@@ -1138,7 +1146,8 @@ def export_csv():
             'status': fb.get('status', 'aberto'),
             'sender': fb.get('sender'),
             'name': fb.get('name'),
-            'region': fb.get('region')
+            'region': fb.get('region'),
+            'city': fb.get('city', '')
         })
 
     output.seek(0)
@@ -1165,20 +1174,29 @@ def get_config_route():
 
     category_counts = {}
     region_counts = {}
+    city_counts = {}
 
     for fb in feedbacks:
         cat = fb.get('category', '')
         reg = fb.get('region', '')
+        cit = fb.get('city', '')
         if cat:
             category_counts[cat] = category_counts.get(cat, 0) + 1
         if reg and reg != 'N/A':
             region_counts[reg] = region_counts.get(reg, 0) + 1
+        if cit and cit != 'N/A':
+            city_counts[cit] = city_counts.get(cit, 0) + 1
 
     for cat in config.get('categories', []):
         cat['count'] = category_counts.get(cat['name'], 0)
 
     for reg in config.get('regions', []):
         reg['count'] = region_counts.get(reg['name'], 0)
+
+    # Adiciona cidades com contagens, ordenadas por volume
+    cities_list = [{"name": name, "count": count} for name, count in city_counts.items()]
+    cities_list.sort(key=lambda x: x['count'], reverse=True)
+    config['cities'] = cities_list
 
     return jsonify(config)
 
@@ -2271,12 +2289,14 @@ Tom: próximo, humano, sem burocracia."""
                 sentimento = ia_result.get('sentimento', 'Neutro')
                 categoria = ia_result.get('categoria', 'Propostas & Projetos')
                 regiao = ia_result.get('regiao', 'N/A')
-                print(f"[AI-FIRST] Classified: {categoria} / {sentimento} / {regiao}")
+                cidade = ia_result.get('cidade', 'N/A')
+                print(f"[AI-FIRST] Classified: {categoria} / {sentimento} / {regiao} / {cidade}")
             else:
                 print(f"[FALLBACK] AI failed, using keywords...")
                 sentimento = classificar_sentimento(text)
                 categoria = classificar_categoria(text)
                 regiao = classificar_regiao(text)
+                cidade = 'N/A'
 
             # Topic extraction
             topic = "Geral"
@@ -2313,7 +2333,8 @@ Tom: próximo, humano, sem burocracia."""
                 "urgency": sentimento,
                 "sentiment": "Positivo" if sentimento == "Positivo" else ("Negativo" if sentimento in ["Critico", "Urgente"] else "Neutro"),
                 "topic": topic,
-                "status": "aberto"
+                "status": "aberto",
+                "city": cidade
             }
 
             save_feedback(new_report)
@@ -2634,6 +2655,179 @@ def radar_mg_listar_pesquisas():
 
         return jsonify({'pesquisas': pesquisas.data})
     except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/pitch-estrategico', methods=['POST'])
+def pitch_estrategico():
+    """Gera pitch estratégico para o político visitar uma cidade, cruzando feedbacks + Radar MG"""
+    try:
+        data = request.get_json()
+        cidade = data.get('cidade', '').strip()
+
+        if not cidade:
+            return jsonify({'error': 'Cidade é obrigatória'}), 400
+
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            return jsonify({'error': 'OpenAI API key não configurada'}), 500
+
+        # ── 1. Feedbacks da cidade ──────────────────────────────────────────
+        feedbacks = get_feedbacks()
+        fb_cidade = [f for f in feedbacks if (f.get('city') or '').lower() == cidade.lower()]
+
+        # Contagens por categoria
+        cat_counts = {}
+        urgency_counts = {}
+        topics = []
+        for fb in fb_cidade:
+            cat = fb.get('category', 'Outros')
+            urg = fb.get('urgency', 'Neutro')
+            cat_counts[cat] = cat_counts.get(cat, 0) + 1
+            urgency_counts[urg] = urgency_counts.get(urg, 0) + 1
+            topics.append(fb.get('topic', ''))
+
+        # Top categorias e mensagens recentes
+        top_cats = sorted(cat_counts.items(), key=lambda x: x[1], reverse=True)
+        msgs_recentes = [fb.get('message', '')[:150] for fb in fb_cidade[:15]]
+
+        # ── 2. Radar MG — temas e resumos ──────────────────────────────────
+        radar_resumos = []
+        radar_temas = []
+
+        if supabase:
+            try:
+                pesquisas = supabase.table('radar_cidades_pesquisas') \
+                    .select('id, resumo_ia, created_at') \
+                    .ilike('cidade', cidade) \
+                    .eq('status', 'concluido') \
+                    .order('created_at', desc=True) \
+                    .limit(3) \
+                    .execute()
+
+                for p in pesquisas.data:
+                    if p.get('resumo_ia'):
+                        radar_resumos.append(p['resumo_ia'])
+                    pesq_id = p.get('id')
+                    if pesq_id:
+                        temas = supabase.table('radar_cidades_temas') \
+                            .select('tema, categoria, mencoes, sentimento_predominante') \
+                            .eq('pesquisa_id', pesq_id) \
+                            .order('mencoes', desc=True) \
+                            .limit(10) \
+                            .execute()
+                        radar_temas.extend(temas.data)
+            except Exception as e:
+                print(f"[Pitch] Erro ao buscar Radar MG: {e}")
+
+        # Deduplicar temas do radar
+        temas_unicos = {}
+        for t in radar_temas:
+            nome = t.get('tema', '')
+            if nome not in temas_unicos:
+                temas_unicos[nome] = t
+            else:
+                temas_unicos[nome]['mencoes'] = max(temas_unicos[nome].get('mencoes', 0), t.get('mencoes', 0))
+        radar_temas_dedup = sorted(temas_unicos.values(), key=lambda x: x.get('mencoes', 0), reverse=True)[:8]
+
+        # ── 3. Montar prompt para IA ────────────────────────────────────────
+        fb_section = "NENHUM FEEDBACK DISPONÍVEL"
+        if fb_cidade:
+            fb_lines = []
+            for cat, count in top_cats:
+                fb_lines.append(f"  - {cat}: {count} feedbacks")
+            urg_lines = []
+            for urg, count in sorted(urgency_counts.items(), key=lambda x: x[1], reverse=True):
+                urg_lines.append(f"  - {urg}: {count}")
+            msg_lines = "\n".join([f'  - "{m}"' for m in msgs_recentes[:10]])
+            fb_section = f"""Total de feedbacks: {len(fb_cidade)}
+
+Por categoria:
+{chr(10).join(fb_lines)}
+
+Por urgência:
+{chr(10).join(urg_lines)}
+
+Mensagens recentes dos cidadãos:
+{msg_lines}"""
+
+        radar_section = "NENHUM DADO DO RADAR MG DISPONÍVEL"
+        if radar_resumos or radar_temas_dedup:
+            parts = []
+            if radar_resumos:
+                parts.append("Resumos de inteligência (mídia + redes sociais):\n" + "\n---\n".join(radar_resumos[:2]))
+            if radar_temas_dedup:
+                tema_lines = [f"  - {t['tema']} ({t.get('categoria','')}, {t.get('mencoes',0)} menções, sentimento: {t.get('sentimento_predominante','')})" for t in radar_temas_dedup]
+                parts.append("Principais temas detectados:\n" + "\n".join(tema_lines))
+            radar_section = "\n\n".join(parts)
+
+        prompt = f"""Você é um estrategista político experiente em Minas Gerais.
+
+Um deputado estadual vai visitar a cidade de {cidade} - MG. Precisa de um pitch estratégico para saber O QUE FALAR e COMO SE POSICIONAR.
+
+Cruze os dados abaixo e gere um briefing executivo:
+
+═══ FEEDBACKS DOS CIDADÃOS (WhatsApp) ═══
+{fb_section}
+
+═══ RADAR MG — INTELIGÊNCIA DE MÍDIA E REDES ═══
+{radar_section}
+
+Gere um JSON com esta estrutura:
+{{
+  "titulo": "Briefing Estratégico — {cidade}",
+  "panorama": "Resumo de 3-4 linhas do cenário político da cidade",
+  "temas_quentes": [
+    {{
+      "tema": "Nome do tema",
+      "relevancia": "alta|media|baixa",
+      "sentimento_popular": "positivo|negativo|misto",
+      "o_que_falar": "Frase ou argumento estratégico para o político usar",
+      "cuidado": "O que NÃO dizer ou evitar"
+    }}
+  ],
+  "frase_de_abertura": "Sugestão de frase para abrir discurso/entrevista na cidade",
+  "dados_impacto": ["Dado numérico 1 para citar", "Dado numérico 2"],
+  "oportunidades": ["Oportunidade política 1", "Oportunidade 2"],
+  "riscos": ["Risco ou tema sensível 1", "Risco 2"],
+  "tom_recomendado": "Descrição do tom ideal (combativo, conciliador, técnico, etc.)"
+}}
+
+IMPORTANTE: Seja específico para {cidade}. Use os dados reais dos feedbacks e radar. Não invente dados — se não houver informação suficiente, indique isso.
+Retorne APENAS o JSON."""
+
+        from openai import OpenAI
+        client = OpenAI(api_key=api_key)
+
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.4,
+            max_tokens=2000
+        )
+
+        ai_text = response.choices[0].message.content.strip()
+        if '```json' in ai_text:
+            ai_text = ai_text.split('```json')[1].split('```')[0].strip()
+        elif '```' in ai_text:
+            ai_text = ai_text.split('```')[1].split('```')[0].strip()
+
+        pitch_data = json.loads(ai_text)
+        pitch_data['meta'] = {
+            'cidade': cidade,
+            'total_feedbacks': len(fb_cidade),
+            'total_radar_temas': len(radar_temas_dedup),
+            'categorias_feedbacks': dict(top_cats),
+            'gerado_em': datetime.utcnow().isoformat()
+        }
+
+        return jsonify(pitch_data)
+
+    except json.JSONDecodeError as e:
+        print(f"[Pitch] Erro ao parsear JSON da IA: {e}")
+        return jsonify({'error': 'Erro ao processar resposta da IA'}), 500
+    except Exception as e:
+        print(f"[Pitch] Erro geral: {e}")
         return jsonify({'error': str(e)}), 500
 
 

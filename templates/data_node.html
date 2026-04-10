@@ -1114,6 +1114,138 @@
                 padding: 70px 12px 12px 12px;
             }
         }
+
+        /* Pitch Estratégico */
+        .pitch-bar {
+            background: linear-gradient(135deg, #6366f108, #8b5cf608);
+            border: 1px solid #6366f130;
+            border-radius: 12px;
+            padding: 12px 18px;
+            margin-bottom: 16px;
+        }
+        .pitch-bar-inner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+        .pitch-bar-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.9rem;
+            color: var(--text-main);
+        }
+        .btn-pitch {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 0.82rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .btn-pitch:hover { opacity: 0.9; transform: translateY(-1px); }
+        .btn-pitch:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .btn-pitch .spinner {
+            display: inline-block;
+            width: 14px; height: 14px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .pitch-section { margin-bottom: 18px; }
+        .pitch-section-title {
+            font-size: 0.78rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #6366f1;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .pitch-panorama {
+            background: var(--bg-hover);
+            border-radius: 10px;
+            padding: 14px 16px;
+            font-size: 0.88rem;
+            line-height: 1.6;
+            color: var(--text-main);
+            border-left: 3px solid #6366f1;
+        }
+        .pitch-frase {
+            background: linear-gradient(135deg, #6366f110, #8b5cf610);
+            border: 1px solid #6366f130;
+            border-radius: 10px;
+            padding: 16px;
+            font-size: 1rem;
+            font-style: italic;
+            font-weight: 600;
+            color: var(--text-main);
+            text-align: center;
+            line-height: 1.5;
+        }
+        .pitch-tema-card {
+            background: var(--bg-hover);
+            border-radius: 10px;
+            padding: 12px 14px;
+            margin-bottom: 8px;
+        }
+        .pitch-tema-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 6px;
+        }
+        .pitch-tema-name { font-weight: 700; font-size: 0.88rem; }
+        .pitch-relevancia {
+            font-size: 0.68rem;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: 700;
+        }
+        .pitch-tema-falar {
+            font-size: 0.82rem;
+            color: #10b981;
+            margin: 4px 0;
+        }
+        .pitch-tema-cuidado {
+            font-size: 0.78rem;
+            color: #ef4444;
+            margin: 4px 0;
+        }
+        .pitch-list-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            font-size: 0.85rem;
+            margin-bottom: 6px;
+            line-height: 1.4;
+        }
+        .pitch-meta {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            padding-top: 12px;
+            border-top: 1px solid var(--border);
+        }
     </style>
     <!-- Leaflet -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -1290,6 +1422,9 @@
                 <option value="Positivo">Positivo</option>
                 <option value="Neutro">Neutro</option>
             </select>
+            <select id="filtro-cidade" class="filter-select" onchange="aplicarFiltros()">
+                <option value="">Todas Cidades</option>
+            </select>
             <select id="filtro-status" class="filter-select" onchange="aplicarFiltros()">
                 <option value="ativos" selected>Cards Ativos</option>
                 <option value="aberto">Aberto</option>
@@ -1299,6 +1434,19 @@
             <button class="btn-clear-filters" onclick="limparFiltros()"><i class="ri-filter-off-line"></i>
                 Limpar</button>
             <span class="filter-count" id="filter-count">Carregando...</span>
+        </div>
+
+        <!-- Pitch Estratégico Bar -->
+        <div id="pitch-bar" class="pitch-bar hidden">
+            <div class="pitch-bar-inner">
+                <div class="pitch-bar-info">
+                    <i class="ri-rocket-2-fill" style="color:#6366f1;font-size:1.2rem;"></i>
+                    <span>Pitch estratégico para <strong id="pitch-cidade-label"></strong></span>
+                </div>
+                <button id="btn-gerar-pitch" class="btn-pitch" onclick="gerarPitch()">
+                    <i class="ri-magic-fill"></i> GERAR
+                </button>
+            </div>
         </div>
 
         <div class="feed-list" id="feed-list-container">
@@ -2197,10 +2345,17 @@ https://www.instagram.com/p/YYYYY/"
                     ? `<div class="update-badge"><i class="ri-chat-3-line"></i> ${updateCount} atualiza${updateCount === 1 ? 'ção' : 'ções'}</div>`
                     : '';
 
+                const cityBadge = e.city && e.city !== 'N/A'
+                    ? `<span class="fb-tag" style="background:#6366f120; color:#6366f1; border:1px solid #6366f1; font-size:0.68rem;"><i class="ri-map-pin-2-fill" style="font-size:0.65rem;margin-right:2px;"></i>${e.city}</span>`
+                    : '';
+
                 container.innerHTML += `
                     <div class="feedback-card clickable" onclick="openThreadModal(${e.id})" data-id="${e.id}">
                         <div class="fb-header">
-                            <span class="fb-tag" style="background:${getCategoryColor(e.category)}20; color:${getCategoryColor(e.category)}; border:1px solid ${getCategoryColor(e.category)}">${e.category}</span>
+                            <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+                                <span class="fb-tag" style="background:${getCategoryColor(e.category)}20; color:${getCategoryColor(e.category)}; border:1px solid ${getCategoryColor(e.category)}">${e.category}</span>
+                                ${cityBadge}
+                            </div>
                             <div class="fb-time" title="${e.timestamp}"><i class="ri-time-line"></i> ${formatarTempo(e.timestamp)}</div>
                         </div>
                         <div class="fb-msg">${firstMsg}</div>
@@ -2268,7 +2423,7 @@ https://www.instagram.com/p/YYYYY/"
                 <div class="thread-header">
                     <div>
                         <div style="font-size:1.1rem; font-weight:700; display:flex; align-items:center; gap:8px;"><i class="ri-chat-3-fill" style="color:#1a3a6b;"></i> ${displayName}</div>
-                        <div class="thread-sender">${displayPhone} ${whatsappLink} <span style="color:var(--border)">|</span> <span style="background:${getCategoryColor(e.category)}20;color:${getCategoryColor(e.category)};border:1px solid ${getCategoryColor(e.category)};font-size:0.7rem;font-weight:700;padding:2px 8px;border-radius:4px;">${e.category}</span></div>
+                        <div class="thread-sender">${displayPhone} ${whatsappLink} <span style="color:var(--border)">|</span> <span style="background:${getCategoryColor(e.category)}20;color:${getCategoryColor(e.category)};border:1px solid ${getCategoryColor(e.category)};font-size:0.7rem;font-weight:700;padding:2px 8px;border-radius:4px;">${e.category}</span>${e.city && e.city !== 'N/A' ? ` <span style="background:#6366f120;color:#6366f1;border:1px solid #6366f1;font-size:0.7rem;font-weight:700;padding:2px 8px;border-radius:4px;"><i class="ri-map-pin-2-fill" style="font-size:0.65rem;margin-right:2px;"></i>${e.city}</span>` : ''}</div>
                     </div>
                     <button onclick="closeThreadModal()" style="background:transparent;border:none;color:var(--text-muted);font-size:1.4rem;cursor:pointer;line-height:1;">×</button>
                 </div>
@@ -2291,22 +2446,160 @@ https://www.instagram.com/p/YYYYY/"
         function aplicarFiltros() {
             const categoria = document.getElementById('filtro-categoria').value;
             const prioridade = document.getElementById('filtro-prioridade').value;
+            const cidade = document.getElementById('filtro-cidade').value;
             const status = document.getElementById('filtro-status').value;
 
             let params = [];
             if (categoria) params.push(`categoria=${encodeURIComponent(categoria)}`);
             if (prioridade) params.push(`prioridade=${encodeURIComponent(prioridade)}`);
+            if (cidade) params.push(`cidade=${encodeURIComponent(cidade)}`);
             if (status && status !== 'ativos') params.push(`status=${encodeURIComponent(status)}`);
 
             const url = '/api/events' + (params.length ? '?' + params.join('&') : '');
             loadFeedbacks(url);
+
+            // Mostrar/ocultar barra de pitch
+            const pitchBar = document.getElementById('pitch-bar');
+            const pitchLabel = document.getElementById('pitch-cidade-label');
+            if (cidade) {
+                pitchLabel.textContent = cidade;
+                pitchBar.classList.remove('hidden');
+            } else {
+                pitchBar.classList.add('hidden');
+            }
         }
 
         function limparFiltros() {
             document.getElementById('filtro-categoria').value = '';
             document.getElementById('filtro-prioridade').value = '';
+            document.getElementById('filtro-cidade').value = '';
             document.getElementById('filtro-status').value = 'ativos';
             aplicarFiltros();
+        }
+
+        // ── Pitch Estratégico ──────────────────────────────────────────
+        async function gerarPitch() {
+            const cidade = document.getElementById('filtro-cidade').value;
+            if (!cidade) return;
+
+            const btn = document.getElementById('btn-gerar-pitch');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span> Gerando...';
+
+            try {
+                const res = await fetch('/api/pitch-estrategico', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ cidade })
+                });
+
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.error || 'Erro ao gerar pitch');
+                }
+
+                const pitch = await res.json();
+                renderPitchModal(pitch, cidade);
+            } catch (e) {
+                alert('Erro ao gerar pitch: ' + e.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="ri-magic-fill"></i> GERAR';
+            }
+        }
+
+        function renderPitchModal(p, cidade) {
+            const relColor = { 'alta': '#ef4444', 'media': '#f59e0b', 'baixa': '#3b82f6' };
+            const sentIcon = { 'positivo': '<i class="ri-emotion-happy-line" style="color:#10b981"></i>', 'negativo': '<i class="ri-emotion-unhappy-line" style="color:#ef4444"></i>', 'misto': '<i class="ri-emotion-normal-line" style="color:#f59e0b"></i>' };
+
+            const temasHtml = (p.temas_quentes || []).map(t => {
+                const rc = relColor[t.relevancia] || '#6b7280';
+                const si = sentIcon[t.sentimento_popular] || '';
+                return `<div class="pitch-tema-card">
+                    <div class="pitch-tema-header">
+                        <span class="pitch-tema-name">${si} ${t.tema}</span>
+                        <span class="pitch-relevancia" style="background:${rc}20;color:${rc};border:1px solid ${rc}">${(t.relevancia || '').toUpperCase()}</span>
+                    </div>
+                    <div class="pitch-tema-falar"><i class="ri-chat-check-fill" style="margin-right:4px;"></i> <strong>Falar:</strong> ${t.o_que_falar}</div>
+                    <div class="pitch-tema-cuidado"><i class="ri-alert-fill" style="margin-right:4px;"></i> <strong>Evitar:</strong> ${t.cuidado}</div>
+                </div>`;
+            }).join('');
+
+            const oportHtml = (p.oportunidades || []).map(o =>
+                `<div class="pitch-list-item"><i class="ri-lightbulb-flash-fill" style="color:#f59e0b;flex-shrink:0;margin-top:2px;"></i> ${o}</div>`
+            ).join('');
+
+            const riscosHtml = (p.riscos || []).map(r =>
+                `<div class="pitch-list-item"><i class="ri-error-warning-fill" style="color:#ef4444;flex-shrink:0;margin-top:2px;"></i> ${r}</div>`
+            ).join('');
+
+            const dadosHtml = (p.dados_impacto || []).map(d =>
+                `<div class="pitch-list-item"><i class="ri-bar-chart-2-fill" style="color:#3b82f6;flex-shrink:0;margin-top:2px;"></i> ${d}</div>`
+            ).join('');
+
+            const meta = p.meta || {};
+
+            document.getElementById('pitch-modal-body').innerHTML = `
+                <div class="thread-header" style="margin-bottom:16px;">
+                    <div>
+                        <div style="font-size:1.15rem; font-weight:800; display:flex; align-items:center; gap:8px;">
+                            <i class="ri-rocket-2-fill" style="color:#6366f1;"></i> Pitch Estratégico
+                        </div>
+                        <div style="font-size:0.85rem; color:var(--text-muted); margin-top:2px;">
+                            <i class="ri-map-pin-2-fill"></i> ${cidade} - MG
+                        </div>
+                    </div>
+                    <button onclick="closePitchModal()" style="background:transparent;border:none;color:var(--text-muted);font-size:1.4rem;cursor:pointer;line-height:1;">×</button>
+                </div>
+
+                <div class="pitch-section">
+                    <div class="pitch-section-title"><i class="ri-landscape-fill"></i> Panorama</div>
+                    <div class="pitch-panorama">${p.panorama || 'Dados insuficientes para panorama.'}</div>
+                </div>
+
+                ${p.frase_de_abertura ? `<div class="pitch-section">
+                    <div class="pitch-section-title"><i class="ri-mic-fill"></i> Frase de abertura sugerida</div>
+                    <div class="pitch-frase">"${p.frase_de_abertura}"</div>
+                </div>` : ''}
+
+                ${temasHtml ? `<div class="pitch-section">
+                    <div class="pitch-section-title"><i class="ri-fire-fill"></i> Temas quentes</div>
+                    ${temasHtml}
+                </div>` : ''}
+
+                ${dadosHtml ? `<div class="pitch-section">
+                    <div class="pitch-section-title"><i class="ri-bar-chart-2-fill"></i> Dados de impacto para citar</div>
+                    ${dadosHtml}
+                </div>` : ''}
+
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                    ${oportHtml ? `<div class="pitch-section">
+                        <div class="pitch-section-title"><i class="ri-lightbulb-flash-fill"></i> Oportunidades</div>
+                        ${oportHtml}
+                    </div>` : ''}
+                    ${riscosHtml ? `<div class="pitch-section">
+                        <div class="pitch-section-title"><i class="ri-error-warning-fill"></i> Riscos</div>
+                        ${riscosHtml}
+                    </div>` : ''}
+                </div>
+
+                ${p.tom_recomendado ? `<div class="pitch-section">
+                    <div class="pitch-section-title"><i class="ri-volume-up-fill"></i> Tom recomendado</div>
+                    <div style="font-size:0.88rem;color:var(--text-main);background:var(--bg-hover);padding:10px 14px;border-radius:8px;">${p.tom_recomendado}</div>
+                </div>` : ''}
+
+                <div class="pitch-meta">
+                    <span><i class="ri-chat-3-line"></i> ${meta.total_feedbacks || 0} feedbacks analisados</span>
+                    <span><i class="ri-radar-fill"></i> ${meta.total_radar_temas || 0} temas do Radar MG</span>
+                    <span><i class="ri-time-line"></i> Gerado: ${new Date().toLocaleString('pt-BR')}</span>
+                </div>
+            `;
+
+            document.getElementById('pitch-modal-overlay').classList.remove('hidden');
+        }
+
+        function closePitchModal() {
+            document.getElementById('pitch-modal-overlay').classList.add('hidden');
         }
 
         async function popularFiltrosCategorias() {
@@ -2317,6 +2610,15 @@ https://www.instagram.com/p/YYYYY/"
             config.categories.forEach(cat => {
                 select.innerHTML += `<option value="${cat.name}">${cat.name}</option>`;
             });
+
+            // Popular filtro de cidades (ordenadas por volume de feedbacks)
+            if (config.cities && config.cities.length > 0) {
+                const selectCidade = document.getElementById('filtro-cidade');
+                selectCidade.innerHTML = '<option value="">Todas Cidades</option>';
+                config.cities.forEach(city => {
+                    selectCidade.innerHTML += `<option value="${city.name}">${city.name} (${city.count})</option>`;
+                });
+            }
         }
 
         function toggleExportMenu(section) {
@@ -4010,6 +4312,13 @@ https://www.instagram.com/p/YYYYY/"
         // Load notícias on startup (background)
         buscarNoticias();
     </script>
+
+    <!-- Pitch Estratégico Modal -->
+    <div id="pitch-modal-overlay" class="modal-overlay hidden" onclick="if(event.target===this) closePitchModal()">
+        <div class="modal-thread-box" style="max-width:720px;" id="pitch-modal-body">
+            <!-- Populated by gerarPitch() -->
+        </div>
+    </div>
 
     <!-- Thread Timeline Modal -->
     <div id="thread-modal-overlay" class="modal-overlay hidden" onclick="if(event.target===this) closeThreadModal()">
