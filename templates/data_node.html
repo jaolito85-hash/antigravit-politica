@@ -2156,11 +2156,13 @@ https://www.instagram.com/p/YYYYY/"
 
         // Fetch Logic
         async function loadData() {
-            const [evRes, cfgRes] = await Promise.all([fetch('/api/events'), fetch('/api/config')]);
-            const events = await evRes.json();
+            const [evRes, cfgRes] = await Promise.all([fetch('/api/events?limit=5500'), fetch('/api/config')]);
+            const evResult = await evRes.json();
+            const events = Array.isArray(evResult) ? evResult : (evResult.data || []);
+            const evTotal = evResult.total || events.length;
             const config = await cfgRes.json();
 
-            document.getElementById('kpi-today').innerText = events.length;
+            document.getElementById('kpi-today').innerText = evTotal;
 
             const regCount = {};
             events.forEach(e => {
@@ -2287,26 +2289,45 @@ https://www.instagram.com/p/YYYYY/"
             return map[category] || '#6b7280';
         }
 
-        async function loadFeedbacks(filterUrl = '/api/events') {
-            const res = await fetch(filterUrl);
-            let events = await res.json();
+        let _currentOffset = 0;
+        const _pageSize = 50;
+        let _currentTotal = 0;
+        let _currentFilterUrl = '/api/events';
+
+        async function loadFeedbacks(filterUrl = '/api/events', append = false) {
+            if (!append) {
+                _currentOffset = 0;
+                _currentFilterUrl = filterUrl;
+            }
+
+            const sep = filterUrl.includes('?') ? '&' : '?';
+            const pagedUrl = `${filterUrl}${sep}limit=${_pageSize}&offset=${_currentOffset}`;
             const currentStatusFilter = document.getElementById('filtro-status')?.value || 'ativos';
+            if (currentStatusFilter === 'ativos') {
+                // No filtro "ativos", não enviamos status ao backend — filtramos localmente
+            }
+
+            const res = await fetch(pagedUrl);
+            const result = await res.json();
+
+            // Suporta formato novo {data, total} e formato legado (array)
+            let events = Array.isArray(result) ? result : (result.data || []);
+            _currentTotal = Array.isArray(result) ? events.length : (result.total || events.length);
+
             if (currentStatusFilter === 'ativos') {
                 events = events.filter(e => (e.status || 'aberto') !== 'resolvido');
             }
-            _allEventsCache = events;
+
+            _allEventsCache = append ? _allEventsCache.concat(events) : events;
             const container = document.getElementById('feed-list-container');
-            container.innerHTML = '';
+            if (!append) container.innerHTML = '';
 
             const countEl = document.getElementById('filter-count');
-            if (filterUrl === '/api/events') {
-                totalFeedbacks = events.length;
-                countEl.innerText = `${events.length} feedbacks`;
-            } else {
-                countEl.innerText = `Mostrando ${events.length} de ${totalFeedbacks} feedbacks`;
-            }
+            totalFeedbacks = _currentTotal;
+            const showing = _currentOffset + events.length;
+            countEl.innerText = `Mostrando ${Math.min(showing, _currentTotal)} de ${_currentTotal} feedbacks`;
 
-            if (events.length === 0) {
+            if (events.length === 0 && !append) {
                 container.innerHTML = '<p style="color:var(--text-muted)">Nenhum feedback encontrado com esses filtros.</p>';
                 return;
             }
@@ -2367,6 +2388,28 @@ https://www.instagram.com/p/YYYYY/"
                     </div>
                 `;
             });
+
+            // Botão "Carregar mais" se houver mais dados
+            _currentOffset += events.length;
+            const existingBtn = document.getElementById('btn-load-more');
+            if (existingBtn) existingBtn.remove();
+
+            if (_currentOffset < _currentTotal) {
+                container.innerHTML += `
+                    <button id="btn-load-more" onclick="loadMore()" style="
+                        width:100%;padding:14px;margin-top:8px;background:var(--bg-hover);
+                        border:1px dashed var(--border);border-radius:10px;color:var(--text-muted);
+                        font-size:0.88rem;font-weight:600;cursor:pointer;transition:all 0.2s;
+                        display:flex;align-items:center;justify-content:center;gap:8px;
+                    " onmouseover="this.style.borderColor='#6366f1';this.style.color='#6366f1'"
+                       onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-muted)'">
+                        <i class="ri-arrow-down-line"></i> Carregar mais (${_currentTotal - _currentOffset} restantes)
+                    </button>`;
+            }
+        }
+
+        function loadMore() {
+            loadFeedbacks(_currentFilterUrl, true);
         }
 
         function openThreadModal(eventId) {
@@ -3373,8 +3416,9 @@ https://www.instagram.com/p/YYYYY/"
 
         async function verificarNovosFeedbacks() {
             try {
-                const res = await fetch('/api/events');
-                const feedbacks = await res.json();
+                const res = await fetch('/api/events?limit=5');
+                const result = await res.json();
+                const feedbacks = Array.isArray(result) ? result : (result.data || []);
 
                 if (feedbacks.length > 0) {
                     feedbacks.sort((a, b) => b.id - a.id);

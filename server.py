@@ -1080,14 +1080,46 @@ def index():
 
 @app.route("/api/events")
 def get_events():
-    feedbacks = get_feedbacks()
-
+    """Retorna feedbacks com filtros e paginação"""
     categoria = request.args.get('categoria')
     regiao = request.args.get('regiao')
     prioridade = request.args.get('prioridade')
     status_filter = request.args.get('status')
     cidade = request.args.get('cidade')
+    limit = request.args.get('limit', 50, type=int)
+    offset = request.args.get('offset', 0, type=int)
 
+    # Paginação direto no Supabase para performance
+    if supabase:
+        try:
+            query = supabase.table('feedbacks').select('*', count='exact')
+
+            if categoria:
+                query = query.eq('category', categoria)
+            if prioridade:
+                query = query.eq('urgency', prioridade)
+            if cidade:
+                query = query.eq('city', cidade)
+            if regiao:
+                query = query.eq('region', regiao)
+            if status_filter:
+                query = query.eq('status', status_filter)
+
+            query = query.order('id', desc=True).range(offset, offset + limit - 1)
+            response = query.execute()
+
+            total = response.count if response.count is not None else len(response.data)
+            return jsonify({
+                'data': response.data,
+                'total': total,
+                'limit': limit,
+                'offset': offset
+            })
+        except Exception as e:
+            print(f"Supabase paginated query error: {e}")
+
+    # Fallback: filtro em memória
+    feedbacks = get_feedbacks()
     if categoria:
         feedbacks = [f for f in feedbacks if f.get('category') == categoria]
     if regiao:
@@ -1099,7 +1131,14 @@ def get_events():
     if cidade:
         feedbacks = [f for f in feedbacks if f.get('city') == cidade]
 
-    return jsonify(feedbacks)
+    total = len(feedbacks)
+    feedbacks = feedbacks[offset:offset + limit]
+    return jsonify({
+        'data': feedbacks,
+        'total': total,
+        'limit': limit,
+        'offset': offset
+    })
 
 
 # Cache para AI Pulse
