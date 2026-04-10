@@ -1457,6 +1457,19 @@
             flex-shrink: 0;
         }
 
+        /* Mapa de Demandas — tooltip */
+        .mapa-demandas-tooltip {
+            background: #1a1d27 !important;
+            border: 1px solid #2d3040 !important;
+            border-radius: 8px !important;
+            padding: 8px 10px !important;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.5) !important;
+            color: #e5e7eb !important;
+        }
+        .mapa-demandas-tooltip::before {
+            border-top-color: #2d3040 !important;
+        }
+
         /* Loading pulse for metric values */
         .ibge-metric__value.loading {
             color: #374151;
@@ -1591,10 +1604,14 @@
                     <div id="donut-legend" style="flex: 1; font-size: 0.85rem;"></div>
                 </div>
             </div>
-            <div class="chart-box">
-                <div class="chart-header" style="color:#22c55e"><i class="ri-star-fill"></i> Top 3 Elogios</div>
-                <div id="top-compliments-list" style="font-size: 0.9rem; color: #d1d5db;">
-                    <p style="color:var(--text-muted)">Aguardando dados...</p>
+            <div class="chart-box" style="position:relative;overflow:hidden;">
+                <div class="chart-header"><i class="ri-map-pin-range-fill" style="color:#3b82f6"></i> Mapa de Demandas</div>
+                <div id="mapa-demandas-painel" style="width:100%;height:220px;border-radius:8px;background:#0a0f1a;"></div>
+                <div id="mapa-demandas-legenda" style="display:flex;gap:12px;margin-top:8px;font-size:0.68rem;color:var(--text-muted);align-items:center;flex-wrap:wrap;">
+                    <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:50%;background:#ef4444;display:inline-block;"></span> Negativo</span>
+                    <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:50%;background:#f59e0b;display:inline-block;"></span> Neutro</span>
+                    <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:50%;background:#22c55e;display:inline-block;"></span> Positivo</span>
+                    <span style="margin-left:auto;opacity:0.6;" id="mapa-demandas-total"></span>
                 </div>
             </div>
         </div>
@@ -2464,6 +2481,7 @@ https://www.instagram.com/p/YYYYY/"
             document.getElementById('kpi-cat-count').innerText = (catCount[topCat] || 0) + " feedbacks";
 
             renderCharts(events, config.categories);
+            renderMapaDemandas(events);
             loadAiPulse();
         }
 
@@ -3218,25 +3236,121 @@ https://www.instagram.com/p/YYYYY/"
             }
         }
 
+        // ===== MAPA DE DEMANDAS (PAINEL) =====
+        let _mapaDemandas = null;
+        let _mapaDemandasMarkers = [];
+        let _cidadesCoords = null;
+
+        async function renderMapaDemandas(events) {
+            const container = document.getElementById('mapa-demandas-painel');
+            if (!container) return;
+
+            // Carregar coordenadas das cidades (uma vez)
+            if (!_cidadesCoords) {
+                try {
+                    const r = await fetch('/static/cidades_mg.json');
+                    const cidades = await r.json();
+                    _cidadesCoords = {};
+                    cidades.forEach(c => {
+                        _cidadesCoords[c.cidade.toLowerCase()] = { lat: c.latitude, lng: c.longitude, regiao: c.regiao };
+                    });
+                } catch (e) {
+                    console.error('Erro ao carregar cidades:', e);
+                    return;
+                }
+            }
+
+            // Agregar feedbacks por cidade
+            const cidadeStats = {};
+            events.forEach(e => {
+                const city = (e.city || '').trim();
+                if (!city) return;
+                if (!cidadeStats[city]) cidadeStats[city] = { total: 0, positivo: 0, negativo: 0, neutro: 0 };
+                cidadeStats[city].total++;
+                const sent = (e.sentiment || '').toLowerCase();
+                if (sent === 'positivo') cidadeStats[city].positivo++;
+                else if (sent === 'negativo') cidadeStats[city].negativo++;
+                else cidadeStats[city].neutro++;
+            });
+
+            // Inicializar mapa (uma vez)
+            if (!_mapaDemandas) {
+                _mapaDemandas = L.map('mapa-demandas-painel', {
+                    zoomControl: false,
+                    attributionControl: false,
+                    dragging: true,
+                    scrollWheelZoom: false
+                }).setView([-18.5, -44.0], 6);
+                L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_noannotation/{z}/{x}/{y}{r}.png', {
+                    maxZoom: 12
+                }).addTo(_mapaDemandas);
+            }
+
+            // Limpar markers anteriores
+            _mapaDemandasMarkers.forEach(m => _mapaDemandas.removeLayer(m));
+            _mapaDemandasMarkers = [];
+
+            // Calcular máximo para escala de raio
+            const maxTotal = Math.max(...Object.values(cidadeStats).map(s => s.total), 1);
+            let totalDemandas = 0;
+            let cidadesAtivas = 0;
+
+            // Plotar círculos proporcionais
+            Object.entries(cidadeStats).forEach(([cidade, stats]) => {
+                const coords = _cidadesCoords[cidade.toLowerCase()];
+                if (!coords) return;
+
+                totalDemandas += stats.total;
+                cidadesAtivas++;
+
+                // Cor baseada no sentimento dominante
+                let color, fillColor;
+                if (stats.negativo > stats.positivo && stats.negativo > stats.neutro) {
+                    color = '#ef4444'; fillColor = '#ef4444';
+                } else if (stats.positivo > stats.negativo && stats.positivo > stats.neutro) {
+                    color = '#22c55e'; fillColor = '#22c55e';
+                } else {
+                    color = '#f59e0b'; fillColor = '#f59e0b';
+                }
+
+                // Raio proporcional (min 5, max 22)
+                const ratio = stats.total / maxTotal;
+                const radius = 5 + (ratio * 17);
+
+                const circle = L.circleMarker([coords.lat, coords.lng], {
+                    radius: radius,
+                    fillColor: fillColor,
+                    color: color,
+                    weight: 1.5,
+                    opacity: 0.8,
+                    fillOpacity: 0.35
+                }).addTo(_mapaDemandas);
+
+                // Tooltip com detalhes
+                circle.bindTooltip(
+                    `<div style="font-size:12px;font-weight:700;margin-bottom:3px;">${cidade}</div>` +
+                    `<div style="font-size:11px;color:#9ca3af;">${stats.total} demanda${stats.total > 1 ? 's' : ''}</div>` +
+                    `<div style="font-size:10px;margin-top:2px;">` +
+                    `<span style="color:#22c55e">${stats.positivo}+</span> ` +
+                    `<span style="color:#f59e0b">${stats.neutro}~</span> ` +
+                    `<span style="color:#ef4444">${stats.negativo}-</span></div>`,
+                    { direction: 'top', className: 'mapa-demandas-tooltip' }
+                );
+
+                _mapaDemandasMarkers.push(circle);
+            });
+
+            // Atualizar contador
+            const totalEl = document.getElementById('mapa-demandas-total');
+            if (totalEl) totalEl.innerText = `${cidadesAtivas} cidades • ${totalDemandas} demandas`;
+        }
+
         async function loadTopInsights() {
             try {
                 const res = await fetch('/api/analytics/top');
                 const data = await res.json();
 
-                const compContainer = document.getElementById('top-compliments-list');
-                if (data.compliments.length > 0) {
-                    compContainer.innerHTML = data.compliments.map((item, index) => `
-                        <div style="display:flex; justify-content:space-between; margin-bottom:12px; border-bottom:1px solid #23252e; padding-bottom:8px;">
-                            <span style="font-weight:500">
-                                <span style="background:#22c55e20; color:#22c55e; padding:2px 6px; border-radius:4px; font-size:0.8rem; margin-right:8px">#${index + 1}</span>
-                                ${item.topic}
-                            </span>
-                            <span style="color:#22c55e; font-weight:bold">${item.count} <small style="opacity:0.6; font-weight:normal">menções</small></span>
-                        </div>
-                    `).join('');
-                } else {
-                    compContainer.innerHTML = '<p style="color:var(--text-muted)">Sem elogios registrados ainda.</p>';
-                }
+                // Top Elogios removido — substituído pelo Mapa de Demandas
 
                 const probContainer = document.getElementById('top-problems-list');
                 if (data.problems.length > 0) {
