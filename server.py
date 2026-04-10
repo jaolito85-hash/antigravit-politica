@@ -2697,6 +2697,114 @@ def radar_mg_listar_pesquisas():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/api/ibge/<cidade>')
+def ibge_cidade(cidade):
+    """Busca dados do IBGE para uma cidade de MG via API pública"""
+    try:
+        from urllib.parse import quote
+        import unicodedata
+
+        def normalize(s):
+            """Remove acentos para comparação"""
+            return unicodedata.normalize('NFKD', s).encode('ASCII', 'ignore').decode('ASCII').lower()
+
+        cidade_norm = normalize(cidade)
+
+        # 1. Buscar código do município via API de localidades
+        loc_url = f"https://servicodados.ibge.gov.br/api/v1/localidades/estados/MG/municipios"
+        loc_resp = requests.get(loc_url, timeout=10)
+        municipios = loc_resp.json() if loc_resp.status_code == 200 else []
+
+        codigo = None
+        nome_oficial = cidade
+        for m in municipios:
+            if normalize(m.get('nome', '')) == cidade_norm:
+                codigo = m['id']
+                nome_oficial = m['nome']
+                break
+
+        if not codigo:
+            # Busca parcial
+            for m in municipios:
+                if cidade_norm in normalize(m.get('nome', '')):
+                    codigo = m['id']
+                    nome_oficial = m['nome']
+                    break
+
+        if not codigo:
+            return jsonify({'error': f'Cidade "{cidade}" não encontrada no IBGE', 'cidade': cidade}), 404
+
+        # 2. Buscar indicadores via API de agregados (populacao, PIB, area)
+        resultado = {
+            'cidade': nome_oficial,
+            'codigo_ibge': codigo,
+            'estado': 'MG'
+        }
+
+        # Populacao estimada 2021 - Agregado 6579
+        try:
+            pop_url = f"https://servicodados.ibge.gov.br/api/v3/agregados/6579/periodos/-1/variaveis/9324?localidades=N6[{codigo}]"
+            pop_resp = requests.get(pop_url, timeout=10)
+            if pop_resp.status_code == 200:
+                pop_data = pop_resp.json()
+                series = pop_data[0]['resultados'][0]['series'][0]['serie']
+                ultimo_ano = max(series.keys())
+                resultado['populacao'] = int(series[ultimo_ano])
+                resultado['populacao_ano'] = ultimo_ano
+        except Exception:
+            pass
+
+        # PIB per capita - Agregado 5938
+        try:
+            pib_url = f"https://servicodados.ibge.gov.br/api/v3/agregados/5938/periodos/-1/variaveis/37?localidades=N6[{codigo}]"
+            pib_resp = requests.get(pib_url, timeout=10)
+            if pib_resp.status_code == 200:
+                pib_data = pib_resp.json()
+                series = pib_data[0]['resultados'][0]['series'][0]['serie']
+                ultimo_ano = max(series.keys())
+                val = series[ultimo_ano]
+                resultado['pib_per_capita'] = float(val) if val and val != '-' else None
+                resultado['pib_ano'] = ultimo_ano
+        except Exception:
+            pass
+
+        # Area territorial - Agregado 1301 (ou via metadados)
+        try:
+            area_url = f"https://servicodados.ibge.gov.br/api/v3/agregados/1301/periodos/-1/variaveis/615?localidades=N6[{codigo}]"
+            area_resp = requests.get(area_url, timeout=10)
+            if area_resp.status_code == 200:
+                area_data = area_resp.json()
+                series = area_data[0]['resultados'][0]['series'][0]['serie']
+                ultimo_ano = max(series.keys())
+                val = series[ultimo_ano]
+                resultado['area_km2'] = float(val) if val and val != '-' else None
+        except Exception:
+            pass
+
+        # IDH via pesquisa IDHM (Atlas Brasil usa código IBGE)
+        try:
+            idh_url = f"https://servicodados.ibge.gov.br/api/v3/agregados/1092/periodos/-1/variaveis/7?localidades=N6[{codigo}]"
+            idh_resp = requests.get(idh_url, timeout=10)
+            if idh_resp.status_code == 200:
+                idh_data = idh_resp.json()
+                series = idh_data[0]['resultados'][0]['series'][0]['serie']
+                ultimo_ano = max(series.keys())
+                val = series[ultimo_ano]
+                resultado['idh'] = float(val) if val and val != '-' else None
+        except Exception:
+            pass
+
+        # Densidade demográfica
+        if resultado.get('populacao') and resultado.get('area_km2'):
+            resultado['densidade'] = round(resultado['populacao'] / resultado['area_km2'], 1)
+
+        return jsonify(resultado)
+
+    except Exception as e:
+        print(f"[IBGE] Erro: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/api/pitch-estrategico', methods=['POST'])
 def pitch_estrategico():
     """Gera pitch estratégico para o político visitar uma cidade, cruzando feedbacks + Radar MG"""

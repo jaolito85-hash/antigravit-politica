@@ -1679,15 +1679,36 @@
                         style="margin:0;padding-left:18px;color:var(--text-main);font-size:13px;line-height:1.8"></ul>
                 </div>
 
-                <!-- Sugestão Tráfego Pago -->
+                <!-- Dados IBGE da Cidade -->
                 <div class="stat-card"
-                    style="padding:16px;background:rgba(26,58,107,0.15);border-color:rgba(26,58,107,0.4)">
+                    style="padding:16px;background:rgba(16,185,129,0.08);border-color:rgba(16,185,129,0.3)">
                     <div
-                        style="font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">
-                        <i class="ri-advertisement-line" style="color:#818cf8"></i> Copy para Tráfego Pago
+                        style="font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;">
+                        <span><i class="ri-bar-chart-box-line" style="color:#10b981"></i> Dados IBGE</span>
+                        <span id="ibge-cidade-label" style="color:#10b981;font-weight:700;font-size:11px;"></span>
                     </div>
-                    <p id="mg-copy-ad" style="color:#a5b4fc;font-size:13px;line-height:1.6;margin:0;font-style:italic">
-                    </p>
+                    <div id="ibge-data-container" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                        <div style="text-align:center;padding:8px;background:rgba(255,255,255,0.03);border-radius:8px;">
+                            <div style="font-size:1.1rem;font-weight:800;color:#10b981;" id="ibge-populacao">--</div>
+                            <div style="font-size:0.65rem;color:var(--text-muted);margin-top:2px;">Habitantes</div>
+                        </div>
+                        <div style="text-align:center;padding:8px;background:rgba(255,255,255,0.03);border-radius:8px;">
+                            <div style="font-size:1.1rem;font-weight:800;color:#3b82f6;" id="ibge-pib">--</div>
+                            <div style="font-size:0.65rem;color:var(--text-muted);margin-top:2px;">PIB per capita</div>
+                        </div>
+                        <div style="text-align:center;padding:8px;background:rgba(255,255,255,0.03);border-radius:8px;">
+                            <div style="font-size:1.1rem;font-weight:800;color:#f59e0b;" id="ibge-idh">--</div>
+                            <div style="font-size:0.65rem;color:var(--text-muted);margin-top:2px;">IDH</div>
+                        </div>
+                        <div style="text-align:center;padding:8px;background:rgba(255,255,255,0.03);border-radius:8px;">
+                            <div style="font-size:1.1rem;font-weight:800;color:#a78bfa;" id="ibge-area">--</div>
+                            <div style="font-size:0.65rem;color:var(--text-muted);margin-top:2px;">Área km²</div>
+                        </div>
+                    </div>
+                    <div id="ibge-extras" style="margin-top:8px;font-size:0.72rem;color:var(--text-muted);line-height:1.6;display:none;">
+                        <div><i class="ri-government-line" style="color:#6366f1;margin-right:4px;"></i> <span id="ibge-prefeito">--</span></div>
+                        <div><i class="ri-building-line" style="color:#f59e0b;margin-right:4px;"></i> <span id="ibge-densidade">--</span> hab/km²</div>
+                    </div>
                 </div>
             </div>
 
@@ -3551,11 +3572,53 @@ https://www.instagram.com/p/YYYYY/"
                 opList.appendChild(li);
             });
 
-            document.getElementById('mg-copy-ad').innerText = data.sugestao_trafego_pago || '';
+            carregarDadosIBGE(data.cidade || '');
             renderTemasRadar(data.temas || []);
             const totalMencoes = (data.temas || []).reduce((s, t) => s + (t.mencoes || 0), 0);
             atualizarMapaMG(data.cidade || '', data.sentimento_geral || 'neutro', totalMencoes);
             carregarPesquisasAnteriores();
+        }
+
+        async function carregarDadosIBGE(cidade) {
+            if (!cidade) return;
+            const label = document.getElementById('ibge-cidade-label');
+            const extras = document.getElementById('ibge-extras');
+            label.innerText = cidade;
+
+            // Reset
+            ['ibge-populacao','ibge-pib','ibge-idh','ibge-area'].forEach(id => {
+                document.getElementById(id).innerText = '...';
+            });
+            extras.style.display = 'none';
+
+            try {
+                const res = await fetch('/api/ibge/' + encodeURIComponent(cidade));
+                if (!res.ok) {
+                    document.getElementById('ibge-populacao').innerText = 'N/D';
+                    document.getElementById('ibge-pib').innerText = 'N/D';
+                    document.getElementById('ibge-idh').innerText = 'N/D';
+                    document.getElementById('ibge-area').innerText = 'N/D';
+                    return;
+                }
+                const d = await res.json();
+
+                document.getElementById('ibge-populacao').innerText = d.populacao
+                    ? d.populacao.toLocaleString('pt-BR') : 'N/D';
+                document.getElementById('ibge-pib').innerText = d.pib_per_capita
+                    ? 'R$ ' + Math.round(d.pib_per_capita).toLocaleString('pt-BR') : 'N/D';
+                document.getElementById('ibge-idh').innerText = d.idh
+                    ? d.idh.toFixed(3) : 'N/D';
+                document.getElementById('ibge-area').innerText = d.area_km2
+                    ? d.area_km2.toLocaleString('pt-BR', {maximumFractionDigits:0}) : 'N/D';
+
+                if (d.densidade) {
+                    document.getElementById('ibge-densidade').innerText = d.densidade.toLocaleString('pt-BR');
+                    extras.style.display = 'block';
+                }
+            } catch (e) {
+                console.error('Erro IBGE:', e);
+                document.getElementById('ibge-populacao').innerText = 'Erro';
+            }
         }
 
         function renderTemasRadar(temas) {
