@@ -57,6 +57,37 @@ Dar ao Deputado, via WhatsApp, inteligência política acionável sobre:
 3. Ao citar dados, *sempre informe a fonte e o período*. Ex.: "_(132 comentários no Instagram, últimos 7 dias)_".
 4. Se o pedido pede profundidade ou ele disser "me manda relatório / documento / PDF", chame `gerar_relatorio_pdf` e envie como anexo.
 5. Se detectar algo urgente (sentimento crítico, pico negativo, crise em cidade-chave), *alerte proativamente no topo da resposta* com 🚨.
+6. Você NÃO é só análise — você EXECUTA. Quando o Deputado delega (mandar email, abrir tarefa, acionar alguém), use as ferramentas de execução abaixo.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🧰 EXECUÇÃO — QUANDO E COMO AGIR
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+O Deputado espera que você *FAÇA*, não só converse. Regras de ouro:
+
+• *"Manda email pro Pedro…"* / *"Avisa o secretário…"* / *"Encaminha por email…"*
+  → SEMPRE chame `buscar_contato` primeiro (pega o email certo da agenda).
+  → Redija o corpo em tom formal, conciso, em 2º pessoa do singular ("prezado", "conforme alinhado").
+  → Chame `enviar_email` com o endereço da agenda.
+  → Se o contato não existe, PEÇA o email ao Deputado antes — nunca chute endereço.
+
+• *"Abre uma tarefa…"* / *"Anota pro Fulano fazer X até sexta"* / *"Registra aí que…"*
+  → Use `criar_tarefa`. Converta prazos relativos ("sexta", "semana que vem") em data ISO.
+  → Se ele citou um nome, passe como `responsavel` — o sistema tenta linkar com a agenda.
+
+• *Pedido composto* ("manda email pro Pedro E abre a tarefa E me confirma"):
+  → Execute as ferramentas EM PARALELO quando possível (mesma rodada de tool_calls).
+  → Na resposta final, confirme tudo em uma única mensagem com ✅ em cada ação.
+
+• *Confirmação ambígua* ("Sim", "pode", "faz isso"):
+  → Olhe o histórico. Se você acabou de oferecer uma ação, EXECUTE. Não pergunte de novo.
+
+Exemplo de resposta pós-execução:
+
+✅ *Feito, Deputado.*
+• Email enviado para _Pedro Machado_ (pedro@...) — assunto: _"Visita a Itaúna sexta 24/04"_
+• Tarefa #42 criada — prazo 24/04, responsável: Pedro
+• Análise: Itaúna caiu 18% em 7 dias, dor principal é seca.
+_Posso agendar follow-up de segunda pra saber o resultado?_
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ✍️ FORMATAÇÃO (WhatsApp nativo — NÃO use markdown padrão)
@@ -105,7 +136,8 @@ Ajuste o molde quando couber — não force seções vazias.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 • *LGPD:* nunca exponha telefone, CPF ou nome completo de cidadãos. Use iniciais ou "_um morador de <cidade>_".
 • Nunca dê opinião partidária própria nem critique adversários do Deputado por conta própria — apenas reporte o que os dados mostram.
-• Se o Deputado pedir algo fora do escopo do dashboard (ex.: redigir discurso, agendar reunião), ofereça o que você tem e sinalize: "_Isso está fora do dashboard. Posso te passar os dados que embasam um discurso sobre o tema, se quiser._"
+• Emails e tarefas ficam REGISTRADOS — só dispare com instrução explícita do Deputado. Nunca em "automático" por inferência.
+• Se o Deputado pedir algo que nenhuma ferramenta cobre (ex.: redigir discurso longo, agendar reunião no Google Calendar), ofereça o que você tem e sinalize: "_Posso te passar os dados/redigir o resumo. O agendamento no calendário ainda não está integrado._"
 • Em caso de dúvida sobre qual cidade/região, *pergunte antes de chutar*.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -217,6 +249,67 @@ TOOLS = [
                 "properties": {
                     "regiao": {"type": "string", "description": "Filtra por região (opcional)."},
                 },
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "buscar_contato",
+            "description": (
+                "Busca um contato na agenda do gabinete (nome, email, papel). "
+                "Use SEMPRE antes de enviar email, para pegar o endereço oficial. "
+                "Aceita nome completo ou parcial (case-insensitive)."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "nome": {"type": "string", "description": "Nome (ou parte) do contato. Ex.: 'Pedro' encontra 'Pedro Machado'."},
+                },
+                "required": ["nome"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "enviar_email",
+            "description": (
+                "Envia um email oficial em nome do gabinete do Deputado. "
+                "Use quando o Deputado pedir para 'mandar email', 'avisar por email', 'mandar mensagem formal para X', "
+                "'encaminhar para Y'. Sempre busque o contato antes via buscar_contato para garantir o endereço correto. "
+                "O corpo deve estar pronto e redigido em tom formal — o bot não reformata."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "destinatario_email": {"type": "string", "description": "Email do destinatário. Obtenha de buscar_contato."},
+                    "destinatario_nome": {"type": "string", "description": "Nome do destinatário (para saudação e log)."},
+                    "assunto": {"type": "string", "description": "Assunto claro e direto. Ex.: 'Visita a Itaúna — sexta 24/04'."},
+                    "corpo": {"type": "string", "description": "Corpo do email em texto corrido, formal, já pronto. Use quebras de linha para parágrafos."},
+                },
+                "required": ["destinatario_email", "assunto", "corpo"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "criar_tarefa",
+            "description": (
+                "Registra uma tarefa no painel do gabinete — visível no dashboard 'Tarefas'. "
+                "Use quando o Deputado disser 'abre uma tarefa', 'anota para lembrar', 'pede pro Fulano fazer X até tal dia'. "
+                "Sempre que possível informe deadline (ISO yyyy-mm-dd) e responsável."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "titulo": {"type": "string", "description": "Título curto e acionável. Ex.: 'Visitar Itaúna e levantar relatos da seca'."},
+                    "responsavel": {"type": "string", "description": "Nome de quem deve executar (pode ser um contato da agenda)."},
+                    "deadline": {"type": "string", "description": "Data limite em formato ISO yyyy-mm-dd. Opcional."},
+                    "detalhes": {"type": "string", "description": "Contexto adicional, links, números relevantes."},
+                },
+                "required": ["titulo"],
             },
         },
     },
@@ -519,6 +612,143 @@ def _tool_gerar_relatorio_pdf(args: dict, remote_jid: str) -> dict:
 
 
 # =============================================================================
+# Tool: buscar_contato — lookup na agenda do gabinete
+# =============================================================================
+def _tool_buscar_contato(args: dict) -> dict:
+    from server import supabase_admin  # lazy
+    nome = (args.get("nome") or "").strip()
+    if not nome:
+        return {"encontrado": False, "erro": "nome_vazio"}
+    if not supabase_admin:
+        return {"encontrado": False, "erro": "supabase_indisponivel"}
+    try:
+        # Busca case-insensitive; ilike aceita wildcard.
+        res = (
+            supabase_admin.table("contatos_gabinete")
+            .select("id, nome, email, papel, telefone, notas")
+            .ilike("nome", f"%{nome}%")
+            .limit(5)
+            .execute()
+        )
+        rows = res.data or []
+        if not rows:
+            return {"encontrado": False, "sugestao": "Peça ao Deputado o email do contato ou cadastre na agenda."}
+        if len(rows) == 1:
+            return {"encontrado": True, "contato": rows[0]}
+        return {"encontrado": True, "multiplos": True, "contatos": rows}
+    except Exception as e:
+        return {"encontrado": False, "erro": f"falha_consulta: {e}"}
+
+
+# =============================================================================
+# Tool: enviar_email — SMTP com Gmail por padrão
+# =============================================================================
+def _tool_enviar_email(args: dict, remote_jid: str) -> dict:
+    import smtplib
+    from email.message import EmailMessage
+
+    destinatario_email = (args.get("destinatario_email") or "").strip()
+    destinatario_nome = (args.get("destinatario_nome") or "").strip()
+    assunto = (args.get("assunto") or "").strip()
+    corpo = (args.get("corpo") or "").strip()
+
+    if not destinatario_email or "@" not in destinatario_email:
+        return {"enviado": False, "erro": "email_invalido"}
+    if not assunto or not corpo:
+        return {"enviado": False, "erro": "assunto_ou_corpo_vazio"}
+
+    host = os.getenv("SMTP_HOST", "smtp.gmail.com")
+    port = int(os.getenv("SMTP_PORT", "587"))
+    user = os.getenv("SMTP_USER")
+    password = os.getenv("SMTP_PASS")
+    from_email = os.getenv("SMTP_FROM_EMAIL", user)
+    from_name = os.getenv("SMTP_FROM_NAME", "Gabinete do Deputado")
+
+    if not user or not password:
+        print("[gabinete] SMTP não configurado (SMTP_USER/SMTP_PASS).")
+        return {"enviado": False, "erro": "smtp_nao_configurado"}
+
+    msg = EmailMessage()
+    msg["Subject"] = assunto
+    msg["From"] = f"{from_name} <{from_email}>" if from_name else from_email
+    msg["To"] = f"{destinatario_nome} <{destinatario_email}>" if destinatario_nome else destinatario_email
+    msg["Reply-To"] = from_email
+    # Assinatura institucional discreta
+    assinatura = "\n\n—\nEnviado pelo Gabinete Digital\nEm nome do Deputado"
+    msg.set_content(corpo + assinatura)
+
+    try:
+        print(f"[gabinete] SMTP enviando: to={destinatario_email} subj='{assunto[:60]}'")
+        with smtplib.SMTP(host, port, timeout=20) as smtp:
+            smtp.starttls()
+            smtp.login(user, password)
+            smtp.send_message(msg)
+        return {
+            "enviado": True,
+            "destinatario": destinatario_email,
+            "assunto": assunto,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+    except Exception as e:
+        print(f"[gabinete] Falha SMTP: {e}")
+        return {"enviado": False, "erro": f"falha_smtp: {e}"}
+
+
+# =============================================================================
+# Tool: criar_tarefa — insere em tarefas_gabinete
+# =============================================================================
+def _tool_criar_tarefa(args: dict, remote_jid: str) -> dict:
+    from server import supabase_admin  # lazy
+    titulo = (args.get("titulo") or "").strip()
+    if not titulo:
+        return {"criada": False, "erro": "titulo_vazio"}
+    if not supabase_admin:
+        return {"criada": False, "erro": "supabase_indisponivel"}
+
+    responsavel = (args.get("responsavel") or "").strip() or None
+    deadline = (args.get("deadline") or "").strip() or None
+    detalhes = (args.get("detalhes") or "").strip() or None
+
+    # Tenta casar responsável com a agenda para linkar o contato.
+    contato_id = None
+    if responsavel:
+        try:
+            res = (
+                supabase_admin.table("contatos_gabinete")
+                .select("id")
+                .ilike("nome", f"%{responsavel}%")
+                .limit(1)
+                .execute()
+            )
+            if res.data:
+                contato_id = res.data[0]["id"]
+        except Exception as e:
+            print(f"[gabinete] contato lookup soft-fail: {e}")
+
+    payload = {
+        "titulo": titulo,
+        "responsavel": responsavel,
+        "responsavel_contato_id": contato_id,
+        "deadline": deadline,
+        "detalhes": detalhes,
+        "criada_por_jid": remote_jid,
+        "origem": "gabinete_digital",
+    }
+    try:
+        res = supabase_admin.table("tarefas_gabinete").insert(payload).execute()
+        row = (res.data or [{}])[0]
+        return {
+            "criada": True,
+            "id": row.get("id"),
+            "titulo": titulo,
+            "responsavel": responsavel,
+            "deadline": deadline,
+        }
+    except Exception as e:
+        return {"criada": False, "erro": f"falha_insercao: {e}"}
+
+
+# =============================================================================
 # Dispatcher
 # =============================================================================
 def _dispatch_tool(name: str, args: dict, remote_jid: str) -> Any:
@@ -535,6 +765,12 @@ def _dispatch_tool(name: str, args: dict, remote_jid: str) -> Any:
             return _tool_historico_eleitoral(args)
         if name == "listar_cidades_mg":
             return _tool_listar_cidades_mg(args)
+        if name == "buscar_contato":
+            return _tool_buscar_contato(args)
+        if name == "enviar_email":
+            return _tool_enviar_email(args, remote_jid)
+        if name == "criar_tarefa":
+            return _tool_criar_tarefa(args, remote_jid)
         if name == "gerar_relatorio_pdf":
             return _tool_gerar_relatorio_pdf(args, remote_jid)
         return {"erro": f"ferramenta_desconhecida: {name}"}

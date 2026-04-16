@@ -1502,6 +1502,8 @@
             Conquista</div>
         <div class="nav-item" onclick="nav('coletar', this)"><i class="ri-download-cloud-2-line"></i> Coletar Dados
         </div>
+        <div class="nav-item" onclick="nav('tarefas-gabinete', this)"><i class="ri-checkbox-circle-line"></i> Tarefas do
+            Gabinete</div>
         <div style="margin-top:auto;padding-top:16px;border-top:1px solid rgba(255,255,255,0.06);">
             <a href="/logout" class="nav-item"
                 style="display:flex;align-items:center;gap:8px;color:#94a3b8;text-decoration:none;font-size:0.82rem;padding:10px 12px;border-radius:8px;transition:background 0.2s;"
@@ -2375,6 +2377,54 @@ https://www.instagram.com/p/YYYYY/"
         </div>
     </div>
 
+    <!-- TAREFAS DO GABINETE VIEW -->
+    <div class="main hidden" id="view-tarefas-gabinete">
+        <div class="page-header">
+            <div class="page-title">
+                <h1><i class="ri-checkbox-circle-line" style="color:#22c55e"></i> Tarefas do Gabinete</h1>
+                <p>Backlog criado pelo Chefe de Gabinete Digital — atualizado em tempo real</p>
+            </div>
+            <button class="export-btn" onclick="carregarTarefasGabinete()"><i class="ri-refresh-line"></i> Atualizar</button>
+        </div>
+
+        <div class="stats-grid" style="margin-bottom:20px">
+            <div class="stat-card" style="border-left:3px solid #f59e0b">
+                <div class="stat-label">Abertas <i class="ri-time-line" style="color:#f59e0b"></i></div>
+                <div class="stat-value" id="tg-kpi-abertas">0</div>
+                <div class="stat-sub">Aguardando início</div>
+            </div>
+            <div class="stat-card" style="border-left:3px solid #3b82f6">
+                <div class="stat-label">Em Andamento <i class="ri-loader-4-line" style="color:#3b82f6"></i></div>
+                <div class="stat-value" id="tg-kpi-andamento">0</div>
+                <div class="stat-sub">Sendo executadas</div>
+            </div>
+            <div class="stat-card" style="border-left:3px solid #22c55e">
+                <div class="stat-label">Concluídas <i class="ri-check-double-line" style="color:#22c55e"></i></div>
+                <div class="stat-value" id="tg-kpi-concluidas">0</div>
+                <div class="stat-sub">Finalizadas</div>
+            </div>
+            <div class="stat-card" style="border-left:3px solid #ef4444">
+                <div class="stat-label">Prazo Vencido <i class="ri-alarm-warning-line" style="color:#ef4444"></i></div>
+                <div class="stat-value" id="tg-kpi-vencidas">0</div>
+                <div class="stat-sub">Requerem atenção</div>
+            </div>
+        </div>
+
+        <div class="filters-bar">
+            <select id="tg-filter-status" class="filter-select" onchange="renderTarefasGabinete()">
+                <option value="">Todos os Status</option>
+                <option value="aberta">Abertas</option>
+                <option value="em_andamento">Em Andamento</option>
+                <option value="concluida">Concluídas</option>
+            </select>
+            <span class="filter-count" id="tg-filter-count">--</span>
+        </div>
+
+        <div id="tg-lista" style="display:flex;flex-direction:column;gap:12px">
+            <p style="color:var(--text-muted);font-size:0.85rem">Carregando tarefas...</p>
+        </div>
+    </div>
+
     <script>
         // State
         let currentChartDonut = null;
@@ -2432,6 +2482,7 @@ https://www.instagram.com/p/YYYYY/"
             }
             if (view === 'radar-noticias') buscarNoticias();
             if (view === 'radar-mg') { inicializarMapaMG(); carregarPesquisasAnteriores(); }
+            if (view === 'tarefas-gabinete') carregarTarefasGabinete();
             if (view === 'mapa-eleitoral') loadMapaEleitoral();
             if (view === 'simulador') loadSimulador();
             if (view === 'coletar') loadColetaHistory();
@@ -4757,6 +4808,105 @@ https://www.instagram.com/p/YYYYY/"
 
         // Load notícias on startup (background)
         buscarNoticias();
+
+        // =====================================================================
+        // TAREFAS DO GABINETE
+        // =====================================================================
+        let _tarefasGabinete = [];
+
+        async function carregarTarefasGabinete() {
+            const container = document.getElementById('tg-lista');
+            container.innerHTML = '<p style="color:var(--text-muted);font-size:0.85rem">Carregando tarefas...</p>';
+            try {
+                const res = await fetch('/api/tarefas?limit=200');
+                const json = await res.json();
+                _tarefasGabinete = Array.isArray(json.data) ? json.data : [];
+                renderTarefasGabinete();
+            } catch (e) {
+                container.innerHTML = '<p style="color:#ef4444;font-size:0.85rem">Erro ao carregar: ' + e.message + '</p>';
+            }
+        }
+
+        function renderTarefasGabinete() {
+            const lista = _tarefasGabinete;
+            const statusFiltro = document.getElementById('tg-filter-status').value;
+            const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+
+            // KPIs
+            const abertas = lista.filter(t => t.status === 'aberta').length;
+            const andamento = lista.filter(t => t.status === 'em_andamento').length;
+            const concluidas = lista.filter(t => t.status === 'concluida').length;
+            const vencidas = lista.filter(t => t.deadline && t.status !== 'concluida' && new Date(t.deadline) < hoje).length;
+            document.getElementById('tg-kpi-abertas').textContent = abertas;
+            document.getElementById('tg-kpi-andamento').textContent = andamento;
+            document.getElementById('tg-kpi-concluidas').textContent = concluidas;
+            document.getElementById('tg-kpi-vencidas').textContent = vencidas;
+
+            const filtradas = statusFiltro ? lista.filter(t => t.status === statusFiltro) : lista;
+            document.getElementById('tg-filter-count').textContent = filtradas.length + ' tarefa(s)';
+
+            const container = document.getElementById('tg-lista');
+            if (filtradas.length === 0) {
+                container.innerHTML = '<div class="chart-box" style="padding:40px;text-align:center;color:var(--text-muted)"><i class="ri-inbox-line" style="font-size:2rem;opacity:0.4"></i><p style="margin-top:12px">Nenhuma tarefa neste filtro.</p><p style="font-size:0.8rem;margin-top:6px">Peça ao Chefe de Gabinete Digital no WhatsApp: <em>"abre uma tarefa pra visitar Itaúna sexta"</em></p></div>';
+                return;
+            }
+
+            const statusInfo = {
+                'aberta': { cor: '#f59e0b', icone: 'ri-time-line', label: 'Aberta' },
+                'em_andamento': { cor: '#3b82f6', icone: 'ri-loader-4-line', label: 'Em Andamento' },
+                'concluida': { cor: '#22c55e', icone: 'ri-check-double-line', label: 'Concluída' },
+            };
+
+            container.innerHTML = filtradas.map(t => {
+                const s = statusInfo[t.status] || statusInfo['aberta'];
+                const venceu = t.deadline && t.status !== 'concluida' && new Date(t.deadline) < hoje;
+                const prazoFmt = t.deadline ? new Date(t.deadline + 'T00:00:00').toLocaleDateString('pt-BR') : '';
+                const criadaFmt = t.criada_em ? new Date(t.criada_em).toLocaleDateString('pt-BR') + ' ' + new Date(t.criada_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '';
+                const detalhesHtml = t.detalhes ? '<p style="color:#cbd5e1;font-size:0.85rem;margin-top:8px;line-height:1.5">' + escapeHtml(t.detalhes) + '</p>' : '';
+                const responsavelHtml = t.responsavel ? '<span style="display:inline-flex;align-items:center;gap:4px;color:#94a3b8;font-size:0.8rem"><i class="ri-user-line"></i>' + escapeHtml(t.responsavel) + '</span>' : '';
+                const prazoHtml = t.deadline ? '<span style="display:inline-flex;align-items:center;gap:4px;font-size:0.8rem;color:' + (venceu ? '#ef4444' : '#94a3b8') + '"><i class="' + (venceu ? 'ri-alarm-warning-line' : 'ri-calendar-line') + '"></i>' + prazoFmt + (venceu ? ' (vencida)' : '') + '</span>' : '';
+
+                return '<div class="chart-box" style="border-left:3px solid ' + s.cor + ';padding:16px 20px">' +
+                    '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px">' +
+                    '<div style="flex:1">' +
+                    '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">' +
+                    '<span style="background:' + s.cor + '22;color:' + s.cor + ';font-size:0.7rem;font-weight:700;padding:3px 8px;border-radius:20px;text-transform:uppercase;letter-spacing:0.5px"><i class="' + s.icone + '"></i> ' + s.label + '</span>' +
+                    '<span style="color:#64748b;font-size:0.7rem">#' + t.id + '</span>' +
+                    '</div>' +
+                    '<h3 style="color:#f1f5f9;font-size:1rem;margin:0">' + escapeHtml(t.titulo) + '</h3>' +
+                    detalhesHtml +
+                    '<div style="display:flex;gap:16px;margin-top:10px;flex-wrap:wrap">' +
+                    responsavelHtml + prazoHtml +
+                    '<span style="color:#475569;font-size:0.75rem">criada ' + criadaFmt + '</span>' +
+                    '</div>' +
+                    '</div>' +
+                    '<div style="display:flex;flex-direction:column;gap:6px">' +
+                    (t.status !== 'em_andamento' ? '<button onclick="atualizarStatusTarefa(' + t.id + ',\'em_andamento\')" style="background:#3b82f622;color:#3b82f6;border:1px solid #3b82f644;padding:6px 10px;border-radius:6px;font-size:0.75rem;cursor:pointer;white-space:nowrap"><i class="ri-play-line"></i> Andamento</button>' : '') +
+                    (t.status !== 'concluida' ? '<button onclick="atualizarStatusTarefa(' + t.id + ',\'concluida\')" style="background:#22c55e22;color:#22c55e;border:1px solid #22c55e44;padding:6px 10px;border-radius:6px;font-size:0.75rem;cursor:pointer;white-space:nowrap"><i class="ri-check-line"></i> Concluir</button>' : '') +
+                    '</div>' +
+                    '</div>' +
+                    '</div>';
+            }).join('');
+        }
+
+        function escapeHtml(s) {
+            if (s == null) return '';
+            return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        }
+
+        async function atualizarStatusTarefa(id, status) {
+            try {
+                const res = await fetch('/api/tarefas/' + id + '/status', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status })
+                });
+                if (!res.ok) throw new Error('Falha HTTP ' + res.status);
+                await carregarTarefasGabinete();
+            } catch (e) {
+                alert('Erro ao atualizar: ' + e.message);
+            }
+        }
     </script>
 
     <!-- Pitch Estratégico Modal -->

@@ -2413,6 +2413,47 @@ Tom: próximo, humano, sem burocracia."""
     return jsonify({"status": "ignored"}), 200
 
 
+@app.route("/api/tarefas", methods=["GET"])
+def api_listar_tarefas():
+    """Lista tarefas do gabinete, mais recentes primeiro. Filtros opcionais: status."""
+    if not supabase_admin:
+        return jsonify({"data": [], "total": 0, "error": "supabase_indisponivel"}), 200
+    try:
+        status_filter = request.args.get("status")
+        limit = request.args.get("limit", 100, type=int)
+        query = supabase_admin.table("tarefas_gabinete").select("*", count="exact")
+        if status_filter:
+            query = query.eq("status", status_filter)
+        query = query.order("criada_em", desc=True).limit(limit)
+        res = query.execute()
+        return jsonify({
+            "data": res.data or [],
+            "total": res.count if res.count is not None else len(res.data or [])
+        })
+    except Exception as e:
+        print(f"[tarefas] Erro: {e}")
+        return jsonify({"data": [], "total": 0, "error": str(e)}), 200
+
+
+@app.route("/api/tarefas/<int:tarefa_id>/status", methods=["PUT"])
+def api_atualizar_status_tarefa(tarefa_id):
+    """Atualiza o status de uma tarefa (aberta, em_andamento, concluida)."""
+    if not supabase_admin:
+        return jsonify({"error": "supabase_indisponivel"}), 503
+    data = request.json or {}
+    novo_status = data.get("status")
+    if novo_status not in ("aberta", "em_andamento", "concluida"):
+        return jsonify({"error": "status_invalido"}), 400
+    try:
+        supabase_admin.table("tarefas_gabinete").update({
+            "status": novo_status,
+            "atualizada_em": datetime.utcnow().isoformat(),
+        }).eq("id", tarefa_id).execute()
+        return jsonify({"success": True, "status": novo_status})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/api/feedback/<int:feedback_id>/status", methods=["PUT"])
 def update_feedback_status(feedback_id):
     """Atualiza o status de um feedback"""
