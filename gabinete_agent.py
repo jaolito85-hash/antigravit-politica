@@ -543,6 +543,71 @@ def _dispatch_tool(name: str, args: dict, remote_jid: str) -> Any:
 
 
 # =============================================================================
+# Memória de conversa — persistida no Supabase, um registro por JID.
+# Necessário porque o Gunicorn roda múltiplos workers: memória em RAM não é
+# compartilhada. TTL lógico evita contexto "infinito" e corta custo por turno.
+# =============================================================================
+HISTORY_TTL_MINUTES = 30
+HISTORY_MAX_TURNS = 10  # 10 pares user/assistant = 20 mensagens
+
+
+def _load_history(remote_jid: str) -> list[dict]:
+    """Retorna o histórico recente do Deputado. [] se expirado ou inexistente."""
+    from server import supabase_admin  # lazy
+    if not supabase_admin:
+        return []
+    try:
+        res = (
+            supabase_admin.table("gabinete_memory")
+            .select("messages, updated_at")
+            .eq("jid", remote_jid)
+            .limit(1)
+            .execute()
+        )
+        rows = res.data or []
+        if not rows:
+            return []
+        row = rows[0]
+        try:
+            updated_at = datetime.fromisoformat(
+                (row.get("updated_at") or "").replace("Z", "+00:00")
+            )
+        except Exception:
+            return []
+        if datetime.now(timezone.utc) - updated_at > timedelta(minutes=HISTORY_TTL_MINUTES):
+            print(f"[gabinete] Histórico expirado para {remote_jid}")
+            return []
+        return row.get("messages") or []
+    except Exception as e:
+        print(f"[gabinete] Erro ao carregar histórico: {e}")
+        return []
+
+
+def _persist_turn(remote_jid: str, prev_history: list[dict], user_text: str, assistant_text: str) -> None:
+    """Adiciona o turno atual ao histórico e persiste no Supabase (limitado)."""
+    from server import supabase_admin  # lazy
+    if not supabase_admin:
+        return
+    try:
+        new_history = [
+            *prev_history,
+            {"role": "user", "content": user_text},
+            {"role": "assistant", "content": assistant_text},
+        ]
+        capped = new_history[-HISTORY_MAX_TURNS * 2:]
+        supabase_admin.table("gabinete_memory").upsert(
+            {
+                "jid": remote_jid,
+                "messages": capped,
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            },
+            on_conflict="jid",
+        ).execute()
+    except Exception as e:
+        print(f"[gabinete] Erro ao salvar histórico: {e}")
+
+
+# =============================================================================
 # Loop principal do agente
 # =============================================================================
 def handle_gabinete(text: str, remote_jid: str) -> None:
@@ -565,8 +630,10 @@ def handle_gabinete(text: str, remote_jid: str) -> None:
         send_whatsapp_message(remote_jid, "_Deputado, o gabinete digital está temporariamente indisponível._")
         return
 
+    history = _load_history(remote_jid)
     messages: list[dict] = [
         {"role": "system", "content": GABINETE_SYSTEM_PROMPT},
+        *history,
         {"role": "user", "content": text},
     ]
 
@@ -594,6 +661,7 @@ def handle_gabinete(text: str, remote_jid: str) -> None:
             final = (msg.content or "").strip()
             if not final:
                 final = "_Deputado, não consegui formar uma resposta para esse pedido. Pode reformular?_"
+            _persist_turn(remote_jid, history, text, final)
             send_whatsapp_message(remote_jid, final)
             return
 
@@ -632,4 +700,6 @@ def handle_gabinete(text: str, remote_jid: str) -> None:
             })
 
     # Se atingiu o limite de rodadas sem resposta final
-    send_whatsapp_message(remote_jid, "_Deputado, a análise ficou longa demais. Pode estreitar a pergunta (uma cidade ou um tema)?_")
+    fallback = "_Deputado, a análise ficou longa demais. Pode estreitar a pergunta (uma cidade ou um tema)?_"
+    _persist_turn(remote_jid, history, text, fallback)
+    send_whatsapp_message(remote_jid, fallback)
