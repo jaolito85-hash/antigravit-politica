@@ -42,11 +42,11 @@ def login_required(f):
 
 @app.before_request
 def require_login():
-    public_routes = {"login_page", "logout", "static", "service_worker", "manifest"}
+    public_routes = {"login_page", "logout", "static", "service_worker", "manifest", "webhook"}
     if request.endpoint in public_routes:
         return
     if not session.get("logged_in"):
-        if request.path.startswith("/api/") or request.path.startswith("/webhook"):
+        if request.path.startswith("/api/"):
             return jsonify({"error": "Não autorizado"}), 401
         return redirect(url_for("login_page"))
 
