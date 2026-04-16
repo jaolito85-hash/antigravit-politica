@@ -38,6 +38,8 @@ Oferecer ao Deputado, pelo WhatsApp, um *chefe de gabinete digital* que consulta
 
 ## Variáveis de ambiente
 - `DEPUTADO_WHATSAPP_JID` — obrigatória. Sem isso nenhuma mensagem é roteada ao gabinete.
+  - Valor `*` (ou `ALL`) ativa o **MODO DEMO**: qualquer remetente que mandar mensagem para a instância é tratado como o deputado. Útil para apresentações onde o convidado vai testar com o próprio celular.
+  - Em produção, trocar pelo JID real do deputado (ex.: `5531999999999@s.whatsapp.net`).
 - `GABINETE_MODEL` — opcional. Padrão `gpt-4o`. Pode trocar por `gpt-4o-mini` se custo importar mais que qualidade.
 - Reaproveita: `OPENAI_API_KEY`, `EVOLUTION_API_*`, `SUPABASE_*`.
 

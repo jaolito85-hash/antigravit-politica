@@ -25,13 +25,19 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 STATIC_DIR = os.path.join(BASE_DIR, "static")
 
 # JID do deputado autorizado (whitelist). Suporta múltiplos separados por vírgula.
+# Valor especial "*" ou "ALL" liga o MODO DEMO: qualquer remetente é tratado como deputado.
 _RAW_WHITELIST = os.getenv("DEPUTADO_WHATSAPP_JID", "")
 DEPUTADO_WHITELIST = {j.strip() for j in _RAW_WHITELIST.split(",") if j.strip()}
+GABINETE_DEMO_MODE = any(v.upper() in {"*", "ALL"} for v in DEPUTADO_WHITELIST)
 
 
 def is_deputado(remote_jid: str) -> bool:
-    """Verifica se o número é o deputado autorizado."""
-    return bool(remote_jid) and remote_jid in DEPUTADO_WHITELIST
+    """Verifica se o número é o deputado autorizado (ou se estamos em modo demo)."""
+    if not remote_jid:
+        return False
+    if GABINETE_DEMO_MODE:
+        return True
+    return remote_jid in DEPUTADO_WHITELIST
 
 
 # =============================================================================
