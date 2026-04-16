@@ -950,6 +950,35 @@ def send_whatsapp_message(remote_jid, message):
         print(f"❌ Error sending message: {e}")
 
 
+def send_whatsapp_document(remote_jid, filename, file_bytes, caption="", mimetype="application/pdf"):
+    """Envia documento (PDF por padrão) via Evolution API /message/sendMedia."""
+    if not EVOLUTION_API_URL or not EVOLUTION_API_KEY or not EVOLUTION_INSTANCE_NAME:
+        print("❌ Evolution API not configured (sendMedia)")
+        return False
+
+    import base64 as _b64
+    url = f"{EVOLUTION_API_URL}/message/sendMedia/{EVOLUTION_INSTANCE_NAME}"
+    headers = {"apikey": EVOLUTION_API_KEY, "Content-Type": "application/json"}
+    payload = {
+        "number": remote_jid,
+        "mediatype": "document",
+        "mimetype": mimetype,
+        "caption": caption or "",
+        "media": _b64.b64encode(file_bytes).decode(),
+        "fileName": filename,
+    }
+
+    print(f"📎 Sending document to {remote_jid}: {filename} ({len(file_bytes)} bytes)")
+    try:
+        response = requests.post(url, json=payload, headers=headers, timeout=60)
+        print(f"📎 Response Status: {response.status_code}")
+        print(f"📎 Response Body: {response.text[:200]}")
+        return response.ok
+    except Exception as e:
+        print(f"❌ Error sending document: {e}")
+        return False
+
+
 # --- AI POLITICAL PULSE ---
 def generate_ai_pulse(feedbacks):
     """Gera resumo inteligente do cenário político usando IA"""
@@ -2206,6 +2235,16 @@ def webhook():
                     return jsonify({"status": "download_failed"}), 200
 
         if text and remote_jid:
+            # GABINETE (deputado) — roteia antes das regras de cidadão
+            try:
+                from gabinete_agent import is_deputado, handle_gabinete
+                if is_deputado(remote_jid):
+                    print(f"[GABINETE] Mensagem do Deputado {remote_jid}")
+                    handle_gabinete(text, remote_jid)
+                    return jsonify({"status": "gabinete_handled"}), 200
+            except Exception as e:
+                print(f"[GABINETE] Erro no roteamento: {e}")
+
             # SPAM PROTECTION
             if len(text.strip()) < MIN_MESSAGE_LENGTH:
                 print(f"[SPAM] Message too short ({len(text)} chars): {text}")
