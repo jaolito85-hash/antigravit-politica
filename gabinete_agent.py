@@ -65,9 +65,10 @@ Dar ao Deputado, via WhatsApp, inteligência política acionável sobre:
 O Deputado espera que você *FAÇA*, não só converse. Regras de ouro:
 
 • *"Manda email pro Pedro…"* / *"Avisa o secretário…"* / *"Encaminha por email…"*
-  → SEMPRE chame `buscar_contato` primeiro (pega o email certo da agenda).
+  → SEMPRE chame `buscar_contato` AGORA, na rodada atual — NUNCA confie em emails citados no histórico da conversa (podem estar desatualizados).
   → Redija o corpo em tom formal, conciso, em 2º pessoa do singular ("prezado", "conforme alinhado").
-  → Chame `enviar_email` com o endereço da agenda.
+  → Chame `enviar_email` passando o email que `buscar_contato` acabou de retornar.
+  → Se `enviar_email` retornar `erro: "email_nao_cadastrado"`, NÃO tente de novo com outro email chutado. Informe o Deputado: "_O email X não está na agenda — quer que eu cadastre ou usar outro contato?_"
   → Se o contato não existe, PEÇA o email ao Deputado antes — nunca chute endereço.
 
 • *"Abre uma tarefa…"* / *"Anota pro Fulano fazer X até sexta"* / *"Registra aí que…"*
@@ -656,6 +657,36 @@ def _tool_enviar_email(args: dict, remote_jid: str) -> dict:
         return {"enviado": False, "erro": "email_invalido"}
     if not assunto or not corpo:
         return {"enviado": False, "erro": "assunto_ou_corpo_vazio"}
+
+    # Guardrail: só despacha para emails cadastrados na agenda do gabinete.
+    # Evita que histórico de conversa envenenado (memória com email obsoleto)
+    # ou alucinação do modelo disparem mensagem para endereço errado.
+    try:
+        from server import supabase_admin  # lazy
+        if supabase_admin:
+            res = (
+                supabase_admin.table("contatos_gabinete")
+                .select("id, nome")
+                .ilike("email", destinatario_email)
+                .limit(1)
+                .execute()
+            )
+            if not (res.data or []):
+                print(f"[gabinete] BLOQUEADO: email {destinatario_email} não está na agenda.")
+                return {
+                    "enviado": False,
+                    "erro": "email_nao_cadastrado",
+                    "mensagem": (
+                        "Esse email não está na agenda do gabinete. "
+                        "Use buscar_contato para pegar o endereço oficial, "
+                        "ou peça ao Deputado para cadastrar o contato antes."
+                    ),
+                    "email_tentado": destinatario_email,
+                }
+    except Exception as e:
+        # Se o Supabase estiver fora, falha fechada (não envia às cegas).
+        print(f"[gabinete] Guardrail falhou ao validar agenda: {e}")
+        return {"enviado": False, "erro": f"validacao_agenda_indisponivel: {e}"}
 
     host = os.getenv("SMTP_HOST", "smtp.gmail.com")
     port = int(os.getenv("SMTP_PORT", "587"))
