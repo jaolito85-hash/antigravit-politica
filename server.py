@@ -45,8 +45,11 @@ def require_login():
     public_routes = {"login_page", "logout", "static", "service_worker", "manifest"}
     if request.endpoint in public_routes:
         return
+    # /webhook é público: é chamado pela Evolution API, sem sessão de usuário.
+    if request.path.startswith("/webhook"):
+        return
     if not session.get("logged_in"):
-        if request.path.startswith("/api/") or request.path.startswith("/webhook"):
+        if request.path.startswith("/api/"):
             return jsonify({"error": "Não autorizado"}), 401
         return redirect(url_for("login_page"))
 
