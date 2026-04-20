@@ -92,6 +92,8 @@ else:
 EVENTS_FILE        = os.path.join(BASE_DIR, 'execution', 'events.json')
 CONFIG_FILE        = os.path.join(BASE_DIR, 'execution', 'config.json')
 LAST_COMMENTS_FILE = os.path.join(BASE_DIR, 'execution', 'last_ig_comments.json')
+OPERADORES_FILE    = os.path.join(BASE_DIR, 'execution', 'operadores_campo.json')
+OPERACAO_FILE      = os.path.join(BASE_DIR, 'execution', 'operacao_local.json')
 
 # =============================================================================
 # MOCK DATA — Radar de Comentários
@@ -2162,6 +2164,320 @@ def append_to_feedback(feedback_id, old_message, new_content, new_region=None, n
         return False
 
 
+def _normalizar_telefone_jid(valor: str) -> str:
+    """Mantem apenas digitos para comparar telefones/JIDs de WhatsApp."""
+    return re.sub(r'\D+', '', str(valor or ''))
+
+
+def _jid_para_envio(telefone: str) -> str:
+    """Converte telefone cadastrado em identificador aceito pela Evolution API."""
+    texto = str(telefone or '').strip()
+    if '@' in texto:
+        return texto
+    return _normalizar_telefone_jid(texto)
+
+
+def _mascarar_telefone(valor: str) -> str:
+    """Mascara telefone para logs e interface sem expor dado pessoal completo."""
+    digitos = _normalizar_telefone_jid(valor)
+    if len(digitos) <= 6:
+        return "***"
+    return f"{digitos[:4]}***{digitos[-2:]}"
+
+
+def _operadores_demo_padrao():
+    """Seed visual usado quando ainda nao ha operadores reais cadastrados."""
+    return [{
+        "id": 1,
+        "nome": "Operador de Campo Demo",
+        "telefone": "55DDDNUMERO",
+        "telefone_mascarado": "55***00",
+        "jid": "",
+        "funcao": "Coordenador regional",
+        "cidade_base": "Cidade exemplo",
+        "regiao": "Regiao de demonstracao",
+        "status": "ativo",
+        "notas": "Substitua pelo numero real antes da reuniao.",
+        "criado_em": datetime.utcnow().isoformat(),
+        "demo": True,
+    }]
+
+
+def _normalizar_operador(row: dict) -> dict:
+    """Padroniza o registro do operador para API e comparacao."""
+    row = dict(row or {})
+    telefone = row.get("telefone") or row.get("jid") or ""
+    jid = row.get("jid") or telefone
+    row["telefone"] = telefone
+    row["jid"] = jid
+    row["telefone_normalizado"] = _normalizar_telefone_jid(jid or telefone)
+    row["telefone_mascarado"] = _mascarar_telefone(jid or telefone)
+    row["status"] = row.get("status") or "ativo"
+    return row
+
+
+def listar_operadores_campo(incluir_demo=True):
+    """Lista operadores de campo cadastrados no Supabase ou fallback local."""
+    operadores = []
+    if supabase_admin:
+        try:
+            res = supabase_admin.table("operadores_campo").select("*").order("criado_em", desc=True).execute()
+            operadores = res.data or []
+        except Exception as e:
+            print(f"[operacao] Supabase operadores indisponivel: {e}")
+
+    if not operadores:
+        operadores = load_json(OPERADORES_FILE, [])
+
+    operadores = [_normalizar_operador(op) for op in operadores]
+    if not operadores and incluir_demo:
+        return _operadores_demo_padrao()
+    return operadores
+
+
+def salvar_operador_campo(payload: dict) -> dict:
+    """Cadastra operador de campo, com fallback local se o banco nao existir."""
+    nome = (payload.get("nome") or "").strip()
+    telefone = (payload.get("telefone") or payload.get("jid") or "").strip()
+    if not nome or not telefone:
+        raise ValueError("nome_e_telefone_obrigatorios")
+
+    telefone_norm = _normalizar_telefone_jid(telefone)
+    if len(telefone_norm) < 10:
+        raise ValueError("telefone_invalido")
+    if any(op.get("telefone_normalizado") == telefone_norm for op in listar_operadores_campo(incluir_demo=False)):
+        raise ValueError("telefone_ja_cadastrado")
+
+    operador = {
+        "nome": nome[:120],
+        "telefone": telefone_norm,
+        "jid": _jid_para_envio(telefone),
+        "funcao": (payload.get("funcao") or "Operador de campo").strip()[:120],
+        "cidade_base": (payload.get("cidade_base") or "").strip()[:120],
+        "regiao": (payload.get("regiao") or "").strip()[:120],
+        "status": payload.get("status") if payload.get("status") in ("ativo", "pausado") else "ativo",
+        "notas": (payload.get("notas") or "").strip()[:500],
+        "criado_em": datetime.utcnow().isoformat(),
+        "atualizado_em": datetime.utcnow().isoformat(),
+    }
+
+    if supabase_admin:
+        try:
+            res = supabase_admin.table("operadores_campo").insert(operador).execute()
+            if res.data:
+                return _normalizar_operador(res.data[0])
+        except Exception as e:
+            print(f"[operacao] Falha ao salvar operador no Supabase: {e}")
+
+    operadores = [_normalizar_operador(op) for op in load_json(OPERADORES_FILE, [])]
+    operador["id"] = max([int(op.get("id") or 0) for op in operadores] or [0]) + 1
+    operadores.insert(0, operador)
+    save_json(OPERADORES_FILE, operadores)
+    return _normalizar_operador(operador)
+
+
+def buscar_operador_por_jid(remote_jid: str):
+    """Retorna operador ativo pelo JID/telefone, sem usar o numero do deputado."""
+    telefone_norm = _normalizar_telefone_jid(remote_jid)
+    if not telefone_norm:
+        return None
+
+    try:
+        from gabinete_agent import is_deputado
+        if is_deputado(remote_jid):
+            return None
+    except Exception:
+        pass
+
+    for operador in listar_operadores_campo(incluir_demo=False):
+        if operador.get("status") != "ativo":
+            continue
+        if operador.get("telefone_normalizado") == telefone_norm:
+            return operador
+    return None
+
+
+def _extrair_cidade_operacao(texto: str) -> str:
+    """Extrai cidade da atualizacao de campo por padroes simples de WhatsApp."""
+    texto = texto or ""
+    padroes = [
+        r"cidade\s*[:\-]\s*([A-Za-zÀ-ÿ' .-]{3,60})",
+        r"munic[ií]pio\s*[:\-]\s*([A-Za-zÀ-ÿ' .-]{3,60})",
+        r"\bem\s+([A-ZÀ-Ý][A-Za-zÀ-ÿ' -]{2,45}?)(?=\s+(?:fiz|fez|realiz|teve|tem|principal|com|no|na|bairro|reuni|evento|demanda|hoje|ontem|amanh)|[,.]|$)",
+    ]
+    for padrao in padroes:
+        match = re.search(padrao, texto, flags=re.IGNORECASE)
+        if match:
+            cidade = re.sub(r"\s+", " ", match.group(1)).strip(" .,-")
+            if cidade:
+                return cidade[:80]
+
+    texto_norm = _normalizar_texto(texto)
+    if texto_norm:
+        for item in _carregar_cidades_estaticas().values():
+            cidade = item.get("cidade")
+            if cidade and f" {_normalizar_texto(cidade)} " in f" {texto_norm} ":
+                return cidade
+    return ""
+
+
+def _classificar_tipo_operacao(texto: str) -> str:
+    """Classifica o tipo principal da mensagem de campo."""
+    t = _normalizar_texto(texto)
+    if any(p in t for p in ("reuniao", "reunimos", "encontro", "liderancas")):
+        return "reuniao"
+    if any(p in t for p in ("evento", "agenda", "visita", "carreata", "adesivaco")):
+        return "evento"
+    if any(p in t for p in ("lideranca", "vereador", "prefeito", "pastor", "presidente")):
+        return "lideranca"
+    if any(p in t for p in ("adversario", "oposicao", "concorrente")):
+        return "adversario"
+    if any(p in t for p in ("demanda", "reclamacao", "problema", "pedido", "cobranca")):
+        return "demanda"
+    return "relato"
+
+
+def _extrair_tema_operacao(texto: str) -> str:
+    """Extrai tema politico dominante por palavras-chave."""
+    t = _normalizar_texto(texto)
+    temas = [
+        ("Saude", ("saude", "hospital", "ubs", "cirurgia", "exame", "samu", "medico")),
+        ("Estradas rurais", ("estrada rural", "cascalho", "ponte", "patrolamento", "interior")),
+        ("Infraestrutura", ("asfalto", "buraco", "ponte", "obra", "iluminacao", "energia")),
+        ("Educacao", ("escola", "creche", "professor", "aluno", "transporte escolar")),
+        ("Agricultura", ("agricultor", "produtor", "rural", "safra", "cooperativa")),
+        ("Seguranca", ("seguranca", "roubo", "policia", "violencia", "furto")),
+        ("Emprego e renda", ("emprego", "empresa", "industria", "comercio", "renda")),
+        ("Saneamento", ("agua", "esgoto", "saneamento", "lixo")),
+    ]
+    for tema, palavras in temas:
+        if any(p in t for p in palavras):
+            return tema
+    return "Mobilizacao local"
+
+
+def _extrair_quantidade_pessoas(texto: str):
+    """Captura quantidade de pessoas/liderancas mencionada no relato."""
+    match = re.search(r"(\d{1,4})\s+(?:pessoas|lideran[cç]as|moradores|participantes|apoiadores|cabos)", texto or "", re.IGNORECASE)
+    return int(match.group(1)) if match else None
+
+
+def _extrair_liderancas(texto: str) -> str:
+    """Captura mencoes simples a liderancas locais."""
+    encontrados = []
+    padrao = r"\b(vereador|prefeito|pastor|lideran[cç]a|presidente|secret[aá]rio|deputado)\s+([A-ZÀ-Ý][A-Za-zÀ-ÿ' -]{2,40})"
+    for cargo, nome in re.findall(padrao, texto or "", flags=re.IGNORECASE):
+        nome_limpo = " ".join(nome.strip(" .,-").split()[:3])
+        encontrados.append(f"{cargo.title()} {nome_limpo}")
+    return ", ".join(dict.fromkeys(encontrados))[:300]
+
+
+def _sentimento_operacao(texto: str) -> str:
+    """Resume o tom do relato de campo."""
+    t = _normalizar_texto(texto)
+    if any(p in t for p in ("reclam", "problema", "critico", "urgente", "bravo", "cobranca")):
+        return "atencao"
+    if any(p in t for p in ("apoio", "positivo", "bem recebido", "aprovou", "animado")):
+        return "positivo"
+    return "neutro"
+
+
+def _proxima_acao_operacao(tipo: str, tema: str, liderancas: str, sentimento: str) -> str:
+    """Gera uma recomendacao objetiva para o coordenador."""
+    if sentimento == "atencao":
+        return f"Tratar {tema.lower()} como pauta sensivel e preparar retorno local."
+    if liderancas:
+        return "Registrar a lideranca no mapa politico e agendar contato de follow-up."
+    if tipo in ("reuniao", "evento"):
+        return "Consolidar lista de presentes e transformar os temas em tarefa de campanha."
+    return "Acompanhar a cidade e pedir nova atualizacao ao operador em ate 7 dias."
+
+
+def montar_atualizacao_campo(texto: str, operador: dict, remote_jid: str, origem="whatsapp") -> dict:
+    """Transforma uma mensagem de WhatsApp em atualizacao estruturada de campo."""
+    cidade = _extrair_cidade_operacao(texto) or operador.get("cidade_base") or "Cidade nao informada"
+    tipo = _classificar_tipo_operacao(texto)
+    tema = _extrair_tema_operacao(texto)
+    liderancas = _extrair_liderancas(texto)
+    sentimento = _sentimento_operacao(texto)
+    quantidade = _extrair_quantidade_pessoas(texto)
+    resumo = re.sub(r"\s+", " ", texto or "").strip()
+    resumo = resumo[:260] + ("..." if len(resumo) > 260 else "")
+
+    return {
+        "operador_id": operador.get("id"),
+        "operador_nome": operador.get("nome") or "Operador",
+        "operador_jid": remote_jid,
+        "cidade": cidade,
+        "regiao": operador.get("regiao") or "",
+        "tipo": tipo,
+        "tema_principal": tema,
+        "resumo": resumo,
+        "quantidade_pessoas": quantidade,
+        "liderancas": liderancas,
+        "sentimento": sentimento,
+        "proxima_acao": _proxima_acao_operacao(tipo, tema, liderancas, sentimento),
+        "mensagem_original": texto,
+        "origem": origem,
+        "criada_em": datetime.utcnow().isoformat(),
+    }
+
+
+def salvar_atualizacao_campo(atualizacao: dict) -> dict:
+    """Salva atualizacao de campo no Supabase ou fallback local."""
+    if supabase_admin:
+        try:
+            res = supabase_admin.table("operacao_local_atualizacoes").insert(atualizacao).execute()
+            if res.data:
+                return res.data[0]
+        except Exception as e:
+            print(f"[operacao] Falha ao salvar atualizacao no Supabase: {e}")
+
+    atualizacoes = load_json(OPERACAO_FILE, [])
+    registro = dict(atualizacao)
+    registro["id"] = max([int(a.get("id") or 0) for a in atualizacoes] or [0]) + 1
+    atualizacoes.insert(0, registro)
+    save_json(OPERACAO_FILE, atualizacoes)
+    return registro
+
+
+def listar_atualizacoes_campo(limit=80):
+    """Lista atualizacoes recentes de campo."""
+    limit = max(1, min(int(limit or 80), 300))
+    atualizacoes = []
+    if supabase_admin:
+        try:
+            res = supabase_admin.table("operacao_local_atualizacoes").select("*").order("criada_em", desc=True).limit(limit).execute()
+            atualizacoes = res.data or []
+        except Exception as e:
+            print(f"[operacao] Supabase atualizacoes indisponivel: {e}")
+
+    if not atualizacoes:
+        atualizacoes = load_json(OPERACAO_FILE, [])[:limit]
+    return atualizacoes
+
+
+def handle_operacao_local(text: str, remote_jid: str, push_name: str):
+    """Processa atualizacao de operador cadastrado e confirma pelo WhatsApp."""
+    operador = buscar_operador_por_jid(remote_jid)
+    if not operador:
+        return False
+
+    atualizacao = montar_atualizacao_campo(text, operador, remote_jid)
+    salvo = salvar_atualizacao_campo(atualizacao)
+    print(f"[operacao] Atualizacao salva operador={operador.get('nome')} telefone={_mascarar_telefone(remote_jid)} cidade={salvo.get('cidade')}")
+
+    resposta = (
+        f"✅ Atualização registrada em *{salvo.get('cidade')}*.\n"
+        f"• Tema: *{salvo.get('tema_principal')}*\n"
+        f"• Tipo: {salvo.get('tipo')}\n"
+        f"• Próxima ação: {salvo.get('proxima_acao')}\n\n"
+        "_O painel Operação Local já foi atualizado._"
+    )
+    send_whatsapp_message(remote_jid, resposta)
+    return True
+
+
 @app.route("/webhook", methods=["POST"])
 def webhook():
     try:
@@ -2245,6 +2561,13 @@ def webhook():
                     return jsonify({"status": "gabinete_handled"}), 200
             except Exception as e:
                 print(f"[GABINETE] Erro no roteamento: {e}")
+
+            # OPERACAO LOCAL (cabos/coordenadores) — fluxo separado do gabinete e do cidadão
+            try:
+                if handle_operacao_local(text, remote_jid, push_name):
+                    return jsonify({"status": "operacao_local_handled"}), 200
+            except Exception as e:
+                print(f"[operacao] Erro no roteamento: {e}")
 
             # SPAM PROTECTION
             if len(text.strip()) < MIN_MESSAGE_LENGTH:
@@ -2455,6 +2778,87 @@ def api_atualizar_status_tarefa(tarefa_id):
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api/operacao-local", methods=["GET"])
+def api_operacao_local():
+    """Retorna operadores, atualizacoes recentes e KPIs da operacao de campo."""
+    try:
+        operadores = listar_operadores_campo()
+        atualizacoes = listar_atualizacoes_campo(request.args.get("limit", 80, type=int))
+        hoje = datetime.utcnow().date()
+        cidades = {a.get("cidade") for a in atualizacoes if a.get("cidade")}
+        hoje_count = 0
+        atencao_count = 0
+        for item in atualizacoes:
+            data_item = _parse_data_feedback(item.get("criada_em"))
+            if data_item and data_item.date() == hoje:
+                hoje_count += 1
+            if item.get("sentimento") == "atencao":
+                atencao_count += 1
+
+        return jsonify({
+            "operadores": operadores,
+            "atualizacoes": atualizacoes,
+            "kpis": {
+                "operadores_ativos": sum(1 for op in operadores if op.get("status") == "ativo" and not op.get("demo")),
+                "atualizacoes_hoje": hoje_count,
+                "cidades_movimentadas": len(cidades),
+                "pontos_atencao": atencao_count,
+            }
+        })
+    except Exception as e:
+        print(f"[operacao] Erro API geral: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/operacao-local/operadores", methods=["GET", "POST"])
+def api_operadores_campo():
+    """Lista ou cadastra operadores/cabos autorizados a atualizar por WhatsApp."""
+    if request.method == "GET":
+        return jsonify({"data": listar_operadores_campo()})
+
+    data = request.json or {}
+    try:
+        operador = salvar_operador_campo(data)
+        return jsonify({"success": True, "data": operador}), 201
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        print(f"[operacao] Erro ao cadastrar operador: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/operacao-local/atualizacoes", methods=["GET", "POST"])
+def api_atualizacoes_campo():
+    """Lista atualizacoes de campo ou cria uma atualizacao manual para demo."""
+    if request.method == "GET":
+        limit = request.args.get("limit", 80, type=int)
+        return jsonify({"data": listar_atualizacoes_campo(limit)})
+
+    data = request.json or {}
+    texto = (data.get("mensagem") or data.get("texto") or "").strip()
+    if not texto:
+        return jsonify({"error": "mensagem_obrigatoria"}), 400
+
+    operadores = listar_operadores_campo(incluir_demo=False)
+    operador = None
+    operador_id = str(data.get("operador_id") or "")
+    if operador_id:
+        operador = next((op for op in operadores if str(op.get("id")) == operador_id), None)
+    if not operador:
+        operador = {
+            "id": None,
+            "nome": data.get("operador_nome") or "Registro manual",
+            "regiao": data.get("regiao") or "",
+            "cidade_base": data.get("cidade_base") or "",
+        }
+
+    atualizacao = montar_atualizacao_campo(texto, operador, data.get("operador_jid") or "manual", origem="manual")
+    if data.get("cidade"):
+        atualizacao["cidade"] = data.get("cidade").strip()[:120]
+    salvo = salvar_atualizacao_campo(atualizacao)
+    return jsonify({"success": True, "data": salvo}), 201
+
+
 @app.route("/api/feedback/<int:feedback_id>/status", methods=["PUT"])
 def update_feedback_status(feedback_id):
     """Atualiza o status de um feedback"""
@@ -2652,6 +3056,47 @@ def _coletar_radar_prioridades():
     return por_cidade
 
 
+def _coletar_operacao_prioridades():
+    """Agrupa atualizacoes de campo por cidade para alimentar prioridades."""
+    por_cidade = defaultdict(lambda: {
+        "total": 0,
+        "atencao": 0,
+        "topicos": Counter(),
+        "ultima_interacao": None,
+        "operadores": set(),
+    })
+    try:
+        for item in listar_atualizacoes_campo(300):
+            cidade = item.get("cidade")
+            if not cidade or cidade == "Cidade nao informada":
+                continue
+            chave = _normalizar_texto(cidade)
+            grupo = por_cidade[chave]
+            grupo["cidade"] = cidade
+            grupo["total"] += 1
+            if item.get("sentimento") == "atencao":
+                grupo["atencao"] += 1
+            if item.get("tema_principal"):
+                grupo["topicos"][item.get("tema_principal")] += 1
+            if item.get("operador_nome"):
+                grupo["operadores"].add(item.get("operador_nome"))
+            data_item = _parse_data_feedback(item.get("criada_em"))
+            if data_item and (not grupo["ultima_interacao"] or data_item > grupo["ultima_interacao"]):
+                grupo["ultima_interacao"] = data_item
+    except Exception as e:
+        print(f"[prioridades] Operacao local indisponivel: {e}")
+        return {}
+
+    return {
+        chave: {
+            **dados,
+            "topicos": dados["topicos"],
+            "operadores": list(dados["operadores"]),
+        }
+        for chave, dados in por_cidade.items()
+    }
+
+
 @app.route('/api/prioridades-semana')
 def api_prioridades_semana():
     """Ranking de cidades prioritarias para a atuacao semanal do deputado."""
@@ -2662,6 +3107,7 @@ def api_prioridades_semana():
         cidades_meta = _carregar_cidades_estaticas()
         votos_por_cidade = _carregar_votos_eleitorais()
         radar_por_cidade = _coletar_radar_prioridades()
+        operacao_por_cidade = _coletar_operacao_prioridades()
 
         nomes_para_busca = {
             chave: dados.get('cidade', chave)
@@ -2706,7 +3152,7 @@ def api_prioridades_semana():
             if chave not in nomes_para_busca and cidade_nome:
                 nomes_para_busca[chave] = cidade_nome
 
-        chaves_candidatas = set(votos_por_cidade) | set(feedbacks_por_cidade) | set(radar_por_cidade)
+        chaves_candidatas = set(votos_por_cidade) | set(feedbacks_por_cidade) | set(radar_por_cidade) | set(operacao_por_cidade)
         max_base = max([
             (v.get('votos_nikolas', 0) + v.get('votos_engler', 0))
             for v in votos_por_cidade.values()
@@ -2722,6 +3168,7 @@ def api_prioridades_semana():
             votos = votos_por_cidade.get(chave, {})
             fb = feedbacks_por_cidade.get(chave, {})
             radar = radar_por_cidade.get(chave, {})
+            operacao = operacao_por_cidade.get(chave, {})
             meta = cidades_meta.get(chave, {})
 
             votos_nikolas = int(votos.get('votos_nikolas') or 0)
@@ -2736,10 +3183,15 @@ def api_prioridades_semana():
             negativos = int(fb.get('negativos') or 0)
             urgentes = int(fb.get('urgentes') or 0)
             abertos = int(fb.get('abertos') or 0)
-            pressao_score = min(22, total_fb * 2.5 + negativos * 3 + urgentes * 4 + abertos * 2)
+            total_operacao = int(operacao.get('total') or 0)
+            atencao_operacao = int(operacao.get('atencao') or 0)
+            pressao_score = min(22, total_fb * 2.5 + negativos * 3 + urgentes * 4 + abertos * 2 + total_operacao * 3 + atencao_operacao * 4)
 
             recencia_score = 0
             ultima_interacao = fb.get('ultima_interacao')
+            ultima_operacao = operacao.get('ultima_interacao')
+            if ultima_operacao and (not ultima_interacao or ultima_operacao > ultima_interacao):
+                ultima_interacao = ultima_operacao
             if ultima_interacao:
                 dias = max((agora - ultima_interacao).days, 0)
                 if dias <= 7:
@@ -2764,6 +3216,9 @@ def api_prioridades_semana():
             nivel = 'alta' if score >= 60 else 'media' if score >= 40 else 'monitorar'
 
             top_temas = [t for t, _ in fb.get('topicos', Counter()).most_common(3)]
+            if operacao.get('topicos'):
+                temas_operacao = [t for t, _ in operacao.get('topicos').most_common(3)]
+                top_temas = list(dict.fromkeys(temas_operacao + top_temas))[:3]
             if not top_temas and radar.get('temas'):
                 top_temas = [t.get('tema') for t in sorted(
                     radar.get('temas', []),
@@ -2780,12 +3235,14 @@ def api_prioridades_semana():
                 motivos.append(f"{urgentes} urgência(s) e {negativos} sinal(is) negativo(s)")
             elif total_fb:
                 motivos.append(f"{total_fb} feedback(s) cidadão(s)")
+            if total_operacao:
+                motivos.append(f"{total_operacao} movimento(s) de campo")
             if radar:
                 motivos.append("Radar local recente com sentimento " + (radar.get('sentimento') or 'neutro'))
             if not motivos:
                 motivos.append("Cidade em monitoramento por dados eleitorais")
 
-            if urgentes or negativos or 'negativo' in radar_sent:
+            if urgentes or negativos or atencao_operacao or 'negativo' in radar_sent:
                 acao = "Entrar com resposta local: ligar para liderança, preparar fala curta e criar tarefa de acompanhamento."
             elif gap_conversao >= 1000:
                 acao = "Marcar agenda de mobilização: visita com lideranças locais e pauta ligada aos temas quentes."
@@ -2795,7 +3252,7 @@ def api_prioridades_semana():
                 acao = "Acompanhar e reforçar presença digital antes de deslocamento presencial."
 
             prioridades.append({
-                'cidade': meta.get('cidade') or votos.get('cidade') or radar.get('cidade') or nomes_para_busca.get(chave, chave.title()),
+                'cidade': meta.get('cidade') or votos.get('cidade') or radar.get('cidade') or operacao.get('cidade') or nomes_para_busca.get(chave, chave.title()),
                 'regiao': meta.get('regiao') or votos.get('regiao_eleitoral') or '',
                 'polo': votos.get('polo') or '',
                 'score': score,
@@ -2808,6 +3265,8 @@ def api_prioridades_semana():
                 'negativos': negativos,
                 'urgentes': urgentes,
                 'abertos': abertos,
+                'movimentos_campo': total_operacao,
+                'pontos_atencao_campo': atencao_operacao,
                 'ultima_interacao': ultima_interacao.isoformat() if ultima_interacao else None,
                 'top_temas': top_temas,
                 'radar': {
@@ -2829,7 +3288,7 @@ def api_prioridades_semana():
                 'total_cidades': len(prioridades),
                 'alta_prioridade': sum(1 for p in prioridades if p['nivel'] == 'alta'),
                 'media_prioridade': sum(1 for p in prioridades if p['nivel'] == 'media'),
-                'cidades_com_pressao': sum(1 for p in prioridades if p['feedbacks'] > 0 or p['radar']),
+                'cidades_com_pressao': sum(1 for p in prioridades if p['feedbacks'] > 0 or p['radar'] or p.get('movimentos_campo', 0) > 0),
                 'gap_top10': sum(p['gap_conversao'] for p in prioridades[:10]),
             },
             'metodologia': {

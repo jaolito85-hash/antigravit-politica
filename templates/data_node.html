@@ -1659,6 +1659,7 @@
         <div class="nav-label">POLÍTICA</div>
         <div class="nav-item active" onclick="nav('dashboard', this)"><i class="ri-layout-grid-fill"></i> Painel</div>
         <div class="nav-item" onclick="nav('prioridades', this)"><i class="ri-compass-3-line"></i> Prioridades</div>
+        <div class="nav-item" onclick="nav('operacao-local', this)"><i class="ri-team-line"></i> Operação Local</div>
         <div class="nav-item" onclick="nav('feedbacks', this)"><i class="ri-chat-3-line"></i> Feedbacks</div>
         <div class="nav-item" onclick="nav('regions', this)"><i class="ri-map-pin-line"></i> Regiões</div>
         <div class="nav-item" onclick="nav('categories', this)"><i class="ri-price-tag-3-line"></i> Categorias</div>
@@ -1845,6 +1846,85 @@
 
         <div id="prioridades-lista" class="priority-list">
             <p style="color:var(--text-muted);font-size:0.85rem">Carregando prioridades...</p>
+        </div>
+    </div>
+
+    <!-- OPERACAO LOCAL VIEW -->
+    <div class="main hidden" id="view-operacao-local">
+        <div class="page-header">
+            <div class="page-title">
+                <h1><i class="ri-team-line" style="color:#22c55e"></i> Operação Local</h1>
+                <p>Cabos e coordenadores atualizando a campanha pelo WhatsApp</p>
+            </div>
+            <button class="export-btn" onclick="loadOperacaoLocal()"><i class="ri-refresh-line"></i> Atualizar</button>
+        </div>
+
+        <div class="priority-brief" style="border-left-color:#22c55e;border-color:rgba(34,197,94,.22);background:linear-gradient(135deg,rgba(34,197,94,.08),rgba(15,23,42,.62))">
+            <div>
+                <div class="priority-brief__eyebrow" style="color:#34d399">Como funciona</div>
+                <div class="priority-brief__title">A equipe de campo alimenta o painel pelo WhatsApp</div>
+                <div class="priority-brief__text">
+                    Cadastre um operador com telefone. Quando esse número mandar mensagem para o bot, o sistema registra cidade, tema, liderança citada e próxima ação.
+                </div>
+            </div>
+            <div style="background:rgba(15,23,42,.8);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:10px 12px;color:#cbd5e1;font-size:.78rem;max-width:430px">
+                <strong style="color:#f8fafc">Mensagem demo:</strong><br>
+                Hoje em Irati fiz reunião com 18 lideranças. Principal demanda: estrada rural e fila de exames. Vereador Paulo quer agenda semana que vem.
+            </div>
+        </div>
+
+        <div class="stats-grid" style="margin-bottom:20px">
+            <div class="stat-card" style="border-left:3px solid #22c55e">
+                <div class="stat-label">Operadores Ativos <i class="ri-user-star-line" style="color:#22c55e"></i></div>
+                <div class="stat-value" id="op-kpi-operadores">0</div>
+                <div class="stat-sub">Números autorizados</div>
+            </div>
+            <div class="stat-card" style="border-left:3px solid #3b82f6">
+                <div class="stat-label">Atualizações Hoje <i class="ri-whatsapp-line" style="color:#3b82f6"></i></div>
+                <div class="stat-value" id="op-kpi-hoje">0</div>
+                <div class="stat-sub">Mensagens de campo</div>
+            </div>
+            <div class="stat-card" style="border-left:3px solid #f59e0b">
+                <div class="stat-label">Cidades Movimentadas <i class="ri-map-pin-2-line" style="color:#f59e0b"></i></div>
+                <div class="stat-value" id="op-kpi-cidades">0</div>
+                <div class="stat-sub">Municípios com relatos</div>
+            </div>
+            <div class="stat-card" style="border-left:3px solid #ef4444">
+                <div class="stat-label">Pontos de Atenção <i class="ri-alarm-warning-line" style="color:#ef4444"></i></div>
+                <div class="stat-value" id="op-kpi-atencao">0</div>
+                <div class="stat-sub">Demandas sensíveis</div>
+            </div>
+        </div>
+
+        <div class="dash-row" style="align-items:start">
+            <div class="chart-box">
+                <div class="chart-header"><i class="ri-user-add-line" style="color:#22c55e"></i> Cadastrar Operador</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                    <input id="op-nome" class="filter-select" placeholder="Nome do operador">
+                    <input id="op-telefone" class="filter-select" placeholder="Telefone com DDD e país">
+                    <input id="op-funcao" class="filter-select" placeholder="Função ex: Cabo eleitoral">
+                    <input id="op-cidade" class="filter-select" placeholder="Cidade base">
+                    <input id="op-regiao" class="filter-select" placeholder="Região" style="grid-column:span 2">
+                </div>
+                <button class="export-btn" style="margin-top:12px" onclick="salvarOperadorCampo()"><i class="ri-save-line"></i> Cadastrar número</button>
+                <p style="color:var(--text-muted);font-size:.75rem;margin-top:10px;line-height:1.5">
+                    O número do prefeito/deputado continua protegido no Gabinete Digital. Operadores devem usar números próprios.
+                </p>
+            </div>
+
+            <div class="chart-box">
+                <div class="chart-header"><i class="ri-whatsapp-line" style="color:#22c55e"></i> Operadores Cadastrados</div>
+                <div id="op-operadores-lista" style="display:flex;flex-direction:column;gap:8px">
+                    <p style="color:var(--text-muted);font-size:.85rem">Carregando operadores...</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="chart-box" style="margin-top:20px">
+            <div class="chart-header"><i class="ri-timeline-view" style="color:#f59e0b"></i> Diário de Campo</div>
+            <div id="op-atualizacoes-lista" style="display:flex;flex-direction:column;gap:10px">
+                <p style="color:var(--text-muted);font-size:.85rem">Carregando atualizações...</p>
+            </div>
         </div>
     </div>
 
@@ -2702,6 +2782,7 @@ https://www.instagram.com/p/YYYYY/"
 
             if (view === 'dashboard') loadData();
             if (view === 'prioridades') loadPrioridadesSemana();
+            if (view === 'operacao-local') loadOperacaoLocal();
             if (view === 'feedbacks') {
                 document.getElementById('filtro-status').value = 'ativos';
                 aplicarFiltros();
@@ -2894,8 +2975,8 @@ https://www.instagram.com/p/YYYYY/"
                                     <span>base mapeada</span>
                                 </div>
                                 <div class="priority-metric">
-                                    <strong>${formatarNumeroBR(p.feedbacks)}</strong>
-                                    <span>feedbacks</span>
+                                    <strong>${formatarNumeroBR(p.movimentos_campo)}</strong>
+                                    <span>movimentos</span>
                                 </div>
                                 <div class="priority-metric">
                                     <strong>${formatarNumeroBR(p.urgentes)}</strong>
@@ -2954,6 +3035,144 @@ https://www.instagram.com/p/YYYYY/"
             if (empty) {
                 empty.style.display = 'block';
                 empty.innerHTML = '<i class="ri-map-2-line" style="font-size:48px;opacity:.3;display:block;margin-bottom:12px"></i><p>Cidade preparada: <strong>' + escapeHtml(cidade) + '</strong>. Clique em Pesquisar para atualizar o radar local.</p>';
+            }
+        }
+
+        let _operacaoLocal = { operadores: [], atualizacoes: [], kpis: {} };
+
+        async function loadOperacaoLocal() {
+            const operadoresEl = document.getElementById('op-operadores-lista');
+            const atualizacoesEl = document.getElementById('op-atualizacoes-lista');
+            if (!operadoresEl || !atualizacoesEl) return;
+
+            operadoresEl.innerHTML = '<p style="color:var(--text-muted);font-size:.85rem">Carregando operadores...</p>';
+            atualizacoesEl.innerHTML = '<p style="color:var(--text-muted);font-size:.85rem">Carregando atualizações...</p>';
+
+            try {
+                const res = await fetch('/api/operacao-local?limit=100');
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Falha ao carregar operação local');
+                _operacaoLocal = data;
+
+                const k = data.kpis || {};
+                document.getElementById('op-kpi-operadores').textContent = formatarNumeroBR(k.operadores_ativos);
+                document.getElementById('op-kpi-hoje').textContent = formatarNumeroBR(k.atualizacoes_hoje);
+                document.getElementById('op-kpi-cidades').textContent = formatarNumeroBR(k.cidades_movimentadas);
+                document.getElementById('op-kpi-atencao').textContent = formatarNumeroBR(k.pontos_atencao);
+
+                renderOperadoresCampo(data.operadores || []);
+                renderAtualizacoesCampo(data.atualizacoes || []);
+            } catch (e) {
+                operadoresEl.innerHTML = '<p style="color:#ef4444;font-size:.85rem">Erro: ' + escapeHtml(e.message) + '</p>';
+                atualizacoesEl.innerHTML = '<p style="color:#ef4444;font-size:.85rem">Erro: ' + escapeHtml(e.message) + '</p>';
+            }
+        }
+
+        function renderOperadoresCampo(operadores) {
+            const el = document.getElementById('op-operadores-lista');
+            if (!el) return;
+            if (!operadores.length) {
+                el.innerHTML = '<p style="color:var(--text-muted);font-size:.85rem">Nenhum operador cadastrado.</p>';
+                return;
+            }
+            el.innerHTML = operadores.map(op => {
+                const statusColor = op.status === 'ativo' ? '#22c55e' : '#f59e0b';
+                const demo = op.demo ? '<span style="color:#f59e0b;font-size:.68rem;font-weight:800;margin-left:6px">DEMO</span>' : '';
+                return `
+                    <div class="feedback-card" style="padding:12px 14px">
+                        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px">
+                            <div>
+                                <div style="font-weight:800;color:#f8fafc">${escapeHtml(op.nome || 'Operador')} ${demo}</div>
+                                <div style="color:var(--text-muted);font-size:.76rem;margin-top:3px">
+                                    <i class="ri-phone-line"></i> ${escapeHtml(op.telefone_mascarado || op.telefone || '--')} •
+                                    ${escapeHtml(op.funcao || 'Operador de campo')}
+                                </div>
+                                <div style="color:#94a3b8;font-size:.76rem;margin-top:3px">
+                                    <i class="ri-map-pin-line"></i> ${escapeHtml(op.cidade_base || 'Cidade não informada')} ${op.regiao ? '• ' + escapeHtml(op.regiao) : ''}
+                                </div>
+                            </div>
+                            <span style="background:${statusColor}22;color:${statusColor};border:1px solid ${statusColor}55;border-radius:6px;padding:3px 8px;font-size:.68rem;font-weight:800;text-transform:uppercase">${escapeHtml(op.status || 'ativo')}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderAtualizacoesCampo(atualizacoes) {
+            const el = document.getElementById('op-atualizacoes-lista');
+            if (!el) return;
+            if (!atualizacoes.length) {
+                el.innerHTML = '<div style="padding:30px;text-align:center;color:var(--text-muted)"><i class="ri-inbox-line" style="font-size:2rem;opacity:.4"></i><p style="margin-top:10px">Nenhuma atualização de campo ainda.</p></div>';
+                return;
+            }
+
+            const tipoIcon = {
+                reuniao: 'ri-group-line',
+                evento: 'ri-calendar-event-line',
+                lideranca: 'ri-user-star-line',
+                adversario: 'ri-radar-line',
+                demanda: 'ri-alarm-warning-line',
+                relato: 'ri-message-3-line',
+            };
+            const sentColor = { positivo: '#22c55e', neutro: '#3b82f6', atencao: '#ef4444' };
+
+            el.innerHTML = atualizacoes.map(a => {
+                const cor = sentColor[a.sentimento] || '#3b82f6';
+                const icone = tipoIcon[a.tipo] || tipoIcon.relato;
+                const pessoas = a.quantidade_pessoas ? '<span class="priority-chip"><i class="ri-group-line"></i> ' + formatarNumeroBR(a.quantidade_pessoas) + ' pessoas</span>' : '';
+                const liderancas = a.liderancas ? '<span class="priority-chip"><i class="ri-user-star-line"></i> ' + escapeHtml(a.liderancas) + '</span>' : '';
+                return `
+                    <div class="feedback-card" style="padding:14px 16px;border-left:3px solid ${cor}">
+                        <div style="display:flex;justify-content:space-between;gap:14px;align-items:flex-start">
+                            <div style="min-width:0;flex:1">
+                                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                                    <span style="background:${cor}22;color:${cor};border:1px solid ${cor}55;border-radius:6px;padding:3px 8px;font-size:.68rem;font-weight:800;text-transform:uppercase"><i class="${icone}"></i> ${escapeHtml(a.tipo || 'relato')}</span>
+                                    <strong style="color:#f8fafc">${escapeHtml(a.cidade || 'Cidade não informada')}</strong>
+                                    <span style="color:var(--text-muted);font-size:.75rem">${a.criada_em ? formatarTempo(a.criada_em) : ''}</span>
+                                </div>
+                                <div style="color:#cbd5e1;font-size:.86rem;line-height:1.5;margin-top:8px">${escapeHtml(a.resumo || a.mensagem_original || '')}</div>
+                                <div class="priority-reasons">
+                                    <span class="priority-chip"><i class="ri-price-tag-3-line"></i> ${escapeHtml(a.tema_principal || 'Mobilização local')}</span>
+                                    ${pessoas}
+                                    ${liderancas}
+                                </div>
+                                <div class="priority-action"><strong>Próxima ação:</strong> ${escapeHtml(a.proxima_acao || 'Acompanhar a cidade.')}</div>
+                            </div>
+                            <div style="text-align:right;color:var(--text-muted);font-size:.76rem;white-space:nowrap">
+                                <i class="ri-whatsapp-line"></i> ${escapeHtml(a.operador_nome || 'Operador')}<br>
+                                <span>${escapeHtml(a.origem || 'whatsapp')}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function salvarOperadorCampo() {
+            const payload = {
+                nome: document.getElementById('op-nome').value.trim(),
+                telefone: document.getElementById('op-telefone').value.trim(),
+                funcao: document.getElementById('op-funcao').value.trim(),
+                cidade_base: document.getElementById('op-cidade').value.trim(),
+                regiao: document.getElementById('op-regiao').value.trim(),
+            };
+            if (!payload.nome || !payload.telefone) {
+                alert('Informe nome e telefone do operador.');
+                return;
+            }
+            try {
+                const res = await fetch('/api/operacao-local/operadores', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Erro ao cadastrar operador');
+                ['op-nome', 'op-telefone', 'op-funcao', 'op-cidade', 'op-regiao'].forEach(id => document.getElementById(id).value = '');
+                await loadOperacaoLocal();
+                alert('Operador cadastrado. Esse número já pode mandar atualizações pelo WhatsApp do bot.');
+            } catch (e) {
+                alert('Erro ao cadastrar operador: ' + e.message);
             }
         }
 
