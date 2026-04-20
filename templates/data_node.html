@@ -2412,7 +2412,7 @@ https://www.instagram.com/p/YYYYY/"
 
         <div class="filters-bar">
             <select id="tg-filter-status" class="filter-select" onchange="renderTarefasGabinete()">
-                <option value="">Todos os Status</option>
+                <option value="ativas" selected>Não concluídas</option>
                 <option value="aberta">Abertas</option>
                 <option value="em_andamento">Em Andamento</option>
                 <option value="concluida">Concluídas</option>
@@ -4829,7 +4829,7 @@ https://www.instagram.com/p/YYYYY/"
 
         function renderTarefasGabinete() {
             const lista = _tarefasGabinete;
-            const statusFiltro = document.getElementById('tg-filter-status').value;
+            const statusFiltro = document.getElementById('tg-filter-status').value || 'ativas';
             const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
 
             // KPIs
@@ -4842,12 +4842,17 @@ https://www.instagram.com/p/YYYYY/"
             document.getElementById('tg-kpi-concluidas').textContent = concluidas;
             document.getElementById('tg-kpi-vencidas').textContent = vencidas;
 
-            const filtradas = statusFiltro ? lista.filter(t => t.status === statusFiltro) : lista;
+            const filtradas = statusFiltro === 'ativas'
+                ? lista.filter(t => t.status !== 'concluida')
+                : lista.filter(t => t.status === statusFiltro);
             document.getElementById('tg-filter-count').textContent = filtradas.length + ' tarefa(s)';
 
             const container = document.getElementById('tg-lista');
             if (filtradas.length === 0) {
-                container.innerHTML = '<div class="chart-box" style="padding:40px;text-align:center;color:var(--text-muted)"><i class="ri-inbox-line" style="font-size:2rem;opacity:0.4"></i><p style="margin-top:12px">Nenhuma tarefa neste filtro.</p><p style="font-size:0.8rem;margin-top:6px">Peça ao Chefe de Gabinete Digital no WhatsApp: <em>"abre uma tarefa pra visitar Itaúna sexta"</em></p></div>';
+                const mensagemVazia = statusFiltro === 'ativas'
+                    ? 'Nenhuma tarefa não concluída no painel.'
+                    : 'Nenhuma tarefa neste filtro.';
+                container.innerHTML = '<div class="chart-box" style="padding:40px;text-align:center;color:var(--text-muted)"><i class="ri-inbox-line" style="font-size:2rem;opacity:0.4"></i><p style="margin-top:12px">' + mensagemVazia + '</p><p style="font-size:0.8rem;margin-top:6px">Peça ao Chefe de Gabinete Digital no WhatsApp: <em>"abre uma tarefa pra visitar Itaúna sexta"</em></p></div>';
                 return;
             }
 
