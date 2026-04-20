@@ -471,6 +471,176 @@
             border-top: 1px solid var(--border);
         }
 
+        /* Prioridades da Semana */
+        .priority-brief {
+            border: 1px solid rgba(245, 158, 11, 0.22);
+            border-left: 4px solid #f59e0b;
+            border-radius: 8px;
+            padding: 18px 20px;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.08), rgba(15, 23, 42, 0.62));
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 18px;
+            align-items: center;
+        }
+        .priority-brief__eyebrow {
+            color: #fbbf24;
+            font-size: 0.72rem;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+        .priority-brief__title {
+            color: #f8fafc;
+            font-size: 1.25rem;
+            font-weight: 800;
+            margin-top: 4px;
+        }
+        .priority-brief__text {
+            color: #cbd5e1;
+            font-size: 0.88rem;
+            line-height: 1.55;
+            margin-top: 8px;
+        }
+        .priority-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .priority-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            display: grid;
+            grid-template-columns: 78px minmax(0, 1fr) 190px;
+            gap: 16px;
+            align-items: start;
+        }
+        .priority-card:hover {
+            border-color: rgba(245, 158, 11, 0.35);
+            background: rgba(30, 41, 59, 0.72);
+        }
+        .priority-score {
+            width: 62px;
+            height: 62px;
+            border-radius: 50%;
+            display: grid;
+            place-items: center;
+            font-weight: 900;
+            color: #f8fafc;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .priority-score span {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            display: grid;
+            place-items: center;
+            background: #111827;
+            font-size: 1.05rem;
+        }
+        .priority-city {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .priority-city h3 {
+            margin: 0;
+            color: #f8fafc;
+            font-size: 1.05rem;
+        }
+        .priority-badge {
+            border-radius: 6px;
+            padding: 3px 8px;
+            font-size: 0.68rem;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+        .priority-meta {
+            color: var(--text-muted);
+            font-size: 0.78rem;
+            margin-top: 4px;
+        }
+        .priority-reasons {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+        .priority-chip {
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 6px;
+            padding: 4px 8px;
+            color: #cbd5e1;
+            font-size: 0.72rem;
+            background: rgba(15, 23, 42, 0.65);
+        }
+        .priority-action {
+            color: #dbeafe;
+            background: rgba(59, 130, 246, 0.08);
+            border-left: 3px solid #3b82f6;
+            border-radius: 6px;
+            padding: 9px 10px;
+            font-size: 0.78rem;
+            line-height: 1.45;
+            margin-top: 12px;
+        }
+        .priority-metrics {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        .priority-metric {
+            background: rgba(15, 23, 42, 0.72);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 6px;
+            padding: 8px;
+        }
+        .priority-metric strong {
+            display: block;
+            color: #f8fafc;
+            font-size: 0.94rem;
+        }
+        .priority-metric span {
+            color: var(--text-muted);
+            font-size: 0.68rem;
+        }
+        .priority-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .priority-btn {
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(255, 255, 255, 0.04);
+            color: #e5e7eb;
+            border-radius: 6px;
+            padding: 8px 10px;
+            font-size: 0.76rem;
+            font-weight: 700;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+        .priority-btn:hover {
+            border-color: rgba(245, 158, 11, 0.4);
+            color: #fbbf24;
+        }
+        @media (max-width: 980px) {
+            .priority-brief,
+            .priority-card {
+                grid-template-columns: 1fr;
+            }
+            .priority-card {
+                gap: 12px;
+            }
+        }
+
         .whatsapp-contact-btn {
             display: inline-flex;
             align-items: center;
@@ -1488,6 +1658,7 @@
 
         <div class="nav-label">POLÍTICA</div>
         <div class="nav-item active" onclick="nav('dashboard', this)"><i class="ri-layout-grid-fill"></i> Painel</div>
+        <div class="nav-item" onclick="nav('prioridades', this)"><i class="ri-compass-3-line"></i> Prioridades</div>
         <div class="nav-item" onclick="nav('feedbacks', this)"><i class="ri-chat-3-line"></i> Feedbacks</div>
         <div class="nav-item" onclick="nav('regions', this)"><i class="ri-map-pin-line"></i> Regiões</div>
         <div class="nav-item" onclick="nav('categories', this)"><i class="ri-price-tag-3-line"></i> Categorias</div>
@@ -1610,6 +1781,70 @@
                     <p style="color:var(--text-muted)">Aguardando dados...</p>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- PRIORIDADES VIEW -->
+    <div class="main hidden" id="view-prioridades">
+        <div class="page-header">
+            <div class="page-title">
+                <h1><i class="ri-compass-3-line" style="color:#f59e0b"></i> Prioridades da Semana</h1>
+                <p>Ranking operacional de cidades para foco do deputado</p>
+            </div>
+            <button class="export-btn" onclick="loadPrioridadesSemana()"><i class="ri-refresh-line"></i> Atualizar</button>
+        </div>
+
+        <div class="priority-brief">
+            <div>
+                <div class="priority-brief__eyebrow">War Room</div>
+                <div class="priority-brief__title" id="prioridade-top-title">Calculando prioridade principal...</div>
+                <div class="priority-brief__text" id="prioridade-top-text">
+                    Cruzando votos históricos, pressão cidadã, Radar MG e recência dos sinais.
+                </div>
+            </div>
+            <button class="export-btn" onclick="loadPrioridadesSemana()"><i class="ri-radar-line"></i> Recalcular</button>
+        </div>
+
+        <div class="stats-grid" style="margin-bottom:20px">
+            <div class="stat-card" style="border-left:3px solid #ef4444">
+                <div class="stat-label">Alta Prioridade <i class="ri-alarm-warning-line" style="color:#ef4444"></i></div>
+                <div class="stat-value" id="prio-kpi-alta">0</div>
+                <div class="stat-sub">Cidades para agir primeiro</div>
+            </div>
+            <div class="stat-card" style="border-left:3px solid #f59e0b">
+                <div class="stat-label">Gap Top 10 <i class="ri-crosshair-2-line" style="color:#f59e0b"></i></div>
+                <div class="stat-value" id="prio-kpi-gap">0</div>
+                <div class="stat-sub">Votos aliados a converter</div>
+            </div>
+            <div class="stat-card" style="border-left:3px solid #3b82f6">
+                <div class="stat-label">Cidades com Sinal <i class="ri-pulse-line" style="color:#3b82f6"></i></div>
+                <div class="stat-value" id="prio-kpi-pressao">0</div>
+                <div class="stat-sub">Feedback ou Radar MG</div>
+            </div>
+            <div class="stat-card" style="border-left:3px solid #22c55e">
+                <div class="stat-label">Monitoradas <i class="ri-map-pin-range-line" style="color:#22c55e"></i></div>
+                <div class="stat-value" id="prio-kpi-total">0</div>
+                <div class="stat-sub">Cidades no ranking</div>
+            </div>
+        </div>
+
+        <div class="filters-bar">
+            <select id="prio-filter-nivel" class="filter-select" onchange="renderPrioridadesSemana()">
+                <option value="">Todos os níveis</option>
+                <option value="alta">Alta prioridade</option>
+                <option value="media">Média prioridade</option>
+                <option value="monitorar">Monitorar</option>
+            </select>
+            <select id="prio-filter-limit" class="filter-select" onchange="loadPrioridadesSemana()">
+                <option value="20">Top 20</option>
+                <option value="40" selected>Top 40</option>
+                <option value="80">Top 80</option>
+            </select>
+            <span class="filter-count" id="prio-filter-count">--</span>
+        </div>
+
+        <div id="prioridades-lista" class="priority-list">
+            <p style="color:var(--text-muted);font-size:0.85rem">Carregando prioridades...</p>
         </div>
     </div>
 
@@ -2466,6 +2701,7 @@ https://www.instagram.com/p/YYYYY/"
             }
 
             if (view === 'dashboard') loadData();
+            if (view === 'prioridades') loadPrioridadesSemana();
             if (view === 'feedbacks') {
                 document.getElementById('filtro-status').value = 'ativos';
                 aplicarFiltros();
@@ -2546,6 +2782,178 @@ https://www.instagram.com/p/YYYYY/"
             } catch (e) {
                 console.error('Erro ao carregar AI Pulse:', e);
                 document.getElementById('ai-pulse-summary').innerText = 'Erro ao carregar análise';
+            }
+        }
+
+        let _prioridadesSemana = [];
+        let _prioridadesMeta = {};
+
+        function formatarNumeroBR(valor) {
+            return Number(valor || 0).toLocaleString('pt-BR');
+        }
+
+        async function loadPrioridadesSemana() {
+            const container = document.getElementById('prioridades-lista');
+            if (!container) return;
+            const limit = document.getElementById('prio-filter-limit')?.value || '40';
+            container.innerHTML = '<p style="color:var(--text-muted);font-size:0.85rem">Calculando prioridades...</p>';
+
+            try {
+                const res = await fetch('/api/prioridades-semana?limit=' + encodeURIComponent(limit));
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || data.error || 'Falha ao carregar prioridades');
+
+                _prioridadesSemana = Array.isArray(data.prioridades) ? data.prioridades : [];
+                _prioridadesMeta = data;
+
+                const kpis = data.kpis || {};
+                document.getElementById('prio-kpi-alta').textContent = formatarNumeroBR(kpis.alta_prioridade);
+                document.getElementById('prio-kpi-gap').textContent = formatarNumeroBR(kpis.gap_top10);
+                document.getElementById('prio-kpi-pressao').textContent = formatarNumeroBR(kpis.cidades_com_pressao);
+                document.getElementById('prio-kpi-total').textContent = formatarNumeroBR(kpis.total_cidades);
+
+                renderPrioridadesSemana();
+            } catch (e) {
+                container.innerHTML = '<div class="chart-box" style="padding:28px;color:#ef4444">Erro ao calcular prioridades: ' + escapeHtml(e.message) + '</div>';
+            }
+        }
+
+        function renderPrioridadesSemana() {
+            const nivelFiltro = document.getElementById('prio-filter-nivel')?.value || '';
+            const lista = nivelFiltro
+                ? _prioridadesSemana.filter(p => p.nivel === nivelFiltro)
+                : _prioridadesSemana;
+            const container = document.getElementById('prioridades-lista');
+            if (!container) return;
+
+            document.getElementById('prio-filter-count').textContent = lista.length + ' cidade(s)';
+
+            const top = _prioridadesSemana[0];
+            const topTitle = document.getElementById('prioridade-top-title');
+            const topText = document.getElementById('prioridade-top-text');
+            if (top) {
+                topTitle.textContent = 'Prioridade principal: ' + top.cidade + ' (' + top.score + '/100)';
+                topText.textContent = (top.acao_recomendada || '') + ' Motivo dominante: ' + ((top.motivos || [])[0] || 'dados eleitorais e sinais recentes') + '.';
+            } else {
+                topTitle.textContent = 'Sem cidades suficientes para ranquear';
+                topText.textContent = 'Adicione dados eleitorais, feedbacks com cidade ou pesquisas no Radar MG para formar o ranking.';
+            }
+
+            if (!lista.length) {
+                container.innerHTML = '<div class="chart-box" style="padding:36px;text-align:center;color:var(--text-muted)"><i class="ri-compass-3-line" style="font-size:2rem;opacity:.45"></i><p style="margin-top:10px">Nenhuma cidade neste filtro.</p></div>';
+                return;
+            }
+
+            const nivelInfo = {
+                alta: { label: 'Alta', cor: '#ef4444', bg: '#ef444422' },
+                media: { label: 'Média', cor: '#f59e0b', bg: '#f59e0b22' },
+                monitorar: { label: 'Monitorar', cor: '#3b82f6', bg: '#3b82f622' },
+            };
+
+            container.innerHTML = lista.map((p, index) => {
+                const info = nivelInfo[p.nivel] || nivelInfo.monitorar;
+                const score = Math.max(0, Math.min(100, Number(p.score || 0)));
+                const scoreDeg = score * 3.6;
+                const motivos = (p.motivos || []).map(m => '<span class="priority-chip">' + escapeHtml(m) + '</span>').join('');
+                const temas = (p.top_temas || []).map(t => '<span class="priority-chip"><i class="ri-hashtag"></i> ' + escapeHtml(t) + '</span>').join('');
+                const radar = p.radar ? '<span><i class="ri-radar-line"></i> Radar: ' + escapeHtml(p.radar.sentimento || 'neutro') + '</span>' : '<span><i class="ri-radar-line"></i> Sem Radar MG recente</span>';
+                const ultima = p.ultima_interacao ? formatarTempo(p.ultima_interacao) : 'sem feedback recente';
+
+                return `
+                    <div class="priority-card">
+                        <div>
+                            <div class="priority-score" style="background:conic-gradient(${info.cor} ${scoreDeg}deg, rgba(255,255,255,0.08) 0deg)">
+                                <span>${score}</span>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="priority-city">
+                                <h3>#${index + 1} ${escapeHtml(p.cidade)}</h3>
+                                <span class="priority-badge" style="background:${info.bg};color:${info.cor};border:1px solid ${info.cor}55">${info.label}</span>
+                            </div>
+                            <div class="priority-meta">
+                                <i class="ri-map-pin-line"></i> ${escapeHtml(p.regiao || p.polo || 'Região não informada')} •
+                                <i class="ri-time-line"></i> ${ultima} • ${radar}
+                            </div>
+                            <div class="priority-reasons">
+                                ${motivos}
+                                ${temas}
+                            </div>
+                            <div class="priority-action">
+                                <strong>Próxima ação:</strong> ${escapeHtml(p.acao_recomendada || 'Monitorar a cidade.')}
+                            </div>
+                        </div>
+                        <div>
+                            <div class="priority-metrics">
+                                <div class="priority-metric">
+                                    <strong>${formatarNumeroBR(p.gap_conversao)}</strong>
+                                    <span>gap de votos</span>
+                                </div>
+                                <div class="priority-metric">
+                                    <strong>${formatarNumeroBR(p.base_aliada)}</strong>
+                                    <span>base aliada</span>
+                                </div>
+                                <div class="priority-metric">
+                                    <strong>${formatarNumeroBR(p.feedbacks)}</strong>
+                                    <span>feedbacks</span>
+                                </div>
+                                <div class="priority-metric">
+                                    <strong>${formatarNumeroBR(p.urgentes)}</strong>
+                                    <span>urgências</span>
+                                </div>
+                            </div>
+                            <div class="priority-buttons">
+                                <button class="priority-btn" onclick="abrirPitchPrioridade('${encodeURIComponent(p.cidade)}', this)">
+                                    <i class="ri-mic-line"></i> Gerar pitch
+                                </button>
+                                <button class="priority-btn" onclick="abrirRadarPrioridade('${encodeURIComponent(p.cidade)}')">
+                                    <i class="ri-map-2-line"></i> Ver no Radar MG
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function abrirPitchPrioridade(cidadeEncoded, btn) {
+            const cidade = decodeURIComponent(cidadeEncoded || '');
+            if (!cidade) return;
+            const original = btn ? btn.innerHTML : '';
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="ri-loader-4-line"></i> Gerando...';
+            }
+
+            try {
+                const res = await fetch('/api/pitch-estrategico', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ cidade })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Erro ao gerar pitch');
+                renderPitchModal(data, cidade);
+            } catch (e) {
+                alert('Erro ao gerar pitch: ' + e.message);
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = original;
+                }
+            }
+        }
+
+        function abrirRadarPrioridade(cidadeEncoded) {
+            const cidade = decodeURIComponent(cidadeEncoded || '');
+            const navEl = document.querySelector(".nav-item[onclick*=\"radar-mg\"]");
+            if (navEl) nav('radar-mg', navEl);
+            const input = document.getElementById('radar-mg-cidade');
+            if (input) input.value = cidade;
+            const empty = document.getElementById('radar-mg-empty');
+            if (empty) {
+                empty.style.display = 'block';
+                empty.innerHTML = '<i class="ri-map-2-line" style="font-size:48px;opacity:.3;display:block;margin-bottom:12px"></i><p>Cidade preparada: <strong>' + escapeHtml(cidade) + '</strong>. Clique em Pesquisar para atualizar o Radar MG.</p>';
             }
         }
 
