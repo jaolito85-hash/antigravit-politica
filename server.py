@@ -2773,26 +2773,26 @@ def api_prioridades_semana():
 
             motivos = []
             if gap_conversao > 0:
-                motivos.append(f"{gap_conversao:,}".replace(',', '.') + " votos aliados a converter")
+                motivos.append(f"{gap_conversao:,}".replace(',', '.') + " votos potenciais")
             if base_aliada > 0:
-                motivos.append(f"{base_aliada:,}".replace(',', '.') + " votos de base aliada mapeados")
+                motivos.append(f"{base_aliada:,}".replace(',', '.') + " votos de base mapeada")
             if urgentes or negativos:
                 motivos.append(f"{urgentes} urgência(s) e {negativos} sinal(is) negativo(s)")
             elif total_fb:
                 motivos.append(f"{total_fb} feedback(s) cidadão(s)")
             if radar:
-                motivos.append("Radar MG recente com sentimento " + (radar.get('sentimento') or 'neutro'))
+                motivos.append("Radar local recente com sentimento " + (radar.get('sentimento') or 'neutro'))
             if not motivos:
                 motivos.append("Cidade em monitoramento por dados eleitorais")
 
             if urgentes or negativos or 'negativo' in radar_sent:
                 acao = "Entrar com resposta local: ligar para liderança, preparar fala curta e criar tarefa de acompanhamento."
             elif gap_conversao >= 1000:
-                acao = "Marcar agenda de conversão: visita com aliados locais e pauta ligada aos temas quentes."
+                acao = "Marcar agenda de mobilização: visita com lideranças locais e pauta ligada aos temas quentes."
             elif radar:
-                acao = "Usar o Radar MG para transformar os temas recentes em roteiro de visita ou vídeo curto."
+                acao = "Usar o radar local para transformar os temas recentes em roteiro de visita ou vídeo curto."
             else:
-                acao = "Monitorar e reforçar presença digital antes de deslocamento presencial."
+                acao = "Acompanhar e reforçar presença digital antes de deslocamento presencial."
 
             prioridades.append({
                 'cidade': meta.get('cidade') or votos.get('cidade') or radar.get('cidade') or nomes_para_busca.get(chave, chave.title()),

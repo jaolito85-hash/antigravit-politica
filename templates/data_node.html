@@ -1799,7 +1799,7 @@
                 <div class="priority-brief__eyebrow">War Room</div>
                 <div class="priority-brief__title" id="prioridade-top-title">Calculando prioridade principal...</div>
                 <div class="priority-brief__text" id="prioridade-top-text">
-                    Cruzando votos históricos, pressão cidadã, Radar MG e recência dos sinais.
+                    Cruzando votos históricos, pressão cidadã, radar local e recência dos sinais.
                 </div>
             </div>
             <button class="export-btn" onclick="loadPrioridadesSemana()"><i class="ri-radar-line"></i> Recalcular</button>
@@ -1812,19 +1812,19 @@
                 <div class="stat-sub">Cidades para agir primeiro</div>
             </div>
             <div class="stat-card" style="border-left:3px solid #f59e0b">
-                <div class="stat-label">Gap Top 10 <i class="ri-crosshair-2-line" style="color:#f59e0b"></i></div>
+                <div class="stat-label">Potencial Top 10 <i class="ri-crosshair-2-line" style="color:#f59e0b"></i></div>
                 <div class="stat-value" id="prio-kpi-gap">0</div>
-                <div class="stat-sub">Votos aliados a converter</div>
+                <div class="stat-sub">Votos potenciais</div>
             </div>
             <div class="stat-card" style="border-left:3px solid #3b82f6">
-                <div class="stat-label">Cidades com Sinal <i class="ri-pulse-line" style="color:#3b82f6"></i></div>
+                <div class="stat-label">Cidades com Movimento <i class="ri-pulse-line" style="color:#3b82f6"></i></div>
                 <div class="stat-value" id="prio-kpi-pressao">0</div>
-                <div class="stat-sub">Feedback ou Radar MG</div>
+                <div class="stat-sub">Feedback ou radar local</div>
             </div>
             <div class="stat-card" style="border-left:3px solid #22c55e">
-                <div class="stat-label">Monitoradas <i class="ri-map-pin-range-line" style="color:#22c55e"></i></div>
+                <div class="stat-label">Cidades no Radar <i class="ri-map-pin-range-line" style="color:#22c55e"></i></div>
                 <div class="stat-value" id="prio-kpi-total">0</div>
-                <div class="stat-sub">Cidades no ranking</div>
+                <div class="stat-sub">Municípios acompanhados</div>
             </div>
         </div>
 
@@ -1833,7 +1833,7 @@
                 <option value="">Todos os níveis</option>
                 <option value="alta">Alta prioridade</option>
                 <option value="media">Média prioridade</option>
-                <option value="monitorar">Monitorar</option>
+                <option value="monitorar">Acompanhar</option>
             </select>
             <select id="prio-filter-limit" class="filter-select" onchange="loadPrioridadesSemana()">
                 <option value="20">Top 20</option>
@@ -2847,7 +2847,7 @@ https://www.instagram.com/p/YYYYY/"
             const nivelInfo = {
                 alta: { label: 'Alta', cor: '#ef4444', bg: '#ef444422' },
                 media: { label: 'Média', cor: '#f59e0b', bg: '#f59e0b22' },
-                monitorar: { label: 'Monitorar', cor: '#3b82f6', bg: '#3b82f622' },
+                monitorar: { label: 'Acompanhar', cor: '#3b82f6', bg: '#3b82f622' },
             };
 
             container.innerHTML = lista.map((p, index) => {
@@ -2856,7 +2856,7 @@ https://www.instagram.com/p/YYYYY/"
                 const scoreDeg = score * 3.6;
                 const motivos = (p.motivos || []).map(m => '<span class="priority-chip">' + escapeHtml(m) + '</span>').join('');
                 const temas = (p.top_temas || []).map(t => '<span class="priority-chip"><i class="ri-hashtag"></i> ' + escapeHtml(t) + '</span>').join('');
-                const radar = p.radar ? '<span><i class="ri-radar-line"></i> Radar: ' + escapeHtml(p.radar.sentimento || 'neutro') + '</span>' : '<span><i class="ri-radar-line"></i> Sem Radar MG recente</span>';
+                const radar = p.radar ? '<span><i class="ri-radar-line"></i> Radar: ' + escapeHtml(p.radar.sentimento || 'neutro') + '</span>' : '<span><i class="ri-radar-line"></i> Sem radar local recente</span>';
                 const ultima = p.ultima_interacao ? formatarTempo(p.ultima_interacao) : 'sem feedback recente';
 
                 return `
@@ -2880,18 +2880,18 @@ https://www.instagram.com/p/YYYYY/"
                                 ${temas}
                             </div>
                             <div class="priority-action">
-                                <strong>Próxima ação:</strong> ${escapeHtml(p.acao_recomendada || 'Monitorar a cidade.')}
+                                <strong>Próxima ação:</strong> ${escapeHtml(p.acao_recomendada || 'Acompanhar a cidade.')}
                             </div>
                         </div>
                         <div>
                             <div class="priority-metrics">
                                 <div class="priority-metric">
                                     <strong>${formatarNumeroBR(p.gap_conversao)}</strong>
-                                    <span>gap de votos</span>
+                                    <span>votos potenciais</span>
                                 </div>
                                 <div class="priority-metric">
                                     <strong>${formatarNumeroBR(p.base_aliada)}</strong>
-                                    <span>base aliada</span>
+                                    <span>base mapeada</span>
                                 </div>
                                 <div class="priority-metric">
                                     <strong>${formatarNumeroBR(p.feedbacks)}</strong>
@@ -2907,7 +2907,7 @@ https://www.instagram.com/p/YYYYY/"
                                     <i class="ri-mic-line"></i> Gerar pitch
                                 </button>
                                 <button class="priority-btn" onclick="abrirRadarPrioridade('${encodeURIComponent(p.cidade)}')">
-                                    <i class="ri-map-2-line"></i> Ver no Radar MG
+                                    <i class="ri-map-2-line"></i> Ver radar da cidade
                                 </button>
                             </div>
                         </div>
@@ -2953,7 +2953,7 @@ https://www.instagram.com/p/YYYYY/"
             const empty = document.getElementById('radar-mg-empty');
             if (empty) {
                 empty.style.display = 'block';
-                empty.innerHTML = '<i class="ri-map-2-line" style="font-size:48px;opacity:.3;display:block;margin-bottom:12px"></i><p>Cidade preparada: <strong>' + escapeHtml(cidade) + '</strong>. Clique em Pesquisar para atualizar o Radar MG.</p>';
+                empty.innerHTML = '<i class="ri-map-2-line" style="font-size:48px;opacity:.3;display:block;margin-bottom:12px"></i><p>Cidade preparada: <strong>' + escapeHtml(cidade) + '</strong>. Clique em Pesquisar para atualizar o radar local.</p>';
             }
         }
 
