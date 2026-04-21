@@ -2396,21 +2396,53 @@ def _classificar_tipo_operacao(texto: str) -> str:
 
 def _extrair_tema_operacao(texto: str) -> str:
     """Extrai tema politico dominante por palavras-chave."""
+    temas = _detectar_temas_operacao(texto)
+    return temas[0] if temas else "Mobilizacao local"
+
+
+def _detectar_temas_operacao(texto: str, limite: int = 3) -> list[str]:
+    """Detecta os temas mais fortes da mensagem de campo sem depender da ordem das palavras."""
     t = _normalizar_texto(texto)
-    temas = [
-        ("Saude", ("saude", "hospital", "ubs", "cirurgia", "exame", "samu", "medico")),
-        ("Estradas rurais", ("estrada rural", "cascalho", "ponte", "patrolamento", "interior")),
-        ("Infraestrutura", ("asfalto", "buraco", "ponte", "obra", "iluminacao", "energia")),
-        ("Educacao", ("escola", "creche", "professor", "aluno", "transporte escolar")),
-        ("Agricultura", ("agricultor", "produtor", "rural", "safra", "cooperativa")),
+    if not t:
+        return ["Mobilizacao local"]
+
+    catalogo = [
+        ("Estradas rurais", ("estrada rural", "estradas rurais", "cascalho", "patrolamento", "mata burro", "ponte rural", "acesso rural", "ponte")),
+        ("Saude", ("fila de exame", "fila de exames", "cirurgia", "hospital", "ubs", "posto de saude", "saude", "exame", "exames", "samu", "medico")),
+        ("Infraestrutura", ("asfalto", "buraco", "obra", "iluminacao", "energia", "calcamento", "pavimentacao")),
+        ("Educacao", ("transporte escolar", "creche", "professor", "professores", "aluno", "alunos", "escola")),
+        ("Agricultura", ("agricultor", "agricultores", "produtor", "produtores", "safra", "cooperativa", "cooperativas")),
         ("Seguranca", ("seguranca", "roubo", "policia", "violencia", "furto")),
         ("Emprego e renda", ("emprego", "empresa", "industria", "comercio", "renda")),
-        ("Saneamento", ("agua", "esgoto", "saneamento", "lixo")),
+        ("Saneamento", ("saneamento", "esgoto", "coleta de lixo", "agua", "abastecimento")),
     ]
-    for tema, palavras in temas:
-        if any(p in t for p in palavras):
-            return tema
-    return "Mobilizacao local"
+
+    temas_pontuados = []
+    for indice, (tema, palavras) in enumerate(catalogo):
+        score = 0
+        primeira_posicao = None
+        spans_usados = []
+        for palavra in sorted(palavras, key=lambda item: len(_normalizar_texto(item)), reverse=True):
+            termo = _normalizar_texto(palavra)
+            if not termo or termo not in t:
+                continue
+            inicio = t.find(termo)
+            fim = inicio + len(termo)
+            if any(not (fim <= span_inicio or inicio >= span_fim) for span_inicio, span_fim in spans_usados):
+                continue
+            spans_usados.append((inicio, fim))
+            peso = 3 if " " in termo else 1
+            score += peso
+            if primeira_posicao is None or inicio < primeira_posicao:
+                primeira_posicao = inicio
+        if score > 0:
+            temas_pontuados.append((score, primeira_posicao if primeira_posicao is not None else 9999, indice, tema))
+
+    if not temas_pontuados:
+        return ["Mobilizacao local"]
+
+    temas_pontuados.sort(key=lambda item: (-item[0], item[1], item[2]))
+    return [tema for _, _, _, tema in temas_pontuados[:max(1, limite)]]
 
 
 def _extrair_quantidade_pessoas(texto: str):
@@ -2454,7 +2486,8 @@ def montar_atualizacao_campo(texto: str, operador: dict, remote_jid: str, origem
     """Transforma uma mensagem de WhatsApp em atualizacao estruturada de campo."""
     cidade = _extrair_cidade_operacao(texto) or operador.get("cidade_base") or "Cidade nao informada"
     tipo = _classificar_tipo_operacao(texto)
-    tema = _extrair_tema_operacao(texto)
+    temas_detectados = _detectar_temas_operacao(texto)
+    tema = temas_detectados[0] if temas_detectados else _extrair_tema_operacao(texto)
     liderancas = _extrair_liderancas(texto)
     sentimento = _sentimento_operacao(texto)
     quantidade = _extrair_quantidade_pessoas(texto)
@@ -2478,6 +2511,19 @@ def montar_atualizacao_campo(texto: str, operador: dict, remote_jid: str, origem
         "origem": origem,
         "criada_em": datetime.utcnow().isoformat(),
     }
+
+
+def _enriquecer_atualizacao_campo(item: dict) -> dict:
+    """Completa campos derivados das atualizacoes sem exigir mudanca de schema."""
+    row = dict(item or {})
+    texto_base = row.get("mensagem_original") or row.get("resumo") or ""
+    temas_detectados = _detectar_temas_operacao(texto_base)
+    row["temas_detectados"] = temas_detectados
+    if temas_detectados:
+        row["tema_principal"] = temas_detectados[0]
+    elif not row.get("tema_principal"):
+        row["tema_principal"] = "Mobilizacao local"
+    return row
 
 
 def salvar_atualizacao_campo(atualizacao: dict) -> dict:
@@ -2511,7 +2557,7 @@ def listar_atualizacoes_campo(limit=80):
 
     if not atualizacoes:
         atualizacoes = load_json(OPERACAO_FILE, [])[:limit]
-    return atualizacoes
+    return [_enriquecer_atualizacao_campo(item) for item in atualizacoes]
 
 
 def handle_operacao_local(text: str, remote_jid: str, push_name: str):
@@ -2794,11 +2840,77 @@ Tom: próximo, humano, sem burocracia."""
     return jsonify({"status": "ignored"}), 200
 
 
-@app.route("/api/tarefas", methods=["GET"])
+def _montar_tarefa_de_operacao(atualizacao: dict) -> dict:
+    """Transforma uma atualizacao de campo em tarefa objetiva para o gabinete."""
+    cidade = (atualizacao.get("cidade") or "Cidade nao informada").strip()
+    tema = (atualizacao.get("tema_principal") or "Mobilizacao local").strip()
+    operador = (atualizacao.get("operador_nome") or "Operador de campo").strip()
+    tipo = (atualizacao.get("tipo") or "relato").replace("_", " ").strip()
+    liderancas = (atualizacao.get("liderancas") or "").strip()
+    resumo = (atualizacao.get("resumo") or atualizacao.get("mensagem_original") or "").strip()
+    proxima_acao = (atualizacao.get("proxima_acao") or "Acompanhar a cidade e desdobrar a demanda com a equipe.").strip()
+
+    detalhes = [
+        f"Cidade: {cidade}",
+        f"Tema principal: {tema}",
+        f"Tipo de relato: {tipo}",
+        f"Operador: {operador}",
+    ]
+    if liderancas:
+        detalhes.append(f"Liderancas citadas: {liderancas}")
+    if resumo:
+        detalhes.append(f"Resumo de campo: {resumo}")
+    detalhes.append(f"Proxima acao sugerida: {proxima_acao}")
+
+    return {
+        "titulo": f"{cidade} — {tema}",
+        "detalhes": "\n".join(detalhes),
+        "status": "aberta",
+        "origem": "operacao_local",
+        "criada_por_jid": atualizacao.get("operador_jid") or "operacao_local",
+        "responsavel": None,
+        "responsavel_contato_id": None,
+        "deadline": None,
+    }
+
+
+@app.route("/api/tarefas", methods=["GET", "POST"])
 def api_listar_tarefas():
-    """Lista tarefas do gabinete, mais recentes primeiro. Filtros opcionais: status."""
+    """Lista tarefas do gabinete ou cria tarefa manual/originada da operacao local."""
     if not supabase_admin:
         return jsonify({"data": [], "total": 0, "error": "supabase_indisponivel"}), 200
+
+    if request.method == "POST":
+        data = request.json or {}
+        origem = (data.get("origem") or "manual").strip()[:40]
+        try:
+            if origem == "operacao_local":
+                atualizacao = data.get("atualizacao") or {}
+                if not isinstance(atualizacao, dict) or not (atualizacao.get("cidade") or atualizacao.get("resumo") or atualizacao.get("mensagem_original")):
+                    return jsonify({"error": "atualizacao_invalida"}), 400
+                payload = _montar_tarefa_de_operacao(atualizacao)
+            else:
+                titulo = (data.get("titulo") or "").strip()
+                if not titulo:
+                    return jsonify({"error": "titulo_obrigatorio"}), 400
+                payload = {
+                    "titulo": titulo[:180],
+                    "detalhes": (data.get("detalhes") or "").strip()[:4000] or None,
+                    "status": data.get("status") if data.get("status") in ("aberta", "em_andamento", "concluida") else "aberta",
+                    "origem": origem or "manual",
+                    "criada_por_jid": (data.get("criada_por_jid") or "").strip()[:120] or None,
+                    "responsavel": (data.get("responsavel") or "").strip()[:120] or None,
+                    "responsavel_contato_id": data.get("responsavel_contato_id"),
+                    "deadline": data.get("deadline") or None,
+                }
+
+            res = supabase_admin.table("tarefas_gabinete").insert(payload).execute()
+            tarefa = (res.data or [{}])[0]
+            return jsonify({"success": True, "data": tarefa}), 201
+        except Exception as e:
+            print(f"[tarefas] Erro ao criar tarefa: {e}")
+            return jsonify({"error": str(e)}), 500
+
     try:
         status_filter = request.args.get("status")
         limit = request.args.get("limit", 100, type=int)

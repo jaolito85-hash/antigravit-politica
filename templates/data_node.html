@@ -577,6 +577,15 @@
             font-size: 0.72rem;
             background: rgba(15, 23, 42, 0.65);
         }
+        .chip-btn {
+            cursor: pointer;
+            transition: border-color .15s ease, color .15s ease, transform .15s ease;
+        }
+        .chip-btn:hover {
+            border-color: rgba(96, 165, 250, 0.45);
+            color: #f8fafc;
+            transform: translateY(-1px);
+        }
         .priority-action {
             color: #dbeafe;
             background: rgba(59, 130, 246, 0.08);
@@ -631,6 +640,51 @@
             border-color: rgba(245, 158, 11, 0.4);
             color: #fbbf24;
         }
+        .priority-btn--task {
+            background: rgba(245, 158, 11, 0.14);
+            color: #fbbf24;
+            border-color: rgba(245, 158, 11, 0.35);
+            box-shadow: inset 0 0 0 1px rgba(245, 158, 11, 0.06);
+        }
+        .priority-btn--task:hover {
+            border-color: rgba(251, 191, 36, 0.55);
+            color: #fde68a;
+            background: rgba(245, 158, 11, 0.2);
+        }
+        .operation-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+        }
+        .operation-filter-summary {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            color: var(--text-muted);
+            font-size: 0.76rem;
+        }
+        .operation-link-btn {
+            background: none;
+            border: none;
+            color: #f8fafc;
+            font: inherit;
+            font-weight: 800;
+            padding: 0;
+            cursor: pointer;
+            text-align: left;
+        }
+        .operation-link-btn:hover {
+            color: #60a5fa;
+        }
+        .operation-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 12px;
+        }
         @media (max-width: 980px) {
             .priority-brief,
             .priority-card {
@@ -638,6 +692,9 @@
             }
             .priority-card {
                 gap: 12px;
+            }
+            .operation-toolbar {
+                align-items: stretch;
             }
         }
 
@@ -1922,6 +1979,12 @@
 
         <div class="chart-box" style="margin-top:20px">
             <div class="chart-header"><i class="ri-timeline-view" style="color:#f59e0b"></i> Diário de Campo</div>
+            <div id="op-toolbar" class="operation-toolbar hidden">
+                <div id="op-filtro-resumo" class="operation-filter-summary"></div>
+                <button class="priority-btn" style="padding:6px 10px;font-size:.72rem" onclick="limparFiltrosOperacao()">
+                    <i class="ri-filter-off-line"></i> Limpar filtros
+                </button>
+            </div>
             <div id="op-atualizacoes-lista" style="display:flex;flex-direction:column;gap:10px">
                 <p style="color:var(--text-muted);font-size:.85rem">Carregando atualizações...</p>
             </div>
@@ -3039,6 +3102,82 @@ https://www.instagram.com/p/YYYYY/"
         }
 
         let _operacaoLocal = { operadores: [], atualizacoes: [], kpis: {} };
+        let _operacaoFiltros = { tema: '', operador: '' };
+
+        function normalizarTextoUI(valor) {
+            return String(valor || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+        }
+
+        function filtrarOperacao(campo, valorEncoded) {
+            const valor = decodeURIComponent(valorEncoded || '');
+            if (!campo || !valor) return;
+            _operacaoFiltros[campo] = valor;
+            renderAtualizacoesCampo(_operacaoLocal.atualizacoes || []);
+        }
+
+        function limparFiltrosOperacao() {
+            _operacaoFiltros = { tema: '', operador: '' };
+            renderAtualizacoesCampo(_operacaoLocal.atualizacoes || []);
+        }
+
+        async function criarTarefaDoCampo(atualizacaoId, btn) {
+            const atualizacao = (_operacaoLocal.atualizacoes || []).find(item => String(item.id) === String(atualizacaoId));
+            if (!atualizacao) {
+                alert('Não encontrei essa atualização para criar a tarefa.');
+                return;
+            }
+
+            const original = btn ? btn.innerHTML : '';
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="ri-loader-4-line"></i> Criando...';
+            }
+
+            try {
+                const res = await fetch('/api/tarefas', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        origem: 'operacao_local',
+                        atualizacao
+                    })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Erro ao criar tarefa');
+                await carregarTarefasGabinete();
+                alert('Tarefa criada no gabinete com sucesso.');
+            } catch (e) {
+                alert('Erro ao criar tarefa: ' + e.message);
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = original;
+                }
+            }
+        }
+
+        function atualizarToolbarOperacao(totalOriginal, totalFiltrado) {
+            const toolbar = document.getElementById('op-toolbar');
+            const resumo = document.getElementById('op-filtro-resumo');
+            if (!toolbar || !resumo) return;
+
+            const chips = [];
+            if (_operacaoFiltros.tema) {
+                chips.push('<span class="priority-chip"><i class="ri-price-tag-3-line"></i> Tema: ' + escapeHtml(_operacaoFiltros.tema) + '</span>');
+            }
+            if (_operacaoFiltros.operador) {
+                chips.push('<span class="priority-chip"><i class="ri-user-star-line"></i> Operador: ' + escapeHtml(_operacaoFiltros.operador) + '</span>');
+            }
+
+            if (!chips.length) {
+                toolbar.classList.add('hidden');
+                resumo.innerHTML = '';
+                return;
+            }
+
+            toolbar.classList.remove('hidden');
+            resumo.innerHTML = '<span>' + formatarNumeroBR(totalFiltrado) + ' de ' + formatarNumeroBR(totalOriginal) + ' atualização(ões)</span>' + chips.join('');
+        }
 
         async function loadOperacaoLocal() {
             const operadoresEl = document.getElementById('op-operadores-lista');
@@ -3101,8 +3240,23 @@ https://www.instagram.com/p/YYYYY/"
         function renderAtualizacoesCampo(atualizacoes) {
             const el = document.getElementById('op-atualizacoes-lista');
             if (!el) return;
-            if (!atualizacoes.length) {
-                el.innerHTML = '<div style="padding:30px;text-align:center;color:var(--text-muted)"><i class="ri-inbox-line" style="font-size:2rem;opacity:.4"></i><p style="margin-top:10px">Nenhuma atualização de campo ainda.</p></div>';
+            const totalOriginal = atualizacoes.length;
+            const filtradas = atualizacoes.filter(a => {
+                const temas = Array.isArray(a.temas_detectados) && a.temas_detectados.length
+                    ? a.temas_detectados
+                    : [a.tema_principal || 'Mobilização local'];
+                const passaTema = !_operacaoFiltros.tema || temas.some(t => normalizarTextoUI(t) === normalizarTextoUI(_operacaoFiltros.tema));
+                const passaOperador = !_operacaoFiltros.operador || normalizarTextoUI(a.operador_nome) === normalizarTextoUI(_operacaoFiltros.operador);
+                return passaTema && passaOperador;
+            });
+
+            atualizarToolbarOperacao(totalOriginal, filtradas.length);
+
+            if (!filtradas.length) {
+                const mensagemVazia = totalOriginal
+                    ? 'Nenhuma atualização combina com o filtro atual.'
+                    : 'Nenhuma atualização de campo ainda.';
+                el.innerHTML = '<div style="padding:30px;text-align:center;color:var(--text-muted)"><i class="ri-inbox-line" style="font-size:2rem;opacity:.4"></i><p style="margin-top:10px">' + mensagemVazia + '</p></div>';
                 return;
             }
 
@@ -3116,30 +3270,45 @@ https://www.instagram.com/p/YYYYY/"
             };
             const sentColor = { positivo: '#22c55e', neutro: '#3b82f6', atencao: '#ef4444' };
 
-            el.innerHTML = atualizacoes.map(a => {
+            el.innerHTML = filtradas.map(a => {
                 const cor = sentColor[a.sentimento] || '#3b82f6';
                 const icone = tipoIcon[a.tipo] || tipoIcon.relato;
                 const pessoas = a.quantidade_pessoas ? '<span class="priority-chip"><i class="ri-group-line"></i> ' + formatarNumeroBR(a.quantidade_pessoas) + ' pessoas</span>' : '';
                 const liderancas = a.liderancas ? '<span class="priority-chip"><i class="ri-user-star-line"></i> ' + escapeHtml(a.liderancas) + '</span>' : '';
+                const temas = (Array.isArray(a.temas_detectados) && a.temas_detectados.length ? a.temas_detectados : [a.tema_principal || 'Mobilização local'])
+                    .slice(0, 3)
+                    .map(tema => '<button type="button" class="priority-chip chip-btn" onclick="filtrarOperacao(\'tema\', \'' + encodeURIComponent(tema) + '\')"><i class="ri-price-tag-3-line"></i> ' + escapeHtml(tema) + '</button>')
+                    .join('');
                 return `
                     <div class="feedback-card" style="padding:14px 16px;border-left:3px solid ${cor}">
                         <div style="display:flex;justify-content:space-between;gap:14px;align-items:flex-start">
                             <div style="min-width:0;flex:1">
                                 <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
                                     <span style="background:${cor}22;color:${cor};border:1px solid ${cor}55;border-radius:6px;padding:3px 8px;font-size:.68rem;font-weight:800;text-transform:uppercase"><i class="${icone}"></i> ${escapeHtml(a.tipo || 'relato')}</span>
-                                    <strong style="color:#f8fafc">${escapeHtml(a.cidade || 'Cidade não informada')}</strong>
+                                    <button type="button" class="operation-link-btn" onclick="abrirRadarPrioridade('${encodeURIComponent(a.cidade || '')}')">${escapeHtml(a.cidade || 'Cidade não informada')}</button>
                                     <span style="color:var(--text-muted);font-size:.75rem">${a.criada_em ? formatarTempo(a.criada_em) : ''}</span>
                                 </div>
                                 <div style="color:#cbd5e1;font-size:.86rem;line-height:1.5;margin-top:8px">${escapeHtml(a.resumo || a.mensagem_original || '')}</div>
                                 <div class="priority-reasons">
-                                    <span class="priority-chip"><i class="ri-price-tag-3-line"></i> ${escapeHtml(a.tema_principal || 'Mobilização local')}</span>
+                                    ${temas}
                                     ${pessoas}
                                     ${liderancas}
                                 </div>
                                 <div class="priority-action"><strong>Próxima ação:</strong> ${escapeHtml(a.proxima_acao || 'Acompanhar a cidade.')}</div>
+                                <div class="operation-actions">
+                                    <button class="priority-btn priority-btn--task" type="button" onclick="criarTarefaDoCampo('${String(a.id || '')}', this)">
+                                        <i class="ri-checkbox-circle-line"></i> Criar tarefa no gabinete
+                                    </button>
+                                    <button class="priority-btn" type="button" onclick="abrirPitchPrioridade('${encodeURIComponent(a.cidade || '')}', this)">
+                                        <i class="ri-mic-line"></i> Gerar pitch
+                                    </button>
+                                    <button class="priority-btn" type="button" onclick="abrirRadarPrioridade('${encodeURIComponent(a.cidade || '')}')">
+                                        <i class="ri-map-2-line"></i> Ver radar
+                                    </button>
+                                </div>
                             </div>
                             <div style="text-align:right;color:var(--text-muted);font-size:.76rem;white-space:nowrap">
-                                <i class="ri-whatsapp-line"></i> ${escapeHtml(a.operador_nome || 'Operador')}<br>
+                                <button type="button" class="operation-link-btn" style="color:var(--text-muted);font-size:.76rem;font-weight:700" onclick="filtrarOperacao('operador', '${encodeURIComponent(a.operador_nome || 'Operador')}')"><i class="ri-whatsapp-line"></i> ${escapeHtml(a.operador_nome || 'Operador')}</button><br>
                                 <span>${escapeHtml(a.origem || 'whatsapp')}</span>
                             </div>
                         </div>
