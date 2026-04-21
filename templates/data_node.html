@@ -1727,8 +1727,6 @@
             Eleitoral</div>
         <div class="nav-item" onclick="nav('simulador', this)"><i class="ri-crosshair-2-line"></i> Simulador de
             Conquista</div>
-        <div class="nav-item" onclick="nav('coletar', this)"><i class="ri-download-cloud-2-line"></i> Coletar Dados
-        </div>
         <div class="nav-item" onclick="nav('tarefas-gabinete', this)"><i class="ri-checkbox-circle-line"></i> Tarefas do
             Gabinete</div>
         <div style="margin-top:auto;padding-top:16px;border-top:1px solid rgba(255,255,255,0.06);">
@@ -2081,13 +2079,101 @@
         <div class="page-header">
             <div class="page-title">
                 <h1><i class="ri-radar-line" style="color:#1a3a6b"></i> Radar de Comentários</h1>
-                <p>Monitoramento de comentários em redes sociais</p>
+                <p>Analise posts, perfis e reações da população nas redes</p>
+            </div>
+        </div>
+
+        <!-- Análise por URLs -->
+        <div class="priority-brief" style="border-left-color:#10b981;border-color:rgba(16,185,129,.22);background:linear-gradient(135deg,rgba(16,185,129,.08),rgba(15,23,42,.62));margin-bottom:18px">
+            <div>
+                <div class="priority-brief__eyebrow" style="color:#34d399">Analisar posts específicos</div>
+                <div class="priority-brief__title">Cole links de posts e transforme comentários em leitura política</div>
+                <div class="priority-brief__text">
+                    Use quando quiser medir reação a um vídeo, ataque de adversário, agenda local ou pauta sensível.
+                </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:10px;min-width:min(100%,460px)">
+                <input id="coleta-contexto" type="text"
+                    placeholder="Contexto: candidato, adversário ou pauta"
+                    class="filter-input"
+                    style="width:100%;padding:12px 14px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:#fff;border-radius:8px"
+                    value="Nikolas Ferreira">
+                <textarea id="coleta-urls" placeholder="Cole URLs dos posts do Instagram, uma por linha:
+https://www.instagram.com/p/XXXXX/
+https://www.instagram.com/p/YYYYY/"
+                    style="width:100%;min-height:96px;padding:12px 14px;font-size:0.84rem;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:#fff;border-radius:8px;resize:vertical;font-family:monospace"></textarea>
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+                    <span id="coleta-url-count" style="font-size:12px;color:#94a3b8">0 URLs detectadas</span>
+                    <button id="btn-coletar" onclick="iniciarColeta()" class="export-btn"
+                        style="background:linear-gradient(135deg,#10b981,#059669);padding:10px 18px;font-size:13px;font-weight:700">
+                        <i class="ri-search-eye-line"></i> Analisar posts
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="coleta-loading" style="display:none;text-align:center;padding:28px;margin-bottom:18px" class="chart-box">
+            <div style="color:#10b981;font-weight:700;font-size:1rem"><i class="ri-loader-4-line"></i> Analisando comentários...</div>
+            <div style="color:#94a3b8;font-size:13px;margin-top:5px">Buscando via Apify, filtrando ruído e classificando com IA</div>
+        </div>
+
+        <div id="coleta-results" style="display:none;margin-bottom:18px">
+            <div class="stats-grid" style="margin-bottom:18px">
+                <div class="stat-card" style="border-left:3px solid #64748b">
+                    <div class="stat-label">Encontrados</div>
+                    <div class="stat-value" id="col-total-bruto" style="color:#64748b">--</div>
+                    <div class="stat-sub">comentários brutos</div>
+                </div>
+                <div class="stat-card" style="border-left:3px solid #ef4444">
+                    <div class="stat-label">Ruído removido</div>
+                    <div class="stat-value" id="col-descartados" style="color:#ef4444">--</div>
+                    <div class="stat-sub">spam ou baixa qualidade</div>
+                </div>
+                <div class="stat-card" style="border-left:3px solid #22c55e">
+                    <div class="stat-label">Positivos</div>
+                    <div class="stat-value" id="col-positivos" style="color:#22c55e">--</div>
+                    <div class="stat-sub">apoio ou aprovação</div>
+                </div>
+                <div class="stat-card" style="border-left:3px solid #ef4444">
+                    <div class="stat-label">Negativos</div>
+                    <div class="stat-value" id="col-negativos" style="color:#ef4444">--</div>
+                    <div class="stat-sub">crítica ou risco</div>
+                </div>
+                <div class="stat-card" style="border-left:3px solid #f59e0b">
+                    <div class="stat-label">Neutros</div>
+                    <div class="stat-value" id="col-neutros" style="color:#f59e0b">--</div>
+                    <div class="stat-sub">sem polarização clara</div>
+                </div>
+            </div>
+
+            <div class="chart-box" style="margin-bottom:18px">
+                <div class="chart-header"><i class="ri-price-tag-3-line" style="color:#10b981"></i> Pautas Identificadas</div>
+                <div id="col-categorias" style="padding:12px 0"></div>
+            </div>
+
+            <div class="chart-box" style="margin-bottom:18px">
+                <div class="chart-header" style="margin-bottom:12px">
+                    <i class="ri-chat-3-fill" style="color:#10b981"></i> Comentários Analisados
+                    <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
+                        <select id="col-filter-sent" class="filter-select" style="font-size:12px;padding:5px 10px"
+                            onchange="filterColResults()">
+                            <option value="">Todos</option>
+                            <option value="Positivo">Positivos</option>
+                            <option value="Negativo">Negativos</option>
+                            <option value="Neutro">Neutros</option>
+                        </select>
+                        <input id="col-filter-text" type="text" placeholder="Buscar..." class="filter-input"
+                            style="width:160px;font-size:12px" oninput="filterColResults()">
+                    </div>
+                </div>
+                <div id="col-comments-list"></div>
+                <div id="col-comments-count" style="font-size:12px;color:var(--text-muted);margin-top:12px;padding:0 4px"></div>
             </div>
         </div>
 
         <!-- Configuração -->
         <div class="chart-box" style="margin-bottom:16px">
-            <div class="chart-header"><i class="ri-user-search-line" style="color:#1a3a6b"></i> Políticos Monitorados
+            <div class="chart-header"><i class="ri-user-search-line" style="color:#1a3a6b"></i> Monitorar Perfil
             </div>
             <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end">
                 <div>
@@ -2179,6 +2265,11 @@
 
         <!-- Estratégia da Semana -->
         <div id="estrategia-box" class="chart-box" style="display:none;margin-top:16px"></div>
+
+        <div class="chart-box" style="margin-top:18px">
+            <div class="chart-header"><i class="ri-history-fill" style="color:#64748b"></i> Histórico de Análises</div>
+            <div id="col-history" style="padding:12px 0;color:var(--text-muted);font-size:13px">Carregando...</div>
+        </div>
     </div>
 
     <!-- RADAR DE NOTÍCIAS VIEW -->
@@ -2640,119 +2731,6 @@
         </div>
     </div>
 
-    <!-- COLETAR DADOS VIEW -->
-    <div class="main hidden" id="view-coletar">
-        <div class="page-header">
-            <div class="page-title">
-                <h1><i class="ri-download-cloud-2-line" style="color:#10b981"></i> Coletar Dados</h1>
-                <p>Scraping curado — cole URLs de posts para análise inteligente</p>
-            </div>
-        </div>
-
-        <!-- Input Form -->
-        <div
-            style="flex-shrink:0;background:linear-gradient(135deg,#0f172a 0%,#1e293b 50%,#0a2e1a 100%);border:1px solid rgba(16,185,129,0.3);border-radius:16px;padding:28px 32px;margin-bottom:24px;position:relative;overflow:hidden">
-            <div
-                style="position:absolute;top:-20px;right:-20px;width:200px;height:200px;background:radial-gradient(circle,rgba(16,185,129,0.12),transparent);border-radius:50%">
-            </div>
-            <div style="position:relative;z-index:1">
-                <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
-                    <span
-                        style="background:#10b981;color:#000;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;letter-spacing:.5px">COLETA
-                        CURADA</span>
-                    <span style="color:#94a3b8;font-size:13px">Cole URLs de posts do Instagram para extrair e analisar
-                        comentários com IA</span>
-                </div>
-                <div style="display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap">
-                    <input id="coleta-contexto" type="text"
-                        placeholder="Contexto (ex: Nikolas Ferreira, Bruno Engler...)" class="filter-input"
-                        style="flex:1;min-width:250px;padding:12px 16px;font-size:0.9rem;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:#fff;border-radius:8px"
-                        value="Nikolas Ferreira">
-                </div>
-                <textarea id="coleta-urls" placeholder="Cole as URLs dos posts do Instagram (uma por linha):
-https://www.instagram.com/p/XXXXX/
-https://www.instagram.com/p/YYYYY/"
-                    style="width:100%;min-height:100px;padding:12px 16px;font-size:0.85rem;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:#fff;border-radius:8px;resize:vertical;font-family:monospace"></textarea>
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px">
-                    <span id="coleta-url-count" style="font-size:12px;color:#64748b">0 URLs detectadas</span>
-                    <button id="btn-coletar" onclick="iniciarColeta()" class="export-btn"
-                        style="background:linear-gradient(135deg,#10b981,#059669);padding:10px 24px;font-size:14px;font-weight:600">
-                        <i class="ri-search-eye-line"></i> Analisar Comentários
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Loading -->
-        <div id="coleta-loading" style="display:none;text-align:center;padding:40px">
-            <div style="font-size:2rem;margin-bottom:12px;animation:pulse 1.5s ease infinite">&#128270;</div>
-            <div style="color:#10b981;font-weight:600;font-size:1.1rem">Analisando comentários...</div>
-            <div style="color:#94a3b8;font-size:13px;margin-top:4px">Buscando via Apify → Filtrando qualidade →
-                Classificando com IA</div>
-        </div>
-
-        <!-- Results -->
-        <div id="coleta-results" style="display:none">
-            <!-- Stats Cards -->
-            <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:24px">
-                <div class="stat-card" style="border-left:3px solid #64748b">
-                    <div class="stat-label">Brutos encontrados</div>
-                    <div class="stat-value" id="col-total-bruto" style="color:#64748b">—</div>
-                </div>
-                <div class="stat-card" style="border-left:3px solid #ef4444">
-                    <div class="stat-label">Descartados (lixo)</div>
-                    <div class="stat-value" id="col-descartados" style="color:#ef4444">—</div>
-                </div>
-                <div class="stat-card" style="border-left:3px solid #22c55e">
-                    <div class="stat-label">👍 Positivos</div>
-                    <div class="stat-value" id="col-positivos" style="color:#22c55e">—</div>
-                </div>
-                <div class="stat-card" style="border-left:3px solid #ef4444">
-                    <div class="stat-label">👎 Negativos</div>
-                    <div class="stat-value" id="col-negativos" style="color:#ef4444">—</div>
-                </div>
-                <div class="stat-card" style="border-left:3px solid #f59e0b">
-                    <div class="stat-label">➖ Neutros</div>
-                    <div class="stat-value" id="col-neutros" style="color:#f59e0b">—</div>
-                </div>
-            </div>
-
-            <!-- Category Breakdown -->
-            <div class="chart-box" style="margin-bottom:24px">
-                <div class="chart-header"><i class="ri-pie-chart-2-fill" style="color:#10b981"></i> Categorias
-                    Identificadas</div>
-                <div id="col-categorias" style="padding:12px 0"></div>
-            </div>
-
-            <!-- Comments List -->
-            <div class="chart-box">
-                <div class="chart-header" style="margin-bottom:12px">
-                    <i class="ri-chat-3-fill" style="color:#10b981"></i> Comentários Analisados
-                    <div style="margin-left:auto;display:flex;gap:8px">
-                        <select id="col-filter-sent" class="filter-select" style="font-size:12px;padding:5px 10px"
-                            onchange="filterColResults()">
-                            <option value="">Todos</option>
-                            <option value="Positivo">👍 Positivos</option>
-                            <option value="Negativo">👎 Negativos</option>
-                            <option value="Neutro">➖ Neutros</option>
-                        </select>
-                        <input id="col-filter-text" type="text" placeholder="Buscar..." class="filter-input"
-                            style="width:160px;font-size:12px" oninput="filterColResults()">
-                    </div>
-                </div>
-                <div id="col-comments-list"></div>
-                <div id="col-comments-count"
-                    style="font-size:12px;color:var(--text-muted);margin-top:12px;padding:0 4px"></div>
-            </div>
-        </div>
-
-        <!-- History -->
-        <div class="chart-box" style="margin-top:24px">
-            <div class="chart-header"><i class="ri-history-fill" style="color:#64748b"></i> Histórico de Coletas</div>
-            <div id="col-history" style="padding:12px 0;color:var(--text-muted);font-size:13px">Carregando...</div>
-        </div>
-    </div>
-
     <!-- TAREFAS DO GABINETE VIEW -->
     <div class="main hidden" id="view-tarefas-gabinete">
         <div class="page-header">
@@ -2851,6 +2829,7 @@ https://www.instagram.com/p/YYYYY/"
             if (view === 'regions' || view === 'categories') loadConfigViews();
             if (view === 'radar-comentarios') {
                 // NUNCA dispara scraper automaticamente — apenas re-exibe dados já carregados
+                loadColetaHistory();
                 if (_comentariosCompletos.length > 0) {
                     filtrarEExibir();
                 } else {
@@ -2863,7 +2842,6 @@ https://www.instagram.com/p/YYYYY/"
             if (view === 'tarefas-gabinete') carregarTarefasGabinete();
             if (view === 'mapa-eleitoral') loadMapaEleitoral();
             if (view === 'simulador') loadSimulador();
-            if (view === 'coletar') loadColetaHistory();
         }
 
         // Fetch Logic
@@ -4276,6 +4254,25 @@ https://www.instagram.com/p/YYYYY/"
             if (nomeBuscado && nomes.includes(nomeBuscado)) sel.value = nomeBuscado;
         }
 
+        function enviarColetaParaRadar(comentarios, contexto) {
+            const dados = (comentarios || []).map((c, i) => ({
+                id: c.id || i + 1,
+                fonte: 'Instagram',
+                perfil_monitorado: contexto || 'Análise de post',
+                tipo: 'post',
+                usuario: c.usuario || '',
+                trecho: c.texto || '',
+                sentimento: c.sentimento || 'Neutro',
+                categoria: c.categoria || 'Geral',
+                post_url: c.post_url || '',
+                data: c.data || new Date().toISOString()
+            }));
+            if (!dados.length) return;
+            _comentariosCompletos = dados;
+            _popularDropdownPoliticos(dados, contexto || '');
+            filtrarEExibir();
+        }
+
         function filtrarEExibir() {
             // Filtra _comentariosCompletos client-side (sem nova requisição)
             if (!_comentariosCompletos.length) return;
@@ -5381,7 +5378,7 @@ https://www.instagram.com/p/YYYYY/"
             if (el) el.innerHTML = `🔴 ${nao} não iniciadas • 🟡 ${trab} em trabalho • 🟢 ${cons} consolidadas (${pctDone}% concluído)`;
         }
 
-        // ====== COLETAR DADOS ======
+        // ====== RADAR DE COMENTARIOS: ANALISE POR URL ======
         let _coletaResults = [];
 
         // URL counter on textarea input
@@ -5434,6 +5431,8 @@ https://www.instagram.com/p/YYYYY/"
 
                 _coletaResults = data.comentarios || [];
                 renderColetaResults(data);
+                enviarColetaParaRadar(_coletaResults, contexto);
+                document.getElementById('coleta-results').scrollIntoView({ behavior: 'smooth', block: 'start' });
 
             } catch (e) {
                 alert('Erro ao conectar com servidor: ' + e.message);
@@ -5442,7 +5441,7 @@ https://www.instagram.com/p/YYYYY/"
                 document.getElementById('coleta-loading').style.display = 'none';
                 const btn = document.getElementById('btn-coletar');
                 btn.disabled = false;
-                btn.innerHTML = '<i class="ri-search-eye-line"></i> Analisar Comentários';
+                btn.innerHTML = '<i class="ri-search-eye-line"></i> Analisar posts';
                 btn.style.opacity = '1';
                 btn.style.cursor = 'pointer';
                 loadColetaHistory();
@@ -5572,6 +5571,7 @@ https://www.instagram.com/p/YYYYY/"
 
                 _coletaResults = data.comentarios || [];
                 renderColetaResults(data);
+                enviarColetaParaRadar(_coletaResults, contexto);
 
                 // Scroll até a seção de resultados (não ao topo, pois o formulário ocupa espaço acima)
                 document.getElementById('coleta-results').scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -5581,7 +5581,7 @@ https://www.instagram.com/p/YYYYY/"
             } finally {
                 document.getElementById('coleta-loading').style.display = 'none';
                 document.getElementById('btn-coletar').disabled = false;
-                document.getElementById('btn-coletar').innerHTML = '<i class="ri-search-eye-line"></i> Analisar Comentários';
+                document.getElementById('btn-coletar').innerHTML = '<i class="ri-search-eye-line"></i> Analisar posts';
             }
         }
 
