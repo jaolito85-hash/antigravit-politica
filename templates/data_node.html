@@ -5623,6 +5623,64 @@ https://www.instagram.com/p/YYYYY/"
             }
         }
 
+        function parseDetalhesOperacaoTarefa(texto) {
+            const linhas = String(texto || '').split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+            const data = { enviadoPor: '', resumo: '', pontos: [], proximaAcao: '', extras: [] };
+            let emPontos = false;
+
+            linhas.forEach(linha => {
+                if (linha.startsWith('Enviado por:') || linha.startsWith('Operador:')) {
+                    data.enviadoPor = linha.replace('Enviado por:', '').replace('Operador:', '').trim();
+                    emPontos = false;
+                } else if (linha.startsWith('Resumo:') || linha.startsWith('Resumo de campo:')) {
+                    data.resumo = linha.replace('Resumo:', '').replace('Resumo de campo:', '').trim();
+                    emPontos = false;
+                } else if (linha === 'Pontos principais:') {
+                    emPontos = true;
+                } else if (linha.startsWith('Liderancas citadas:')) {
+                    data.pontos.push(linha.replace('Liderancas citadas:', 'Liderança citada:').trim());
+                    emPontos = false;
+                } else if (linha.startsWith('Próxima ação:') || linha.startsWith('Proxima acao:') || linha.startsWith('Proxima acao sugerida:')) {
+                    data.proximaAcao = linha.replace('Próxima ação:', '').replace('Proxima acao:', '').replace('Proxima acao sugerida:', '').trim();
+                    emPontos = false;
+                } else if (linha.startsWith('Cidade:') || linha.startsWith('Tema principal:') || linha.startsWith('Tipo de relato:')) {
+                    emPontos = false;
+                } else if (emPontos && linha.startsWith('- ')) {
+                    data.pontos.push(linha.slice(2).trim());
+                } else {
+                    data.extras.push(linha);
+                }
+            });
+
+            return data;
+        }
+
+        function renderDetalhesTarefa(t) {
+            if (!t.detalhes) return '';
+
+            if (t.origem === 'operacao_local') {
+                const info = parseDetalhesOperacaoTarefa(t.detalhes);
+                const enviadoHtml = info.enviadoPor
+                    ? '<div style="margin-top:10px"><span class="priority-chip" style="background:rgba(251,191,36,.08);border-color:rgba(251,191,36,.25);color:#fde68a"><i class="ri-user-voice-line"></i> Enviado por <strong style="color:#fff">' + escapeHtml(info.enviadoPor) + '</strong></span></div>'
+                    : '';
+                const resumoHtml = info.resumo
+                    ? '<div style="color:#e2e8f0;font-size:0.9rem;margin-top:10px;line-height:1.55">' + escapeHtml(info.resumo) + '</div>'
+                    : '';
+                const pontosHtml = info.pontos.length
+                    ? '<div style="margin-top:12px"><div style="color:#94a3b8;font-size:0.75rem;font-weight:800;text-transform:uppercase;margin-bottom:6px">Pontos principais</div><ul style="margin:0;padding-left:18px;color:#cbd5e1;font-size:0.84rem;line-height:1.55">' + info.pontos.map(p => '<li>' + escapeHtml(p) + '</li>').join('') + '</ul></div>'
+                    : '';
+                const extrasHtml = info.extras.length
+                    ? '<div style="color:#cbd5e1;font-size:0.84rem;line-height:1.5;margin-top:10px;white-space:pre-line">' + escapeHtml(info.extras.join('\n')) + '</div>'
+                    : '';
+                const acaoHtml = info.proximaAcao
+                    ? '<div class="priority-action" style="margin-top:12px"><strong>Próxima ação:</strong> ' + escapeHtml(info.proximaAcao) + '</div>'
+                    : '';
+                return enviadoHtml + resumoHtml + pontosHtml + extrasHtml + acaoHtml;
+            }
+
+            return '<p style="color:#cbd5e1;font-size:0.85rem;margin-top:8px;line-height:1.55;white-space:pre-line">' + escapeHtml(t.detalhes) + '</p>';
+        }
+
         function renderTarefasGabinete() {
             const lista = _tarefasGabinete;
             const statusFiltro = document.getElementById('tg-filter-status').value || 'ativas';
@@ -5663,7 +5721,7 @@ https://www.instagram.com/p/YYYYY/"
                 const venceu = t.deadline && t.status !== 'concluida' && new Date(t.deadline) < hoje;
                 const prazoFmt = t.deadline ? new Date(t.deadline + 'T00:00:00').toLocaleDateString('pt-BR') : '';
                 const criadaFmt = t.criada_em ? new Date(t.criada_em).toLocaleDateString('pt-BR') + ' ' + new Date(t.criada_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '';
-                const detalhesHtml = t.detalhes ? '<p style="color:#cbd5e1;font-size:0.85rem;margin-top:8px;line-height:1.5">' + escapeHtml(t.detalhes) + '</p>' : '';
+                const detalhesHtml = renderDetalhesTarefa(t);
                 const responsavelHtml = t.responsavel ? '<span style="display:inline-flex;align-items:center;gap:4px;color:#94a3b8;font-size:0.8rem"><i class="ri-user-line"></i>' + escapeHtml(t.responsavel) + '</span>' : '';
                 const prazoHtml = t.deadline ? '<span style="display:inline-flex;align-items:center;gap:4px;font-size:0.8rem;color:' + (venceu ? '#ef4444' : '#94a3b8') + '"><i class="' + (venceu ? 'ri-alarm-warning-line' : 'ri-calendar-line') + '"></i>' + prazoFmt + (venceu ? ' (vencida)' : '') + '</span>' : '';
 

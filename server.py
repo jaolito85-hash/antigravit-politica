@@ -2845,22 +2845,27 @@ def _montar_tarefa_de_operacao(atualizacao: dict) -> dict:
     cidade = (atualizacao.get("cidade") or "Cidade nao informada").strip()
     tema = (atualizacao.get("tema_principal") or "Mobilizacao local").strip()
     operador = (atualizacao.get("operador_nome") or "Operador de campo").strip()
-    tipo = (atualizacao.get("tipo") or "relato").replace("_", " ").strip()
     liderancas = (atualizacao.get("liderancas") or "").strip()
     resumo = (atualizacao.get("resumo") or atualizacao.get("mensagem_original") or "").strip()
     proxima_acao = (atualizacao.get("proxima_acao") or "Acompanhar a cidade e desdobrar a demanda com a equipe.").strip()
+    temas_detectados = atualizacao.get("temas_detectados") or []
+
+    resumo_curto = _resumir_tarefa_operacao(resumo, tema, liderancas)
+    pontos = _extrair_pontos_tarefa_operacao(
+        atualizacao.get("mensagem_original") or resumo,
+        liderancas=liderancas,
+        tema=tema,
+        temas_detectados=temas_detectados,
+    )
 
     detalhes = [
-        f"Cidade: {cidade}",
-        f"Tema principal: {tema}",
-        f"Tipo de relato: {tipo}",
-        f"Operador: {operador}",
+        f"Enviado por: {operador}",
+        f"Resumo: {resumo_curto}",
     ]
-    if liderancas:
-        detalhes.append(f"Liderancas citadas: {liderancas}")
-    if resumo:
-        detalhes.append(f"Resumo de campo: {resumo}")
-    detalhes.append(f"Proxima acao sugerida: {proxima_acao}")
+    if pontos:
+        detalhes.append("Pontos principais:")
+        detalhes.extend(f"- {ponto}" for ponto in pontos[:3])
+    detalhes.append(f"Próxima ação: {proxima_acao}")
 
     return {
         "titulo": f"{cidade} — {tema}",
@@ -2872,6 +2877,84 @@ def _montar_tarefa_de_operacao(atualizacao: dict) -> dict:
         "responsavel_contato_id": None,
         "deadline": None,
     }
+
+
+def _resumir_tarefa_operacao(texto: str, tema: str, liderancas: str = "") -> str:
+    """Monta um resumo curto e legivel para a tarefa do gabinete."""
+    texto_limpo = re.sub(r"\s+", " ", str(texto or "")).strip(" .,-")
+    if not texto_limpo:
+        base = f"Atualizacao de campo sobre {tema.lower()}."
+        if liderancas:
+            base = f"{liderancas} enviou atualizacao de campo sobre {tema.lower()}."
+        return base
+
+    resumo = re.sub(r"^(hoje|ontem|agora)\b[:, -]*", "", texto_limpo, flags=re.IGNORECASE).strip()
+    resumo = re.sub(r"^eu\s+(?:estive|fui|tive|conversei)\b", "", resumo, flags=re.IGNORECASE).strip(" ,.-")
+    resumo = resumo or texto_limpo
+    resumo = resumo[0].upper() + resumo[1:] if resumo else texto_limpo
+
+    if len(resumo) > 190:
+        corte = resumo[:187].rsplit(" ", 1)[0] or resumo[:187]
+        resumo = corte.rstrip(" ,.-") + "..."
+    return resumo
+
+
+def _extrair_pontos_tarefa_operacao(texto: str, liderancas: str = "", tema: str = "", temas_detectados=None) -> list[str]:
+    """Destaca os pontos principais do relato para o gabinete bater o olho e agir."""
+    texto_bruto = re.sub(r"\s+", " ", str(texto or "")).strip(" .,-")
+    texto_norm = _normalizar_texto(texto_bruto)
+    pontos = []
+
+    if liderancas:
+        pontos.append(f"Lideranca citada: {liderancas}.")
+
+    valor_match = re.search(r"(?:r\$\s*)?(\d{1,3}(?:[\.,]\d{3})*(?:,\d{2})?|\d+\s*mil)", texto_bruto, re.IGNORECASE)
+    valor = valor_match.group(1).strip() if valor_match else ""
+
+    if "verba" in texto_norm or "recurso" in texto_norm:
+        if valor:
+            if "cabo" in texto_norm:
+                pontos.append(f"Pedido de verba de {valor} para mobilizacao de cabos eleitorais.")
+            else:
+                pontos.append(f"Pedido de verba de {valor}.")
+        else:
+            pontos.append("Ha pedido de verba no relato.")
+
+    if "asfalt" in texto_norm and "vila rural" in texto_norm:
+        pontos.append("Pedido de asfaltamento em vila rural.")
+    elif "asfalt" in texto_norm:
+        pontos.append("Pedido de asfaltamento ou melhoria viaria.")
+    elif "estrada rural" in texto_norm or "patrol" in texto_norm or "cascalho" in texto_norm:
+        pontos.append("Demanda por estrada rural ou melhoria de acesso.")
+
+    if "fila de exame" in texto_norm or "fila de exames" in texto_norm:
+        pontos.append("Relato de fila de exames na area da saude.")
+    elif "saude" in texto_norm or "hospital" in texto_norm or "exame" in texto_norm or "samu" in texto_norm:
+        pontos.append("Demanda de saude mencionada no relato.")
+
+    temas = [tema] + list(temas_detectados or [])
+    temas = [t for t in dict.fromkeys([str(t).strip() for t in temas if t])]
+    if not pontos and temas:
+        pontos.append(f"Tema central: {temas[0]}.")
+
+    if not pontos and texto_bruto:
+        segmentos = [seg.strip(" ,.-") for seg in re.split(r"(?<=[.!?])\s+|,\s+", texto_bruto) if seg.strip()]
+        for segmento in segmentos:
+            if len(segmento) >= 18:
+                trecho = segmento[:120].rstrip(" ,.-")
+                pontos.append(trecho + ("..." if len(segmento) > 120 else "."))
+                break
+
+    pontos_limpos = []
+    vistos = set()
+    for ponto in pontos:
+        ponto_limpo = re.sub(r"\s+", " ", ponto).strip()
+        chave = _normalizar_texto(ponto_limpo)
+        if not ponto_limpo or chave in vistos:
+            continue
+        vistos.add(chave)
+        pontos_limpos.append(ponto_limpo)
+    return pontos_limpos[:3]
 
 
 @app.route("/api/tarefas", methods=["GET", "POST"])
