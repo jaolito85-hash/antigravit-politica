@@ -2381,6 +2381,8 @@ def _extrair_cidade_operacao(texto: str) -> str:
 def _classificar_tipo_operacao(texto: str) -> str:
     """Classifica o tipo principal da mensagem de campo."""
     t = _normalizar_texto(texto)
+    if _detectar_pedido_financeiro_operacao(texto).get("detectado"):
+        return "pedido_financeiro"
     if any(p in t for p in ("reuniao", "reunimos", "encontro", "liderancas")):
         return "reuniao"
     if any(p in t for p in ("evento", "agenda", "visita", "carreata", "adesivaco")):
@@ -2392,6 +2394,47 @@ def _classificar_tipo_operacao(texto: str) -> str:
     if any(p in t for p in ("demanda", "reclamacao", "problema", "pedido", "cobranca")):
         return "demanda"
     return "relato"
+
+
+def _detectar_pedido_financeiro_operacao(texto: str) -> dict:
+    """Identifica pedidos de verba/recurso sem exigir novas colunas no banco."""
+    texto_original = str(texto or "")
+    t = _normalizar_texto(texto_original)
+    if not t:
+        return {"detectado": False, "valor": "", "label": ""}
+
+    palavras_financeiras = (
+        "verba",
+        "dinheiro",
+        "recurso",
+        "recursos",
+        "orcamento",
+        "apoio financeiro",
+        "pix",
+        "pagar",
+        "pagamento",
+        "reembolso",
+        "combustivel",
+        "gasolina",
+        "diaria",
+        "custo",
+        "custear",
+    )
+    padrao_valor = r"(?:r\$\s*)?\d{1,3}(?:[.\s]\d{3})*(?:,\d{2})?\s*(?:mil|milhao|milhoes|reais)?|\d+\s*mil"
+    tem_valor_monetario = bool(re.search(r"r\$\s*\d|\d+\s*mil(?:\s+reais)?|\d+\s+reais", texto_original, flags=re.IGNORECASE))
+    detectado = any(p in t for p in palavras_financeiras) or tem_valor_monetario
+    if not detectado:
+        return {"detectado": False, "valor": "", "label": ""}
+
+    valor = ""
+    match = re.search(padrao_valor, texto_original, flags=re.IGNORECASE)
+    if match:
+        valor = re.sub(r"\s+", " ", match.group(0)).strip(" .,-")[:40]
+
+    label = "Pedido financeiro"
+    if valor:
+        label = f"Pedido financeiro: {valor}"
+    return {"detectado": True, "valor": valor, "label": label}
 
 
 def _extrair_tema_operacao(texto: str) -> str:
@@ -2471,14 +2514,22 @@ def _sentimento_operacao(texto: str) -> str:
     return "neutro"
 
 
-def _proxima_acao_operacao(tipo: str, tema: str, liderancas: str, sentimento: str) -> str:
+def _proxima_acao_operacao(tipo: str, tema: str, liderancas: str, sentimento: str, texto: str = "") -> str:
     """Gera uma recomendacao objetiva para o coordenador."""
+    tema_norm = _normalizar_texto(tema)
+    financeiro = tipo == "pedido_financeiro" or _detectar_pedido_financeiro_operacao(texto).get("detectado")
+    if financeiro:
+        return "Confirmar valor, finalidade, responsavel local e comprovantes antes de aprovar qualquer recurso."
+    if tema_norm in ("estradas rurais", "infraestrutura"):
+        return "Pedir localizacao exata, fotos e lideranca responsavel para transformar em tarefa com evidencia."
+    if tema_norm == "saude":
+        return "Levantar unidade ou servico afetado, volume de pessoas e urgencia para preparar resposta do gabinete."
+    if liderancas:
+        return "Confirmar telefone da lideranca, forca local e proximo contato com agenda definida."
+    if tipo in ("reuniao", "evento"):
+        return "Solicitar lista de presentes, fotos e tres demandas prioritarias para virar plano de acao."
     if sentimento == "atencao":
         return f"Tratar {tema.lower()} como pauta sensivel e preparar retorno local."
-    if liderancas:
-        return "Registrar a lideranca no mapa politico e agendar contato de follow-up."
-    if tipo in ("reuniao", "evento"):
-        return "Consolidar lista de presentes e transformar os temas em tarefa de campanha."
     return "Acompanhar a cidade e pedir nova atualizacao ao operador em ate 7 dias."
 
 
@@ -2506,7 +2557,7 @@ def montar_atualizacao_campo(texto: str, operador: dict, remote_jid: str, origem
         "quantidade_pessoas": quantidade,
         "liderancas": liderancas,
         "sentimento": sentimento,
-        "proxima_acao": _proxima_acao_operacao(tipo, tema, liderancas, sentimento),
+        "proxima_acao": _proxima_acao_operacao(tipo, tema, liderancas, sentimento, texto),
         "mensagem_original": texto,
         "origem": origem,
         "criada_em": datetime.utcnow().isoformat(),
@@ -2517,12 +2568,25 @@ def _enriquecer_atualizacao_campo(item: dict) -> dict:
     """Completa campos derivados das atualizacoes sem exigir mudanca de schema."""
     row = dict(item or {})
     texto_base = row.get("mensagem_original") or row.get("resumo") or ""
+    financeiro = _detectar_pedido_financeiro_operacao(texto_base)
+    row["pedido_financeiro"] = bool(financeiro.get("detectado"))
+    row["pedido_financeiro_valor"] = financeiro.get("valor") or ""
+    row["pedido_financeiro_label"] = financeiro.get("label") or ""
+    if financeiro.get("detectado"):
+        row["tipo"] = "pedido_financeiro"
     temas_detectados = _detectar_temas_operacao(texto_base)
     row["temas_detectados"] = temas_detectados
     if temas_detectados:
         row["tema_principal"] = temas_detectados[0]
     elif not row.get("tema_principal"):
         row["tema_principal"] = "Mobilizacao local"
+    row["proxima_acao"] = _proxima_acao_operacao(
+        row.get("tipo") or "relato",
+        row.get("tema_principal") or "Mobilizacao local",
+        row.get("liderancas") or "",
+        row.get("sentimento") or "neutro",
+        texto_base,
+    )
     return row
 
 

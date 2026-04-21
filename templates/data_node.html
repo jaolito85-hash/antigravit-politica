@@ -1974,7 +1974,7 @@
         </div>
 
         <div class="chart-box" style="margin-top:20px">
-            <div class="chart-header"><i class="ri-timeline-view" style="color:#f59e0b"></i> Diário de Campo</div>
+            <div class="chart-header"><i class="ri-timeline-view" style="color:#f59e0b"></i> Chamados de Campo</div>
             <div id="op-toolbar" class="operation-toolbar hidden">
                 <div id="op-filtro-resumo" class="operation-filter-summary"></div>
                 <button class="priority-btn" style="padding:6px 10px;font-size:.72rem" onclick="limparFiltrosOperacao()">
@@ -3231,12 +3231,13 @@ https://www.instagram.com/p/YYYYY/"
             if (!filtradas.length) {
                 const mensagemVazia = totalOriginal
                     ? 'Nenhuma atualização combina com o filtro atual.'
-                    : 'Nenhuma atualização de campo ainda.';
+                    : 'Nenhum chamado de campo ainda.';
                 el.innerHTML = '<div style="padding:30px;text-align:center;color:var(--text-muted)"><i class="ri-inbox-line" style="font-size:2rem;opacity:.4"></i><p style="margin-top:10px">' + mensagemVazia + '</p></div>';
                 return;
             }
 
             const tipoIcon = {
+                pedido_financeiro: 'ri-money-dollar-circle-line',
                 reuniao: 'ri-group-line',
                 evento: 'ri-calendar-event-line',
                 lideranca: 'ri-user-star-line',
@@ -3244,13 +3245,35 @@ https://www.instagram.com/p/YYYYY/"
                 demanda: 'ri-alarm-warning-line',
                 relato: 'ri-message-3-line',
             };
-            const sentColor = { positivo: '#22c55e', neutro: '#3b82f6', atencao: '#ef4444' };
+            const tipoLabel = {
+                pedido_financeiro: 'pedido financeiro',
+                reuniao: 'reunião',
+                evento: 'evento',
+                lideranca: 'liderança',
+                adversario: 'adversário',
+                demanda: 'demanda',
+                relato: 'relato',
+            };
+            const tipoColor = {
+                pedido_financeiro: '#f59e0b',
+                reuniao: '#22c55e',
+                evento: '#06b6d4',
+                lideranca: '#3b82f6',
+                adversario: '#a855f7',
+                demanda: '#ef4444',
+                relato: '#94a3b8',
+            };
 
             el.innerHTML = filtradas.map(a => {
-                const cor = sentColor[a.sentimento] || '#3b82f6';
-                const icone = tipoIcon[a.tipo] || tipoIcon.relato;
+                const tipoKey = String(a.tipo || 'relato').toLowerCase();
+                const cor = tipoKey === 'pedido_financeiro' ? tipoColor.pedido_financeiro : (a.sentimento === 'atencao' ? '#ef4444' : (tipoColor[tipoKey] || tipoColor.relato));
+                const icone = tipoIcon[tipoKey] || tipoIcon.relato;
+                const rotuloTipo = tipoLabel[tipoKey] || 'relato';
                 const pessoas = a.quantidade_pessoas ? '<span class="priority-chip"><i class="ri-group-line"></i> ' + formatarNumeroBR(a.quantidade_pessoas) + ' pessoas</span>' : '';
                 const liderancas = a.liderancas ? '<span class="priority-chip"><i class="ri-user-star-line"></i> ' + escapeHtml(a.liderancas) + '</span>' : '';
+                const financeiro = a.pedido_financeiro
+                    ? '<span class="priority-chip" style="border-color:rgba(245,158,11,.45);color:#fbbf24;background:rgba(245,158,11,.12)"><i class="ri-money-dollar-circle-line"></i> ' + escapeHtml(a.pedido_financeiro_label || 'Pedido financeiro') + '</span>'
+                    : '';
                 const temas = (Array.isArray(a.temas_detectados) && a.temas_detectados.length ? a.temas_detectados : [a.tema_principal || 'Mobilização local'])
                     .slice(0, 3)
                     .map(tema => '<button type="button" class="priority-chip chip-btn" onclick="filtrarOperacao(\'tema\', \'' + encodeURIComponent(tema) + '\')"><i class="ri-price-tag-3-line"></i> ' + escapeHtml(tema) + '</button>')
@@ -3260,23 +3283,21 @@ https://www.instagram.com/p/YYYYY/"
                         <div style="display:flex;justify-content:space-between;gap:14px;align-items:flex-start">
                             <div style="min-width:0;flex:1">
                                 <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-                                    <span style="background:${cor}22;color:${cor};border:1px solid ${cor}55;border-radius:6px;padding:3px 8px;font-size:.68rem;font-weight:800;text-transform:uppercase"><i class="${icone}"></i> ${escapeHtml(a.tipo || 'relato')}</span>
+                                    <span style="background:${cor}22;color:${cor};border:1px solid ${cor}55;border-radius:6px;padding:3px 8px;font-size:.68rem;font-weight:800;text-transform:uppercase"><i class="${icone}"></i> ${escapeHtml(rotuloTipo)}</span>
                                     <button type="button" class="operation-link-btn" onclick="abrirRadarPrioridade('${encodeURIComponent(a.cidade || '')}')">${escapeHtml(a.cidade || 'Cidade não informada')}</button>
                                     <span style="color:var(--text-muted);font-size:.75rem">${a.criada_em ? formatarTempo(a.criada_em) : ''}</span>
                                 </div>
                                 <div style="color:#cbd5e1;font-size:.86rem;line-height:1.5;margin-top:8px">${escapeHtml(a.resumo || a.mensagem_original || '')}</div>
                                 <div class="priority-reasons">
+                                    ${financeiro}
                                     ${temas}
                                     ${pessoas}
                                     ${liderancas}
                                 </div>
-                                <div class="priority-action"><strong>Próxima ação:</strong> ${escapeHtml(a.proxima_acao || 'Acompanhar a cidade.')}</div>
+                                <div class="priority-action" style="background:${cor}12;border-left-color:${cor};color:#f8fafc"><strong>Próxima ação:</strong> ${escapeHtml(a.proxima_acao || 'Acompanhar a cidade.')}</div>
                                 <div class="operation-actions">
                                     <button class="priority-btn priority-btn--task" type="button" onclick="criarTarefaDoCampo('${String(a.id || '')}', this)">
                                         <i class="ri-checkbox-circle-line"></i> Criar tarefa no gabinete
-                                    </button>
-                                    <button class="priority-btn" type="button" onclick="abrirPitchPrioridade('${encodeURIComponent(a.cidade || '')}', this)">
-                                        <i class="ri-mic-line"></i> Gerar pitch
                                     </button>
                                     <button class="priority-btn" type="button" onclick="abrirRadarPrioridade('${encodeURIComponent(a.cidade || '')}')">
                                         <i class="ri-map-2-line"></i> Ver radar
