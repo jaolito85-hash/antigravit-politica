@@ -545,7 +545,9 @@ def save_feedback(feedback_data):
 
     if supabase_admin:
         try:
-            supabase_admin.table('feedbacks').insert(data).execute()
+            payload_supabase = data.copy()
+            payload_supabase.pop('id', None)
+            supabase_admin.table('feedbacks').insert(payload_supabase).execute()
             print("✅ Supabase insert success")
             return True
         except Exception as e:
@@ -2169,6 +2171,30 @@ def _normalizar_telefone_jid(valor: str) -> str:
     return re.sub(r'\D+', '', str(valor or ''))
 
 
+def _variantes_telefone_jid(valor: str) -> set[str]:
+    """Gera variacoes comuns para numeros BR com/sem 55 e com/sem nono digito."""
+    digitos = _normalizar_telefone_jid(valor)
+    if not digitos:
+        return set()
+
+    nacional = digitos[2:] if digitos.startswith("55") and len(digitos) > 11 else digitos
+    variantes_nacionais = {nacional}
+
+    if len(nacional) == 11 and nacional[2] == "9":
+        variantes_nacionais.add(nacional[:2] + nacional[3:])
+    elif len(nacional) == 10:
+        variantes_nacionais.add(nacional[:2] + "9" + nacional[2:])
+
+    variantes = {digitos}
+    for numero in variantes_nacionais:
+        if not numero:
+            continue
+        variantes.add(numero)
+        variantes.add(f"55{numero}")
+
+    return {item for item in variantes if len(item) >= 10}
+
+
 def _jid_para_envio(telefone: str) -> str:
     """Converte telefone cadastrado em identificador aceito pela Evolution API."""
     texto = str(telefone or '').strip()
@@ -2216,6 +2242,25 @@ def _normalizar_operador(row: dict) -> dict:
     return row
 
 
+def _serializar_operador_cache(operador: dict) -> dict:
+    """Remove campos derivados antes de salvar operadores em cache local."""
+    row = dict(operador or {})
+    row.pop("telefone_normalizado", None)
+    row.pop("telefone_mascarado", None)
+    return row
+
+
+def _sincronizar_cache_operadores(operadores: list[dict]) -> None:
+    """Mantem um espelho local dos operadores para tolerar falhas temporarias do banco."""
+    try:
+        serializados = [_serializar_operador_cache(op) for op in operadores]
+        cache_atual = load_json(OPERADORES_FILE, [])
+        if json.dumps(cache_atual, ensure_ascii=False, sort_keys=True) != json.dumps(serializados, ensure_ascii=False, sort_keys=True):
+            save_json(OPERADORES_FILE, serializados)
+    except Exception as e:
+        print(f"[operacao] Falha ao sincronizar cache local de operadores: {e}")
+
+
 def listar_operadores_campo(incluir_demo=True):
     """Lista operadores de campo cadastrados no Supabase ou fallback local."""
     operadores = []
@@ -2230,6 +2275,8 @@ def listar_operadores_campo(incluir_demo=True):
         operadores = load_json(OPERADORES_FILE, [])
 
     operadores = [_normalizar_operador(op) for op in operadores]
+    if operadores:
+        _sincronizar_cache_operadores(operadores)
     if not operadores and incluir_demo:
         return _operadores_demo_padrao()
     return operadores
@@ -2245,7 +2292,8 @@ def salvar_operador_campo(payload: dict) -> dict:
     telefone_norm = _normalizar_telefone_jid(telefone)
     if len(telefone_norm) < 10:
         raise ValueError("telefone_invalido")
-    if any(op.get("telefone_normalizado") == telefone_norm for op in listar_operadores_campo(incluir_demo=False)):
+    variantes_telefone = _variantes_telefone_jid(telefone)
+    if any(_variantes_telefone_jid(op.get("jid") or op.get("telefone")) & variantes_telefone for op in listar_operadores_campo(incluir_demo=False)):
         raise ValueError("telefone_ja_cadastrado")
 
     operador = {
@@ -2265,7 +2313,15 @@ def salvar_operador_campo(payload: dict) -> dict:
         try:
             res = supabase_admin.table("operadores_campo").insert(operador).execute()
             if res.data:
-                return _normalizar_operador(res.data[0])
+                operador_salvo = _normalizar_operador(res.data[0])
+                cache_local = [_normalizar_operador(op) for op in load_json(OPERADORES_FILE, [])]
+                cache_filtrado = [
+                    op for op in cache_local
+                    if str(op.get("id")) != str(operador_salvo.get("id"))
+                    and not (_variantes_telefone_jid(op.get("jid") or op.get("telefone")) & _variantes_telefone_jid(operador_salvo.get("jid") or operador_salvo.get("telefone")))
+                ]
+                _sincronizar_cache_operadores([operador_salvo, *cache_filtrado])
+                return operador_salvo
         except Exception as e:
             print(f"[operacao] Falha ao salvar operador no Supabase: {e}")
 
@@ -2278,8 +2334,8 @@ def salvar_operador_campo(payload: dict) -> dict:
 
 def buscar_operador_por_jid(remote_jid: str):
     """Retorna operador ativo pelo JID/telefone, sem usar o numero do deputado."""
-    telefone_norm = _normalizar_telefone_jid(remote_jid)
-    if not telefone_norm:
+    variantes_remetente = _variantes_telefone_jid(remote_jid)
+    if not variantes_remetente:
         return None
 
     try:
@@ -2292,7 +2348,8 @@ def buscar_operador_por_jid(remote_jid: str):
     for operador in listar_operadores_campo(incluir_demo=False):
         if operador.get("status") != "ativo":
             continue
-        if operador.get("telefone_normalizado") == telefone_norm:
+        variantes_operador = _variantes_telefone_jid(operador.get("jid") or operador.get("telefone"))
+        if variantes_operador & variantes_remetente:
             return operador
     return None
 
@@ -3011,8 +3068,20 @@ def _coletar_radar_prioridades():
             .limit(80) \
             .execute()
     except Exception as e:
-        print(f"[prioridades] Radar MG indisponivel: {e}")
-        return {}
+        if 'sentimento_geral' in str(e):
+            try:
+                pesquisas = supabase.table('radar_cidades_pesquisas') \
+                    .select('id,cidade,total_posts,resumo_ia,created_at') \
+                    .order('created_at', desc=True) \
+                    .limit(80) \
+                    .execute()
+                print("[prioridades] Radar local sem coluna sentimento_geral; usando fallback neutro.")
+            except Exception as fallback_error:
+                print(f"[prioridades] Radar MG indisponivel: {fallback_error}")
+                return {}
+        else:
+            print(f"[prioridades] Radar MG indisponivel: {e}")
+            return {}
 
     por_cidade = {}
     pesquisa_ids = []
