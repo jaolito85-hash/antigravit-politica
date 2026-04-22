@@ -1877,7 +1877,7 @@
         <div class="nav-item active" onclick="nav('dashboard', this)"><i class="ri-layout-grid-fill"></i> Painel</div>
         <div class="nav-item" onclick="nav('prioridades', this)"><i class="ri-compass-3-line"></i> Prioridades</div>
         <div class="nav-item" onclick="nav('operacao-local', this)"><i class="ri-team-line"></i> Operação Local</div>
-        <div class="nav-item" onclick="nav('feedbacks', this)"><i class="ri-chat-3-line"></i> Feedbacks</div>
+        <div class="nav-item" onclick="nav('feedbacks', this)"><i class="ri-chat-3-line"></i> Voz do Povo</div>
         <div class="nav-item" onclick="nav('radar-comentarios', this)"><i class="ri-radar-line"></i> Radar de
             Comentários</div>
         <div class="nav-item" onclick="nav('radar-noticias', this)"><i class="ri-newspaper-line"></i> Radar de Notícias
@@ -2151,8 +2151,8 @@
     <div class="main hidden" id="view-feedbacks">
         <div class="page-header">
             <div class="page-title">
-                <h1>Feedbacks</h1>
-                <p>Gerencie e analise as mensagens dos cidadãos</p>
+                <h1>Voz do Povo</h1>
+                <p>Gerencie e analise as mensagens diretas dos cidadãos</p>
             </div>
             <div class="export-dropdown">
                 <button class="export-btn" onclick="toggleExportMenu('feedbacks')">
@@ -2503,29 +2503,33 @@ https://www.instagram.com/p/YYYYY/"
             <!-- Cards de info: resumo + oportunidades + ad -->
             <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:20px">
 
-                <!-- Resumo IA -->
-                <div class="stat-card" style="padding:16px">
+                <!-- Tá na Mídia (scraper web) -->
+                <div class="stat-card" style="padding:16px;border-left:3px solid #60a5fa">
                     <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
-                        <span
-                            style="font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px">Resumo
-                            da Cidade</span>
+                        <span style="font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px">
+                            <i class="ri-newspaper-line" style="color:#60a5fa"></i> Tá na Mídia
+                        </span>
                         <span id="mg-sentimento-badge" class="sentimento-badge neutro"
                             style="margin-left:auto;font-size:11px"></span>
                     </div>
-                    <p id="mg-resumo" style="color:var(--text-main);font-size:13px;line-height:1.6;margin:0"></p>
+                    <p id="mg-resumo-midia" style="color:var(--text-main);font-size:13px;line-height:1.6;margin:0">—</p>
                     <div style="margin-top:10px;font-size:11px;color:var(--text-muted)">
-                        <i class="ri-database-2-line"></i> <span id="mg-total-posts">0</span> fontes analisadas
+                        <i class="ri-global-line"></i> <span id="mg-total-noticias">0</span> notícias analisadas
                     </div>
                 </div>
 
-                <!-- Oportunidades Políticas -->
-                <div class="stat-card" style="padding:16px">
-                    <div
-                        style="font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">
-                        <i class="ri-lightbulb-line" style="color:#f59e0b"></i> Oportunidades Políticas
+                <!-- Voz do Povo (feedbacks + redes) -->
+                <div class="stat-card" style="padding:16px;border-left:3px solid #22c55e">
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+                        <span style="font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px">
+                            <i class="ri-chat-voice-line" style="color:#22c55e"></i> Voz do Povo
+                        </span>
                     </div>
-                    <ul id="mg-oportunidades"
-                        style="margin:0;padding-left:18px;color:var(--text-main);font-size:13px;line-height:1.8"></ul>
+                    <p id="mg-resumo-voz-povo" style="color:var(--text-main);font-size:13px;line-height:1.6;margin:0">—</p>
+                    <div style="margin-top:10px;font-size:11px;color:var(--text-muted);display:flex;gap:10px;flex-wrap:wrap">
+                        <span><i class="ri-whatsapp-line" style="color:#22c55e"></i> <span id="mg-total-feedbacks-locais">0</span> feedbacks</span>
+                        <span><i class="ri-facebook-circle-line" style="color:#60a5fa"></i> <span id="mg-total-facebook">0</span> posts</span>
+                    </div>
                 </div>
 
                 <!-- Dados IBGE da Cidade -->
@@ -2601,6 +2605,15 @@ https://www.instagram.com/p/YYYYY/"
                         </div>
                     </div>
                 </div>
+            </div>
+
+            <!-- Oportunidades Políticas -->
+            <div class="stat-card" style="padding:16px;margin-bottom:16px;border-left:3px solid #f59e0b">
+                <div style="font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">
+                    <i class="ri-lightbulb-line" style="color:#f59e0b"></i> Oportunidades Políticas
+                </div>
+                <ul id="mg-oportunidades"
+                    style="margin:0;padding-left:18px;color:var(--text-main);font-size:13px;line-height:1.8;columns:2;column-gap:24px"></ul>
             </div>
 
             <!-- Temas encontrados -->
@@ -5046,8 +5059,13 @@ https://www.instagram.com/p/YYYYY/"
             document.getElementById('radar-mg-empty').style.display = 'none';
             document.getElementById('radar-mg-resultado').style.display = 'block';
 
-            document.getElementById('mg-resumo').innerText = data.resumo || 'Sem resumo disponível.';
-            document.getElementById('mg-total-posts').innerText = data.total_posts || 0;
+            const resumoMidia = data.resumo_midia || data.resumo || 'Sem cobertura de mídia encontrada no período.';
+            const resumoVozPovo = data.resumo_voz_povo || 'Sem voz direta da população capturada ainda.';
+            document.getElementById('mg-resumo-midia').innerText = resumoMidia;
+            document.getElementById('mg-resumo-voz-povo').innerText = resumoVozPovo;
+            document.getElementById('mg-total-noticias').innerText = data.total_noticias ?? data.total_posts ?? 0;
+            document.getElementById('mg-total-feedbacks-locais').innerText = data.total_feedbacks_locais || 0;
+            document.getElementById('mg-total-facebook').innerText = data.total_posts_facebook || 0;
 
             const sent = (data.sentimento_geral || 'neutro').toLowerCase();
             const sentBadge = document.getElementById('mg-sentimento-badge');

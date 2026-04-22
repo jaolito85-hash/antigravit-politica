@@ -3894,7 +3894,20 @@ def radar_mg_pesquisar():
         if posts_combinados:
             supabase_admin.table('radar_cidades_posts').insert(posts_combinados).execute()
 
-        # ── OPENAI — análise com duas fontes ──────────────────────────────────
+        # ── FONTE 3: Feedbacks locais (WhatsApp dos cidadaos) ─────────────────
+        feedbacks_cidade = []
+        try:
+            todos_feedbacks = get_feedbacks()
+            cidade_lower = cidade.lower().strip()
+            feedbacks_cidade = [
+                f for f in todos_feedbacks
+                if (f.get('city') or '').lower().strip() == cidade_lower
+            ][:25]
+            print(f"[Radar MG] Feedbacks locais: {len(feedbacks_cidade)} mensagens")
+        except Exception as e_fb:
+            print(f"[Radar MG] Feedbacks locais falhou: {e_fb}")
+
+        # ── OPENAI — analise com tres fontes separadas ────────────────────────
         openai_client = __import__('openai').OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
 
         textos_google = "\n---\n".join([p['conteudo'] for p in posts_google[:15]]) or \
@@ -3902,19 +3915,36 @@ def radar_mg_pesquisar():
         textos_facebook = "\n---\n".join([p['conteudo'] for p in posts_facebook[:30]]) or \
                           f"Nenhum post público de grupos do Facebook encontrado sobre {cidade} MG."
 
+        if feedbacks_cidade:
+            fb_linhas = []
+            for f in feedbacks_cidade:
+                msg = (f.get('message') or '').strip()[:400]
+                cat = f.get('category') or 'outros'
+                urg = f.get('urgency') or 'neutro'
+                if msg:
+                    fb_linhas.append(f"[{cat} · {urg}] {msg}")
+            textos_feedbacks = "\n---\n".join(fb_linhas)
+        else:
+            textos_feedbacks = f"Nenhum feedback direto de cidadão via WhatsApp para {cidade} ainda."
+
         prompt_analise = f"""Você é um analista político especializado em Minas Gerais.
 
-Analise os dados coletados de duas fontes sobre a cidade de {cidade} - MG:
+Analise os dados coletados de TRÊS fontes sobre a cidade de {cidade} - MG:
 
-NOTÍCIAS DA MÍDIA LOCAL:
+NOTÍCIAS DA MÍDIA LOCAL (imprensa, portais):
 {textos_google}
 
-OPINIÃO DA POPULAÇÃO (Facebook):
+POSTS PÚBLICOS DE GRUPOS DO FACEBOOK (opinião pública online):
 {textos_facebook}
+
+FEEDBACKS DIRETOS DE CIDADÃOS (mensagens via WhatsApp do canal do deputado):
+{textos_feedbacks}
 
 Retorne um JSON com esta estrutura exata:
 {{
-  "resumo": "Resumo executivo em 3 linhas. Se houver divergência entre o que a mídia reporta e o que a população fala, destaque isso.",
+  "resumo": "Resumo executivo geral em 3 linhas, cruzando as três fontes. Se houver divergência entre o que a mídia reporta e o que a população fala, destaque.",
+  "resumo_midia": "Síntese em 3-4 linhas focada APENAS no que está SAINDO NA MÍDIA (notícias Google News). O que a imprensa está noticiando sobre a cidade? Cite assuntos, pautas e tom da cobertura. Se não houver notícias, diga 'Sem cobertura de mídia encontrada no período.'",
+  "resumo_voz_povo": "Síntese em 3-4 linhas do SENTIMENTO DA POPULAÇÃO, combinando posts do Facebook e feedbacks diretos via WhatsApp. Quais queixas, demandas e elogios os moradores estão expressando? Se só houver uma das fontes, use a disponível. Se nenhuma, diga 'Sem voz direta da população capturada.'",
   "sentimento_geral": "positivo|negativo|neutro|misto",
   "temas": [
     {{
@@ -3971,7 +4001,10 @@ Retorne APENAS o JSON, sem explicações."""
             'total_posts': len(posts_combinados),
             'total_noticias': len(posts_google),
             'total_posts_facebook': len(posts_facebook),
+            'total_feedbacks_locais': len(feedbacks_cidade),
             'resumo': ai_data.get('resumo', ''),
+            'resumo_midia': ai_data.get('resumo_midia', ''),
+            'resumo_voz_povo': ai_data.get('resumo_voz_povo', ''),
             'sentimento_geral': ai_data.get('sentimento_geral', 'neutro'),
             'temas': temas,
             'oportunidades_politicas': ai_data.get('oportunidades_politicas', []),
