@@ -28,7 +28,7 @@ app.config['TEMPLATES_AUTO_RELOAD'] = True
 app.secret_key = os.getenv("SECRET_KEY", "politica-nodedata-secret-2024")
 
 # Credenciais de acesso
-APP_USERNAME = os.getenv("APP_USERNAME", "matheuslima")
+APP_USERNAME = os.getenv("APP_USERNAME", "admin")
 APP_PASSWORD = os.getenv("APP_PASSWORD", "2702")
 
 def login_required(f):
