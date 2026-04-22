@@ -94,6 +94,7 @@ CONFIG_FILE        = os.path.join(BASE_DIR, 'execution', 'config.json')
 LAST_COMMENTS_FILE = os.path.join(BASE_DIR, 'execution', 'last_ig_comments.json')
 OPERADORES_FILE    = os.path.join(BASE_DIR, 'execution', 'operadores_campo.json')
 OPERACAO_FILE      = os.path.join(BASE_DIR, 'execution', 'operacao_local.json')
+OPERACAO_MSGS_FILE = os.path.join(BASE_DIR, 'execution', 'operacao_mensagens.json')
 
 # =============================================================================
 # MOCK DATA — Radar de Comentários
@@ -2624,6 +2625,66 @@ def listar_atualizacoes_campo(limit=80):
     return [_enriquecer_atualizacao_campo(item) for item in atualizacoes]
 
 
+def buscar_atualizacao_campo_por_id(atualizacao_id) -> dict | None:
+    """Busca atualizacao de campo por id (Supabase ou fallback local)."""
+    if not atualizacao_id:
+        return None
+    id_str = str(atualizacao_id)
+    if supabase_admin:
+        try:
+            res = supabase_admin.table("operacao_local_atualizacoes").select("*").eq("id", atualizacao_id).limit(1).execute()
+            if res.data:
+                return _enriquecer_atualizacao_campo(res.data[0])
+        except Exception as e:
+            print(f"[operacao] Supabase busca atualizacao falhou: {e}")
+
+    for item in load_json(OPERACAO_FILE, []):
+        if str(item.get("id")) == id_str:
+            return _enriquecer_atualizacao_campo(item)
+    return None
+
+
+def salvar_mensagem_operacao(registro: dict) -> dict:
+    """Persiste mensagem enviada ao operador (Supabase ou fallback local)."""
+    payload = dict(registro)
+    if supabase_admin:
+        try:
+            res = supabase_admin.table("operacao_local_mensagens").insert(payload).execute()
+            if res.data:
+                return res.data[0]
+        except Exception as e:
+            print(f"[operacao] Falha ao salvar mensagem no Supabase: {e}")
+
+    mensagens = load_json(OPERACAO_MSGS_FILE, [])
+    payload["id"] = max([int(m.get("id") or 0) for m in mensagens] or [0]) + 1
+    mensagens.insert(0, payload)
+    save_json(OPERACAO_MSGS_FILE, mensagens)
+    return payload
+
+
+def listar_mensagens_operacao(atualizacao_id=None, limit=60) -> list:
+    """Lista mensagens enviadas a operadores, filtrando opcionalmente por atualizacao."""
+    limit = max(1, min(int(limit or 60), 200))
+    mensagens = []
+    if supabase_admin:
+        try:
+            query = supabase_admin.table("operacao_local_mensagens").select("*").order("enviada_em", desc=True).limit(limit)
+            if atualizacao_id:
+                query = query.eq("atualizacao_id", atualizacao_id)
+            res = query.execute()
+            mensagens = res.data or []
+        except Exception as e:
+            print(f"[operacao] Supabase mensagens indisponivel: {e}")
+
+    if not mensagens:
+        todas = load_json(OPERACAO_MSGS_FILE, [])
+        if atualizacao_id:
+            id_str = str(atualizacao_id)
+            todas = [m for m in todas if str(m.get("atualizacao_id")) == id_str]
+        mensagens = todas[:limit]
+    return mensagens
+
+
 def handle_operacao_local(text: str, remote_jid: str, push_name: str):
     """Processa atualizacao de operador cadastrado e confirma pelo WhatsApp."""
     operador = buscar_operador_por_jid(remote_jid)
@@ -3172,6 +3233,67 @@ def api_atualizacoes_campo():
     if data.get("cidade"):
         atualizacao["cidade"] = data.get("cidade").strip()[:120]
     salvo = salvar_atualizacao_campo(atualizacao)
+    return jsonify({"success": True, "data": salvo}), 201
+
+
+@app.route("/api/operacao-local/mensagens", methods=["GET", "POST"])
+def api_mensagens_operacao():
+    """Envia WhatsApp ao operador de campo e mantem historico por chamado."""
+    if request.method == "GET":
+        atualizacao_id = request.args.get("atualizacao_id")
+        limit = request.args.get("limit", 60, type=int)
+        return jsonify({"data": listar_mensagens_operacao(atualizacao_id, limit)})
+
+    if not EVOLUTION_API_URL or not EVOLUTION_API_KEY or not EVOLUTION_INSTANCE_NAME:
+        return jsonify({"error": "whatsapp_nao_configurado"}), 503
+
+    data = request.json or {}
+    texto = (data.get("mensagem") or data.get("texto") or "").strip()
+    if not texto:
+        return jsonify({"error": "mensagem_obrigatoria"}), 400
+    if len(texto) > 4000:
+        return jsonify({"error": "mensagem_muito_longa"}), 400
+
+    atualizacao_id = data.get("atualizacao_id")
+    atualizacao = buscar_atualizacao_campo_por_id(atualizacao_id) if atualizacao_id else None
+
+    destino_raw = (data.get("destinatario") or "").strip()
+    if not destino_raw and atualizacao:
+        destino_raw = atualizacao.get("operador_jid") or ""
+    if not destino_raw and atualizacao:
+        operador = next(
+            (op for op in listar_operadores_campo(incluir_demo=False)
+             if op.get("nome") == atualizacao.get("operador_nome")),
+            None,
+        )
+        if operador:
+            destino_raw = operador.get("jid") or operador.get("telefone") or ""
+
+    destino = _jid_para_envio(destino_raw)
+    if not destino or len(destino) < 10:
+        return jsonify({"error": "destinatario_invalido"}), 400
+
+    try:
+        send_whatsapp_message(destino, texto)
+    except Exception as e:
+        print(f"[operacao] Erro ao enviar WhatsApp: {e}")
+        return jsonify({"error": "falha_ao_enviar"}), 502
+
+    registro = {
+        "atualizacao_id": atualizacao.get("id") if atualizacao else None,
+        "destinatario_jid": destino,
+        "destinatario_nome": (atualizacao or {}).get("operador_nome") or data.get("destinatario_nome") or "Operador",
+        "cidade": (atualizacao or {}).get("cidade") or data.get("cidade") or "",
+        "direcao": "enviada",
+        "canal": "whatsapp",
+        "texto": texto,
+        "autor": data.get("autor") or session.get("user") or "gabinete",
+        "enviada_em": datetime.utcnow().isoformat(),
+    }
+    salvo = salvar_mensagem_operacao(registro)
+    print(f"[operacao] Mensagem enviada destino={_mascarar_telefone(destino)} atualizacao={registro['atualizacao_id']}")
+    salvo["destinatario_mascarado"] = _mascarar_telefone(destino)
+    salvo.pop("destinatario_jid", None)
     return jsonify({"success": True, "data": salvo}), 201
 
 

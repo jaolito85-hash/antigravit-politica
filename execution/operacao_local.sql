@@ -55,3 +55,26 @@ create index if not exists operacao_local_sentimento_idx
 
 alter table public.operacao_local_atualizacoes enable row level security;
 -- Sem policies publicas — service_role le/escreve pelo backend.
+
+
+create table if not exists public.operacao_local_mensagens (
+    id                bigserial primary key,
+    atualizacao_id    bigint references public.operacao_local_atualizacoes(id) on delete set null,
+    destinatario_jid  text not null,
+    destinatario_nome text,
+    cidade            text,
+    direcao           text not null default 'enviada', -- 'enviada' | 'recebida'
+    canal             text not null default 'whatsapp',
+    texto             text not null,
+    autor             text,
+    enviada_em        timestamptz not null default now()
+);
+
+create index if not exists operacao_local_mensagens_atualizacao_idx
+    on public.operacao_local_mensagens (atualizacao_id, enviada_em desc);
+
+create index if not exists operacao_local_mensagens_data_idx
+    on public.operacao_local_mensagens (enviada_em desc);
+
+alter table public.operacao_local_mensagens enable row level security;
+-- Sem policies publicas — service_role le/escreve pelo backend.

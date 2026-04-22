@@ -353,6 +353,157 @@
             animation: slideIn 0.25s ease-out;
         }
 
+        /* Chat Operacao Local */
+        .op-chat-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: #86efac;
+            background: rgba(34, 197, 94, 0.12);
+            border: 1px solid rgba(34, 197, 94, 0.45);
+            border-radius: 999px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .op-chat-badge:hover {
+            background: rgba(34, 197, 94, 0.22);
+            color: #bbf7d0;
+            transform: translateY(-1px);
+        }
+
+        .op-chat-context {
+            background: rgba(245, 158, 11, 0.08);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            border-radius: 10px;
+            padding: 12px 14px;
+            margin-bottom: 14px;
+            font-size: 0.82rem;
+            color: #e2e8f0;
+            line-height: 1.5;
+        }
+
+        .op-chat-context strong {
+            color: #fbbf24;
+        }
+
+        .op-chat-templates {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin: 10px 0 12px;
+        }
+
+        .op-chat-template {
+            font-size: 0.72rem;
+            padding: 6px 11px;
+            background: rgba(148, 163, 184, 0.1);
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .op-chat-template:hover {
+            background: rgba(34, 197, 94, 0.12);
+            border-color: rgba(34, 197, 94, 0.4);
+            color: #86efac;
+        }
+
+        .op-chat-history {
+            max-height: 220px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 14px;
+            padding-right: 4px;
+        }
+
+        .op-chat-bubble {
+            align-self: flex-end;
+            max-width: 85%;
+            padding: 9px 12px;
+            background: linear-gradient(135deg, rgba(34, 197, 94, 0.18), rgba(16, 185, 129, 0.1));
+            border: 1px solid rgba(34, 197, 94, 0.35);
+            border-radius: 12px 12px 2px 12px;
+            font-size: 0.84rem;
+            color: #e2e8f0;
+            line-height: 1.45;
+        }
+
+        .op-chat-bubble__meta {
+            display: block;
+            margin-top: 4px;
+            font-size: 0.68rem;
+            color: rgba(226, 232, 240, 0.55);
+        }
+
+        .op-chat-textarea {
+            width: 100%;
+            min-height: 110px;
+            padding: 12px 14px;
+            font-size: 0.88rem;
+            background: var(--bg-body);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            color: var(--text-main);
+            resize: vertical;
+            font-family: inherit;
+        }
+
+        .op-chat-textarea:focus {
+            outline: none;
+            border-color: rgba(34, 197, 94, 0.5);
+        }
+
+        .op-chat-dest {
+            font-size: 0.74rem;
+            color: var(--text-muted);
+            margin-top: 6px;
+        }
+
+        .op-chat-dest strong {
+            color: #e2e8f0;
+            font-family: monospace;
+        }
+
+        .op-chat-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 16px;
+        }
+
+        .op-chat-btn-send {
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            color: #0b1220;
+            border: none;
+            padding: 10px 18px;
+            font-size: 0.82rem;
+            font-weight: 700;
+            border-radius: 8px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.15s ease;
+        }
+
+        .op-chat-btn-send:hover:not(:disabled) {
+            filter: brightness(1.1);
+            transform: translateY(-1px);
+        }
+
+        .op-chat-btn-send:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
         .thread-header {
             display: flex;
             align-items: flex-start;
@@ -3088,6 +3239,8 @@ https://www.instagram.com/p/YYYYY/"
 
         let _operacaoLocal = { operadores: [], atualizacoes: [], kpis: {} };
         let _operacaoFiltros = { tema: '', operador: '' };
+        let _operacaoAtualizacoesCache = [];
+        let _opChatAtualAtual = null;
 
         function normalizarTextoUI(valor) {
             return String(valor || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
@@ -3225,6 +3378,7 @@ https://www.instagram.com/p/YYYYY/"
         function renderAtualizacoesCampo(atualizacoes) {
             const el = document.getElementById('op-atualizacoes-lista');
             if (!el) return;
+            _operacaoAtualizacoesCache = Array.isArray(atualizacoes) ? atualizacoes.slice() : [];
             const totalOriginal = atualizacoes.length;
             const filtradas = atualizacoes.filter(a => {
                 const temas = Array.isArray(a.temas_detectados) && a.temas_detectados.length
@@ -3308,19 +3462,178 @@ https://www.instagram.com/p/YYYYY/"
                                     <button class="priority-btn priority-btn--task" type="button" onclick="criarTarefaDoCampo('${String(a.id || '')}', this)">
                                         <i class="ri-checkbox-circle-line"></i> Criar tarefa no gabinete
                                     </button>
+                                    <button class="priority-btn" type="button" onclick="abrirChatOperacao('${String(a.id || '')}')" style="border-color:rgba(34,197,94,.4);color:#86efac">
+                                        <i class="ri-whatsapp-line"></i> Conversar no WhatsApp
+                                    </button>
                                     <button class="priority-btn" type="button" onclick="abrirRadarPrioridade('${encodeURIComponent(a.cidade || '')}')">
                                         <i class="ri-map-2-line"></i> Ver radar
                                     </button>
                                 </div>
                             </div>
-                            <div style="text-align:right;color:var(--text-muted);font-size:.76rem;white-space:nowrap">
-                                <button type="button" class="operation-link-btn" style="color:var(--text-muted);font-size:.76rem;font-weight:700" onclick="filtrarOperacao('operador', '${encodeURIComponent(a.operador_nome || 'Operador')}')"><i class="ri-whatsapp-line"></i> ${escapeHtml(a.operador_nome || 'Operador')}</button><br>
+                            <div style="text-align:right;color:var(--text-muted);font-size:.76rem;white-space:nowrap;display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+                                <button type="button" class="operation-link-btn" style="color:var(--text-muted);font-size:.76rem;font-weight:700" onclick="filtrarOperacao('operador', '${encodeURIComponent(a.operador_nome || 'Operador')}')"><i class="ri-user-3-line"></i> ${escapeHtml(a.operador_nome || 'Operador')}</button>
                                 <span>${escapeHtml(a.origem || 'whatsapp')}</span>
+                                <button type="button" class="op-chat-badge" title="Conversar com o operador" onclick="abrirChatOperacao('${String(a.id || '')}')">
+                                    <i class="ri-whatsapp-line"></i> Conversar
+                                </button>
                             </div>
                         </div>
                     </div>
                 `;
             }).join('');
+        }
+
+        const _OP_CHAT_TEMPLATES = [
+            { id: 'contexto', label: 'Pedir contexto', texto: 'Oi {nome}! Recebi seu chamado sobre {tema} em {cidade}. Pode me passar mais detalhes e telefone da liderança envolvida?' },
+            { id: 'agendar', label: 'Propor reunião', texto: 'Oi {nome}! Quero agendar uma reunião do deputado para tratar {tema} em {cidade}. Qual a melhor data e horário? Posso propor algo pra próxima semana.' },
+            { id: 'confirmar', label: 'Confirmar agenda', texto: 'Oi {nome}! Fechamos a agenda: o deputado estará em {cidade} no dia [DIA] às [HORA] para tratar {tema}. Confirma pra mim?' },
+            { id: 'retorno', label: 'Dar retorno', texto: 'Oi {nome}! Passando pra atualizar o chamado sobre {tema} em {cidade}: o gabinete já está trabalhando. Assim que tiver posição te retorno.' },
+            { id: 'urgente', label: 'Marcar urgência', texto: 'Oi {nome}! Estou tratando o chamado de {tema} em {cidade} como prioritário. Preciso que me envie hoje: (1) contatos das lideranças, (2) fotos do local, (3) telefone de quem pode receber o deputado.' },
+        ];
+
+        function _buscarAtualizacaoCache(id) {
+            const alvo = String(id || '');
+            return _operacaoAtualizacoesCache.find(a => String(a.id || '') === alvo) || null;
+        }
+
+        function abrirChatOperacao(atualizacaoId) {
+            const atualizacao = _buscarAtualizacaoCache(atualizacaoId);
+            if (!atualizacao) {
+                alert('Não consegui localizar os dados do chamado. Recarregue a página.');
+                return;
+            }
+            _opChatAtualAtual = atualizacao;
+
+            const nome = atualizacao.operador_nome || 'Operador';
+            const cidade = atualizacao.cidade || 'Cidade não informada';
+            const tema = atualizacao.tema_principal || (Array.isArray(atualizacao.temas_detectados) && atualizacao.temas_detectados[0]) || 'atualização';
+            const resumo = atualizacao.resumo || atualizacao.mensagem_original || '';
+            const proximaAcao = atualizacao.proxima_acao || '';
+
+            document.getElementById('op-chat-nome').textContent = nome;
+            document.getElementById('op-chat-sub').innerHTML = '<i class="ri-map-pin-2-line"></i> ' + escapeHtml(cidade) + ' · <span style="color:#fbbf24">' + escapeHtml(tema) + '</span>';
+            document.getElementById('op-chat-context').innerHTML =
+                '<div><strong>Chamado original:</strong> ' + escapeHtml(resumo.length > 260 ? resumo.slice(0, 260) + '…' : resumo) + '</div>' +
+                (proximaAcao ? '<div style="margin-top:6px"><strong>Próxima ação:</strong> ' + escapeHtml(proximaAcao) + '</div>' : '');
+
+            const jidMasc = _mascararJidFront(atualizacao.operador_jid || '');
+            const destEl = document.getElementById('op-chat-dest-mask');
+            const warnEl = document.getElementById('op-chat-warning');
+            if (jidMasc) {
+                destEl.textContent = jidMasc;
+                warnEl.style.display = 'none';
+                document.getElementById('op-chat-send-btn').disabled = false;
+            } else {
+                destEl.textContent = '—';
+                warnEl.style.display = 'inline';
+                document.getElementById('op-chat-send-btn').disabled = true;
+            }
+
+            const tplEl = document.getElementById('op-chat-templates');
+            tplEl.innerHTML = _OP_CHAT_TEMPLATES.map(t =>
+                '<button type="button" class="op-chat-template" onclick="aplicarTemplateChat(\'' + t.id + '\')">' + escapeHtml(t.label) + '</button>'
+            ).join('');
+
+            document.getElementById('op-chat-mensagem').value = '';
+            document.getElementById('op-chat-history-wrap').classList.add('hidden');
+            document.getElementById('op-chat-history').innerHTML = '';
+            document.getElementById('op-chat-overlay').classList.remove('hidden');
+
+            carregarHistoricoChat(atualizacao.id);
+            setTimeout(() => document.getElementById('op-chat-mensagem').focus(), 80);
+        }
+
+        function fecharChatOperacao() {
+            document.getElementById('op-chat-overlay').classList.add('hidden');
+            _opChatAtualAtual = null;
+        }
+
+        function aplicarTemplateChat(templateId) {
+            const tpl = _OP_CHAT_TEMPLATES.find(t => t.id === templateId);
+            if (!tpl || !_opChatAtualAtual) return;
+            const primeiroNome = String(_opChatAtualAtual.operador_nome || 'operador').split(' ')[0];
+            const texto = tpl.texto
+                .replace(/\{nome\}/g, primeiroNome)
+                .replace(/\{cidade\}/g, _opChatAtualAtual.cidade || 'sua cidade')
+                .replace(/\{tema\}/g, _opChatAtualAtual.tema_principal || 'o chamado');
+            const area = document.getElementById('op-chat-mensagem');
+            area.value = texto;
+            area.focus();
+        }
+
+        function _mascararJidFront(jid) {
+            const digitos = String(jid || '').replace(/\D/g, '');
+            if (!digitos || digitos.length < 8) return '';
+            return digitos.slice(0, 4) + '***' + digitos.slice(-2);
+        }
+
+        async function carregarHistoricoChat(atualizacaoId) {
+            if (!atualizacaoId) return;
+            try {
+                const res = await fetch('/api/operacao-local/mensagens?atualizacao_id=' + encodeURIComponent(atualizacaoId));
+                if (!res.ok) return;
+                const json = await res.json();
+                const mensagens = Array.isArray(json.data) ? json.data : [];
+                if (!mensagens.length) return;
+                renderHistoricoChat(mensagens);
+            } catch (e) {
+                console.warn('Não foi possível carregar histórico do chat:', e);
+            }
+        }
+
+        function renderHistoricoChat(mensagens) {
+            const wrap = document.getElementById('op-chat-history-wrap');
+            const el = document.getElementById('op-chat-history');
+            const ordenadas = mensagens.slice().sort((a, b) => new Date(a.enviada_em || 0) - new Date(b.enviada_em || 0));
+            el.innerHTML = ordenadas.map(m => {
+                const quando = m.enviada_em ? new Date(m.enviada_em).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
+                return '<div class="op-chat-bubble">' + escapeHtml(m.texto || '') +
+                    '<span class="op-chat-bubble__meta">' + escapeHtml(m.autor || 'gabinete') + ' · ' + escapeHtml(quando) + '</span>' +
+                    '</div>';
+            }).join('');
+            wrap.classList.remove('hidden');
+            el.scrollTop = el.scrollHeight;
+        }
+
+        async function enviarMensagemOperacao() {
+            if (!_opChatAtualAtual) return;
+            const texto = document.getElementById('op-chat-mensagem').value.trim();
+            if (!texto) {
+                alert('Escreva a mensagem antes de enviar.');
+                return;
+            }
+            const btn = document.getElementById('op-chat-send-btn');
+            btn.disabled = true;
+            const labelOriginal = btn.innerHTML;
+            btn.innerHTML = '<i class="ri-loader-4-line"></i> Enviando...';
+            try {
+                const res = await fetch('/api/operacao-local/mensagens', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        atualizacao_id: _opChatAtualAtual.id,
+                        mensagem: texto,
+                    })
+                });
+                const json = await res.json();
+                if (!res.ok) {
+                    const erros = {
+                        whatsapp_nao_configurado: 'Evolution API não está configurada.',
+                        mensagem_obrigatoria: 'Mensagem vazia.',
+                        mensagem_muito_longa: 'Mensagem acima de 4000 caracteres.',
+                        destinatario_invalido: 'Não consegui localizar o telefone do operador.',
+                        falha_ao_enviar: 'Falha ao enviar pelo WhatsApp. Tente novamente.',
+                    };
+                    throw new Error(erros[json.error] || json.error || 'Erro ao enviar');
+                }
+                document.getElementById('op-chat-mensagem').value = '';
+                await carregarHistoricoChat(_opChatAtualAtual.id);
+            } catch (e) {
+                alert('Erro: ' + e.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = labelOriginal;
+            }
         }
 
         async function salvarOperadorCampo() {
@@ -5807,6 +6120,48 @@ https://www.instagram.com/p/YYYYY/"
     <div id="thread-modal-overlay" class="modal-overlay hidden" onclick="if(event.target===this) closeThreadModal()">
         <div class="modal-thread-box" id="thread-modal-body">
             <!-- Populated by openThreadModal() -->
+        </div>
+    </div>
+
+    <!-- Chat Operacao Local -->
+    <div id="op-chat-overlay" class="modal-overlay hidden" onclick="if(event.target===this) fecharChatOperacao()">
+        <div class="modal-thread-box" style="max-width:600px">
+            <div class="thread-header">
+                <div>
+                    <h3 style="margin:0;display:flex;align-items:center;gap:8px;color:#22c55e">
+                        <i class="ri-whatsapp-line"></i> Conversar com <span id="op-chat-nome">Operador</span>
+                    </h3>
+                    <div class="thread-sender" id="op-chat-sub"></div>
+                </div>
+                <button type="button" class="priority-btn" style="padding:6px 10px" onclick="fecharChatOperacao()">
+                    <i class="ri-close-line"></i>
+                </button>
+            </div>
+
+            <div class="op-chat-context" id="op-chat-context"></div>
+
+            <div id="op-chat-history-wrap" class="hidden">
+                <div style="font-size:.72rem;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">Mensagens enviadas</div>
+                <div class="op-chat-history" id="op-chat-history"></div>
+            </div>
+
+            <div style="font-size:.72rem;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">Templates rápidos</div>
+            <div class="op-chat-templates" id="op-chat-templates"></div>
+
+            <textarea id="op-chat-mensagem" class="op-chat-textarea"
+                placeholder="Escreva a mensagem que será enviada ao operador via WhatsApp..."></textarea>
+
+            <div class="op-chat-dest">
+                Destinatário: <strong id="op-chat-dest-mask">—</strong>
+                <span id="op-chat-warning" style="color:#f59e0b;display:none">⚠ Operador sem telefone cadastrado</span>
+            </div>
+
+            <div class="op-chat-actions">
+                <button type="button" class="priority-btn" onclick="fecharChatOperacao()">Cancelar</button>
+                <button type="button" class="op-chat-btn-send" id="op-chat-send-btn" onclick="enviarMensagemOperacao()">
+                    <i class="ri-send-plane-2-line"></i> Enviar WhatsApp
+                </button>
+            </div>
         </div>
     </div>
 
