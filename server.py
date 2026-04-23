@@ -4429,6 +4429,50 @@ def calendar_disconnect():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api/calendar/disponibilidade", methods=["POST"])
+@login_required
+def api_calendar_disponibilidade():
+    """Checa conflitos de agenda no intervalo informado."""
+    if not os.getenv("GOOGLE_CLIENT_ID") or not os.getenv("GOOGLE_CLIENT_SECRET"):
+        return jsonify({"error": "google_oauth_nao_configurado"}), 503
+
+    payload = request.json or {}
+    inicio_raw = (payload.get("inicio") or "").strip()
+    duracao = int(payload.get("duracao_min") or 60)
+    if not inicio_raw or duracao < 5:
+        return jsonify({"error": "parametros_invalidos"}), 400
+
+    try:
+        if inicio_raw.endswith("Z"):
+            inicio = datetime.fromisoformat(inicio_raw.replace("Z", "+00:00"))
+        else:
+            inicio = datetime.fromisoformat(inicio_raw)
+        if inicio.tzinfo is None:
+            inicio = inicio.replace(tzinfo=timezone(timedelta(hours=-3)))
+    except Exception:
+        return jsonify({"error": "inicio_invalido"}), 400
+    fim = inicio + timedelta(minutes=duracao)
+
+    try:
+        from google_calendar import listar_eventos_periodo
+        eventos = listar_eventos_periodo(supabase_admin, _calendar_redirect_uri(), inicio, fim)
+    except RuntimeError as e:
+        if str(e) == "google_calendar_desconectado":
+            return jsonify({"error": "google_calendar_desconectado"}), 401
+        return jsonify({"error": str(e)}), 500
+    except Exception as e:
+        print(f"[calendar] check disponibilidade: {e}")
+        return jsonify({"error": "falha_ao_consultar"}), 502
+
+    conflitos = [e for e in eventos if e.get("transparencia") != "transparent"]
+    return jsonify({
+        "livre": len(conflitos) == 0,
+        "conflitos": conflitos,
+        "inicio": inicio.isoformat(),
+        "fim": fim.isoformat(),
+    })
+
+
 @app.route("/api/operacao-local/agendar", methods=["POST"])
 @login_required
 def api_agendar_reuniao_operacao():

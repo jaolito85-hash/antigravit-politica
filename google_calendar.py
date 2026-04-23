@@ -163,6 +163,49 @@ def desconectar(supabase_admin) -> None:
             pass
 
 
+def listar_eventos_periodo(
+    supabase_admin,
+    redirect_uri: str,
+    inicio: datetime,
+    fim: datetime,
+) -> list:
+    """Retorna eventos da agenda primaria que tocam o intervalo [inicio, fim)."""
+    creds = carregar_credentials(supabase_admin, redirect_uri)
+    if not creds:
+        raise RuntimeError("google_calendar_desconectado")
+
+    service = build("calendar", "v3", credentials=creds, cache_discovery=False)
+    resp = service.events().list(
+        calendarId="primary",
+        timeMin=inicio.isoformat(),
+        timeMax=fim.isoformat(),
+        singleEvents=True,
+        orderBy="startTime",
+        maxResults=10,
+    ).execute()
+    eventos = []
+    for ev in resp.get("items", []):
+        if ev.get("status") == "cancelled":
+            continue
+        # pula eventos onde o usuario recusou
+        self_resp = None
+        for att in ev.get("attendees", []) or []:
+            if att.get("self"):
+                self_resp = att.get("responseStatus")
+                break
+        if self_resp == "declined":
+            continue
+        eventos.append({
+            "id": ev.get("id"),
+            "titulo": ev.get("summary") or "(sem título)",
+            "inicio": ev.get("start", {}).get("dateTime") or ev.get("start", {}).get("date"),
+            "fim": ev.get("end", {}).get("dateTime") or ev.get("end", {}).get("date"),
+            "html_link": ev.get("htmlLink"),
+            "transparencia": ev.get("transparency") or "opaque",  # 'opaque' = ocupado, 'transparent' = livre
+        })
+    return eventos
+
+
 def criar_evento(
     supabase_admin,
     redirect_uri: str,
