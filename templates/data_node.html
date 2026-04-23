@@ -3558,13 +3558,16 @@ https://www.instagram.com/p/YYYYY/"
             document.getElementById('op-chat-agendar-extras').classList.add('hidden');
             document.getElementById('op-chat-titulo').value = 'Reunião em ' + cidade + (tema ? ' — ' + tema : '');
             document.getElementById('op-chat-local').value = cidade + ', MG';
+            document.getElementById('op-chat-convidados').value = (_googleCalStatusCache && _googleCalStatusCache.convidados_padrao || []).join(', ');
             // Padrão: daqui a 3 dias, 10h
             const d = new Date();
             d.setDate(d.getDate() + 3);
             document.getElementById('op-chat-data').value = d.toISOString().slice(0, 10);
             document.getElementById('op-chat-hora').value = '10:00';
             atualizarSendLabel();
-            verificarStatusGoogleCalendar();
+            verificarStatusGoogleCalendar().then(() => {
+                document.getElementById('op-chat-convidados').value = (_googleCalStatusCache && _googleCalStatusCache.convidados_padrao || []).join(', ');
+            });
 
             carregarHistoricoChat(atualizacao.id);
             setTimeout(() => document.getElementById('op-chat-mensagem').focus(), 80);
@@ -3697,6 +3700,7 @@ https://www.instagram.com/p/YYYYY/"
                         duracao_min: parseInt(document.getElementById('op-chat-duracao').value, 10),
                         titulo: document.getElementById('op-chat-titulo').value.trim(),
                         local: document.getElementById('op-chat-local').value.trim(),
+                        convidados: document.getElementById('op-chat-convidados').value.trim(),
                         mensagem_whatsapp: texto,
                     };
                     const res = await fetch('/api/operacao-local/agendar', {
@@ -6311,7 +6315,13 @@ https://www.instagram.com/p/YYYYY/"
                     <input type="text" id="op-chat-titulo" class="filter-input" placeholder="Título do evento"
                         style="width:100%;margin-bottom:8px">
                     <input type="text" id="op-chat-local" class="filter-input" placeholder="Local (ex: Cidade, MG)"
+                        style="width:100%;margin-bottom:8px">
+                    <input type="text" id="op-chat-convidados" class="filter-input"
+                        placeholder="Convidar por email (separe por vírgula)"
                         style="width:100%">
+                    <div style="font-size:.7rem;color:var(--text-muted);margin-top:4px">
+                        Os convidados recebem o convite por email e o evento na agenda deles.
+                    </div>
                 </div>
                 <div id="op-chat-cal-desconectado" class="hidden" style="margin-top:10px;padding:8px 10px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);border-radius:6px;font-size:.78rem;color:#fbbf24">
                     <i class="ri-alarm-warning-line"></i> Google Calendar não conectado.

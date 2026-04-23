@@ -4330,7 +4330,10 @@ def _calendar_redirect_uri() -> str:
 def calendar_status():
     try:
         from google_calendar import status_integracao
-        return jsonify(status_integracao(supabase_admin))
+        status = status_integracao(supabase_admin)
+        convidados_padrao = [e.strip() for e in (os.getenv("GOOGLE_CALENDAR_CONVIDADOS_PADRAO") or "").split(",") if e.strip()]
+        status["convidados_padrao"] = convidados_padrao
+        return jsonify(status)
     except Exception as e:
         print(f"[calendar] status erro: {e}")
         return jsonify({"conectado": False, "erro": str(e)})
@@ -4489,6 +4492,17 @@ def api_agendar_reuniao_operacao():
             descricao_partes.append(f"Próxima ação: {proxima}")
     descricao = "\n\n".join(descricao_partes)[:3000]
 
+    convidados_brutos = data.get("convidados") or ""
+    if isinstance(convidados_brutos, list):
+        convidados_lista = [str(e).strip() for e in convidados_brutos]
+    else:
+        convidados_lista = [e.strip() for e in str(convidados_brutos).split(",")]
+    convidados_padrao = [e.strip() for e in (os.getenv("GOOGLE_CALENDAR_CONVIDADOS_PADRAO") or "").split(",")]
+    convidados_final = []
+    for email in convidados_lista + convidados_padrao:
+        if email and "@" in email and email not in convidados_final:
+            convidados_final.append(email)
+
     try:
         from google_calendar import criar_evento
         evento = criar_evento(
@@ -4499,6 +4513,7 @@ def api_agendar_reuniao_operacao():
             fim=fim,
             descricao=descricao,
             local=local,
+            convidados=convidados_final or None,
         )
     except RuntimeError as e:
         if str(e) == "google_calendar_desconectado":
