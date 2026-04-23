@@ -3578,10 +3578,10 @@ https://www.instagram.com/p/YYYYY/"
         }
 
         function atualizarSendLabel() {
-            const checked = document.getElementById('op-chat-agendar-check').checked;
-            document.getElementById('op-chat-send-label').textContent = checked
-                ? 'Enviar WhatsApp + Agendar'
-                : 'Enviar WhatsApp';
+            const check = document.getElementById('op-chat-agendar-check');
+            const label = document.getElementById('op-chat-send-label');
+            if (!check || !label) return;
+            label.textContent = check.checked ? 'Enviar WhatsApp + Agendar' : 'Enviar WhatsApp';
         }
 
         let _googleCalStatusCache = null;
