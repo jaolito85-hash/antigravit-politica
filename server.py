@@ -1,4 +1,5 @@
 import sys
+import secrets
 sys.stdout.reconfigure(encoding='utf-8')
 sys.stderr.reconfigure(encoding='utf-8')
 
@@ -14,7 +15,7 @@ from flask import Flask, request, jsonify, render_template, send_from_directory,
 from functools import wraps
 import feedparser
 from dotenv import load_dotenv
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from collections import Counter, defaultdict
 from time import time as time_now
 
@@ -4311,6 +4312,229 @@ Retorne APENAS o JSON."""
     except Exception as e:
         print(f"[Pitch] Erro geral: {e}")
         return jsonify({'error': str(e)}), 500
+
+
+# =============================================================================
+# Google Calendar — OAuth + criacao de eventos a partir dos chamados
+# =============================================================================
+
+def _calendar_redirect_uri() -> str:
+    override = os.getenv("GOOGLE_REDIRECT_URI")
+    if override:
+        return override
+    return url_for("calendar_oauth_callback", _external=True)
+
+
+@app.route("/api/calendar/status", methods=["GET"])
+@login_required
+def calendar_status():
+    try:
+        from google_calendar import status_integracao
+        return jsonify(status_integracao(supabase_admin))
+    except Exception as e:
+        print(f"[calendar] status erro: {e}")
+        return jsonify({"conectado": False, "erro": str(e)})
+
+
+@app.route("/api/calendar/oauth/start", methods=["GET"])
+@login_required
+def calendar_oauth_start():
+    try:
+        from google_calendar import build_flow, SCOPES  # noqa
+    except Exception as e:
+        return jsonify({"error": f"dependencia_ausente: {e}"}), 500
+
+    if not os.getenv("GOOGLE_CLIENT_ID") or not os.getenv("GOOGLE_CLIENT_SECRET"):
+        return jsonify({"error": "google_oauth_nao_configurado"}), 503
+
+    state = secrets.token_urlsafe(24)
+    session["google_oauth_state"] = state
+    try:
+        from google_calendar import build_flow
+        flow = build_flow(_calendar_redirect_uri(), state=state)
+        auth_url, _ = flow.authorization_url(
+            access_type="offline",
+            include_granted_scopes="true",
+            prompt="consent",
+        )
+        return redirect(auth_url)
+    except Exception as e:
+        print(f"[calendar] oauth start erro: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/calendar/oauth/callback", methods=["GET"])
+@login_required
+def calendar_oauth_callback():
+    code = request.args.get("code")
+    state_retornado = request.args.get("state")
+    state_esperado = session.pop("google_oauth_state", None)
+    erro = request.args.get("error")
+
+    html_fechamento = """<!doctype html><meta charset="utf-8"><title>Google Calendar</title>
+<style>body{font-family:system-ui;background:#0b1220;color:#e2e8f0;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}
+.card{background:#111827;border:1px solid #1f2937;border-radius:14px;padding:32px;max-width:420px;text-align:center}
+.ok{color:#22c55e}.err{color:#ef4444}</style>
+<div class="card">{corpo}<p style="margin-top:16px;font-size:.82rem;color:#94a3b8">Pode fechar esta janela.</p></div>
+<script>setTimeout(()=>{try{window.opener&&window.opener.postMessage({type:'google-calendar-connected',success:{sucesso}},'*')}catch(e){}window.close()},1500)</script>"""
+
+    if erro:
+        return html_fechamento.replace("{corpo}", f'<h3 class="err">Autorização recusada</h3><p>{erro}</p>').replace("{sucesso}", "false")
+    if not code or not state_retornado or state_retornado != state_esperado:
+        return html_fechamento.replace("{corpo}", '<h3 class="err">Falha na autorização</h3><p>State inválido ou ausente.</p>').replace("{sucesso}", "false")
+
+    try:
+        from google_calendar import build_flow, salvar_credentials
+        flow = build_flow(_calendar_redirect_uri(), state=state_retornado)
+        flow.fetch_token(code=code)
+        creds = flow.credentials
+
+        email = ""
+        try:
+            id_token = (creds.id_token or "")
+            if id_token:
+                import base64 as _b64
+                partes = id_token.split(".")
+                if len(partes) >= 2:
+                    payload = partes[1] + "=" * (-len(partes[1]) % 4)
+                    email = json.loads(_b64.urlsafe_b64decode(payload)).get("email", "")
+        except Exception:
+            pass
+
+        salvar_credentials(supabase_admin, creds, email=email)
+        print(f"[calendar] Conta conectada: {email or '(sem id_token)'}")
+        return html_fechamento.replace("{corpo}", '<h3 class="ok">Google Calendar conectado!</h3><p>Token salvo com segurança.</p>').replace("{sucesso}", "true")
+    except Exception as e:
+        print(f"[calendar] callback erro: {e}")
+        return html_fechamento.replace("{corpo}", f'<h3 class="err">Erro ao salvar token</h3><p>{e}</p>').replace("{sucesso}", "false")
+
+
+@app.route("/api/calendar/disconnect", methods=["POST"])
+@login_required
+def calendar_disconnect():
+    try:
+        from google_calendar import desconectar
+        desconectar(supabase_admin)
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/operacao-local/agendar", methods=["POST"])
+@login_required
+def api_agendar_reuniao_operacao():
+    """Cria evento no Google Calendar a partir do contexto de um chamado de campo.
+
+    Payload:
+      - atualizacao_id (int, opcional)
+      - inicio (ISO 8601 com timezone ou naive em America/Sao_Paulo)
+      - duracao_min (int, default 60)
+      - titulo (str, opcional)
+      - local (str, opcional)
+      - descricao (str, opcional)
+      - mensagem_whatsapp (str, opcional — se presente, envia ao operador com link)
+    """
+    if not os.getenv("GOOGLE_CLIENT_ID") or not os.getenv("GOOGLE_CLIENT_SECRET"):
+        return jsonify({"error": "google_oauth_nao_configurado"}), 503
+
+    data = request.json or {}
+    inicio_raw = (data.get("inicio") or "").strip()
+    if not inicio_raw:
+        return jsonify({"error": "inicio_obrigatorio"}), 400
+
+    try:
+        if inicio_raw.endswith("Z"):
+            inicio = datetime.fromisoformat(inicio_raw.replace("Z", "+00:00"))
+        else:
+            inicio = datetime.fromisoformat(inicio_raw)
+        if inicio.tzinfo is None:
+            # assume horario de Sao Paulo
+            inicio = inicio.replace(tzinfo=timezone(timedelta(hours=-3)))
+    except Exception:
+        return jsonify({"error": "inicio_invalido"}), 400
+
+    duracao = int(data.get("duracao_min") or 60)
+    if duracao < 15 or duracao > 480:
+        return jsonify({"error": "duracao_invalida"}), 400
+    fim = inicio + timedelta(minutes=duracao)
+
+    atualizacao = None
+    if data.get("atualizacao_id"):
+        atualizacao = buscar_atualizacao_campo_por_id(data.get("atualizacao_id"))
+
+    cidade = (atualizacao or {}).get("cidade") or data.get("cidade") or ""
+    tema = (atualizacao or {}).get("tema_principal") or data.get("tema") or ""
+    operador_nome = (atualizacao or {}).get("operador_nome") or ""
+
+    titulo_padrao = f"Reunião em {cidade}" + (f" — {tema}" if tema else "")
+    titulo = (data.get("titulo") or titulo_padrao or "Reunião de campo").strip()[:200]
+    local = (data.get("local") or (f"{cidade}, MG" if cidade else "")).strip()[:200]
+
+    descricao_partes = []
+    if data.get("descricao"):
+        descricao_partes.append(data["descricao"].strip())
+    if atualizacao:
+        descricao_partes.append(f"Chamado de campo · Operador: {operador_nome}")
+        resumo = atualizacao.get("resumo") or atualizacao.get("mensagem_original") or ""
+        if resumo:
+            descricao_partes.append(resumo[:600])
+        proxima = atualizacao.get("proxima_acao") or ""
+        if proxima:
+            descricao_partes.append(f"Próxima ação: {proxima}")
+    descricao = "\n\n".join(descricao_partes)[:3000]
+
+    try:
+        from google_calendar import criar_evento
+        evento = criar_evento(
+            supabase_admin,
+            _calendar_redirect_uri(),
+            summary=titulo,
+            inicio=inicio,
+            fim=fim,
+            descricao=descricao,
+            local=local,
+        )
+    except RuntimeError as e:
+        if str(e) == "google_calendar_desconectado":
+            return jsonify({"error": "google_calendar_desconectado"}), 401
+        return jsonify({"error": str(e)}), 500
+    except Exception as e:
+        print(f"[calendar] criar evento erro: {e}")
+        return jsonify({"error": "falha_ao_criar_evento"}), 502
+
+    link_evento = evento.get("html_link") or ""
+    enviou_whatsapp = False
+    mensagem_texto = (data.get("mensagem_whatsapp") or "").strip()
+    if mensagem_texto and atualizacao:
+        destino_raw = atualizacao.get("operador_jid") or ""
+        destino = _jid_para_envio(destino_raw)
+        if destino and len(destino) >= 10 and EVOLUTION_API_URL and EVOLUTION_API_KEY and EVOLUTION_INSTANCE_NAME:
+            corpo = mensagem_texto
+            if link_evento:
+                corpo += f"\n\n📅 Agenda confirmada: {link_evento}"
+            try:
+                send_whatsapp_message(destino, corpo)
+                enviou_whatsapp = True
+                salvar_mensagem_operacao({
+                    "atualizacao_id": atualizacao.get("id"),
+                    "destinatario_jid": destino,
+                    "destinatario_nome": operador_nome or "Operador",
+                    "cidade": cidade,
+                    "direcao": "enviada",
+                    "canal": "whatsapp",
+                    "texto": corpo,
+                    "autor": session.get("user") or "gabinete",
+                    "enviada_em": datetime.utcnow().isoformat(),
+                })
+            except Exception as e:
+                print(f"[calendar] Falha ao enviar WhatsApp com link: {e}")
+
+    print(f"[calendar] Evento criado id={evento.get('id')} cidade={cidade} operador={operador_nome}")
+    return jsonify({
+        "success": True,
+        "evento": evento,
+        "whatsapp_enviado": enviou_whatsapp,
+    }), 201
 
 
 if __name__ == "__main__":

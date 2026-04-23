@@ -3552,8 +3552,74 @@ https://www.instagram.com/p/YYYYY/"
             document.getElementById('op-chat-history').innerHTML = '';
             document.getElementById('op-chat-overlay').classList.remove('hidden');
 
+            // Reset seção agendar
+            document.getElementById('op-chat-agendar-check').checked = false;
+            document.getElementById('op-chat-agendar-body').classList.add('hidden');
+            document.getElementById('op-chat-agendar-extras').classList.add('hidden');
+            document.getElementById('op-chat-titulo').value = 'Reunião em ' + cidade + (tema ? ' — ' + tema : '');
+            document.getElementById('op-chat-local').value = cidade + ', MG';
+            // Padrão: daqui a 3 dias, 10h
+            const d = new Date();
+            d.setDate(d.getDate() + 3);
+            document.getElementById('op-chat-data').value = d.toISOString().slice(0, 10);
+            document.getElementById('op-chat-hora').value = '10:00';
+            atualizarSendLabel();
+            verificarStatusGoogleCalendar();
+
             carregarHistoricoChat(atualizacao.id);
             setTimeout(() => document.getElementById('op-chat-mensagem').focus(), 80);
+        }
+
+        function toggleAgendarSection() {
+            const checked = document.getElementById('op-chat-agendar-check').checked;
+            document.getElementById('op-chat-agendar-body').classList.toggle('hidden', !checked);
+            document.getElementById('op-chat-agendar-extras').classList.toggle('hidden', !checked);
+            atualizarSendLabel();
+        }
+
+        function atualizarSendLabel() {
+            const checked = document.getElementById('op-chat-agendar-check').checked;
+            document.getElementById('op-chat-send-label').textContent = checked
+                ? 'Enviar WhatsApp + Agendar'
+                : 'Enviar WhatsApp';
+        }
+
+        let _googleCalStatusCache = null;
+        async function verificarStatusGoogleCalendar(forcar = false) {
+            const statusEl = document.getElementById('op-chat-cal-status');
+            const desconectadoEl = document.getElementById('op-chat-cal-desconectado');
+            try {
+                if (!_googleCalStatusCache || forcar) {
+                    const res = await fetch('/api/calendar/status');
+                    _googleCalStatusCache = await res.json();
+                }
+                if (_googleCalStatusCache.conectado) {
+                    statusEl.innerHTML = '<span style="color:#22c55e"><i class="ri-check-line"></i> ' + (_googleCalStatusCache.email || 'Conectado') + '</span>';
+                    desconectadoEl.classList.add('hidden');
+                } else {
+                    statusEl.innerHTML = '<span style="color:#f59e0b">Não conectado</span>';
+                    // só mostra aviso se a seção estiver aberta
+                    if (document.getElementById('op-chat-agendar-check').checked) {
+                        desconectadoEl.classList.remove('hidden');
+                    }
+                }
+            } catch (e) {
+                statusEl.textContent = 'Status indisponível';
+            }
+        }
+
+        function conectarGoogleCalendar() {
+            const largura = 520, altura = 640;
+            const left = (screen.width - largura) / 2;
+            const top = (screen.height - altura) / 2;
+            const popup = window.open('/api/calendar/oauth/start', 'gcal', `width=${largura},height=${altura},left=${left},top=${top}`);
+            const handler = (event) => {
+                if (event.data && event.data.type === 'google-calendar-connected') {
+                    window.removeEventListener('message', handler);
+                    setTimeout(() => verificarStatusGoogleCalendar(true), 500);
+                }
+            };
+            window.addEventListener('message', handler);
         }
 
         function fecharChatOperacao() {
@@ -3615,31 +3681,68 @@ https://www.instagram.com/p/YYYYY/"
                 alert('Escreva a mensagem antes de enviar.');
                 return;
             }
+            const agendar = document.getElementById('op-chat-agendar-check').checked;
             const btn = document.getElementById('op-chat-send-btn');
             btn.disabled = true;
             const labelOriginal = btn.innerHTML;
             btn.innerHTML = '<i class="ri-loader-4-line"></i> Enviando...';
             try {
-                const res = await fetch('/api/operacao-local/mensagens', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
+                if (agendar) {
+                    const data = document.getElementById('op-chat-data').value;
+                    const hora = document.getElementById('op-chat-hora').value;
+                    if (!data || !hora) throw new Error('Informe data e hora da reunião.');
+                    const payload = {
                         atualizacao_id: _opChatAtualAtual.id,
-                        mensagem: texto,
-                    })
-                });
-                const json = await res.json();
-                if (!res.ok) {
-                    const erros = {
-                        whatsapp_nao_configurado: 'Evolution API não está configurada.',
-                        mensagem_obrigatoria: 'Mensagem vazia.',
-                        mensagem_muito_longa: 'Mensagem acima de 4000 caracteres.',
-                        destinatario_invalido: 'Não consegui localizar o telefone do operador.',
-                        falha_ao_enviar: 'Falha ao enviar pelo WhatsApp. Tente novamente.',
+                        inicio: data + 'T' + hora + ':00',
+                        duracao_min: parseInt(document.getElementById('op-chat-duracao').value, 10),
+                        titulo: document.getElementById('op-chat-titulo').value.trim(),
+                        local: document.getElementById('op-chat-local').value.trim(),
+                        mensagem_whatsapp: texto,
                     };
-                    throw new Error(erros[json.error] || json.error || 'Erro ao enviar');
+                    const res = await fetch('/api/operacao-local/agendar', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    const json = await res.json();
+                    if (!res.ok) {
+                        const erros = {
+                            google_oauth_nao_configurado: 'Credenciais do Google não configuradas no servidor.',
+                            google_calendar_desconectado: 'Google Calendar desconectado. Clique em "Conectar agora".',
+                            inicio_obrigatorio: 'Informe data/hora de início.',
+                            inicio_invalido: 'Data ou hora em formato inválido.',
+                            duracao_invalida: 'Duração deve estar entre 15 min e 8 horas.',
+                            falha_ao_criar_evento: 'Falha ao criar evento no Google Calendar.',
+                        };
+                        if (json.error === 'google_calendar_desconectado') {
+                            document.getElementById('op-chat-cal-desconectado').classList.remove('hidden');
+                        }
+                        throw new Error(erros[json.error] || json.error || 'Erro ao agendar');
+                    }
+                } else {
+                    const res = await fetch('/api/operacao-local/mensagens', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            atualizacao_id: _opChatAtualAtual.id,
+                            mensagem: texto,
+                        })
+                    });
+                    const json = await res.json();
+                    if (!res.ok) {
+                        const erros = {
+                            whatsapp_nao_configurado: 'Evolution API não está configurada.',
+                            mensagem_obrigatoria: 'Mensagem vazia.',
+                            mensagem_muito_longa: 'Mensagem acima de 4000 caracteres.',
+                            destinatario_invalido: 'Não consegui localizar o telefone do operador.',
+                            falha_ao_enviar: 'Falha ao enviar pelo WhatsApp. Tente novamente.',
+                        };
+                        throw new Error(erros[json.error] || json.error || 'Erro ao enviar');
+                    }
                 }
                 document.getElementById('op-chat-mensagem').value = '';
+                document.getElementById('op-chat-agendar-check').checked = false;
+                toggleAgendarSection();
                 await carregarHistoricoChat(_opChatAtualAtual.id);
             } catch (e) {
                 alert('Erro: ' + e.message);
@@ -6174,10 +6277,52 @@ https://www.instagram.com/p/YYYYY/"
                 <span id="op-chat-warning" style="color:#f59e0b;display:none">⚠ Operador sem telefone cadastrado</span>
             </div>
 
+            <!-- Agendar no Google Calendar -->
+            <div style="margin-top:16px;border:1px solid var(--border);border-radius:10px;padding:12px 14px;background:rgba(66,133,244,0.05)">
+                <label style="display:flex;align-items:center;gap:10px;font-size:.82rem;cursor:pointer">
+                    <input type="checkbox" id="op-chat-agendar-check" onchange="toggleAgendarSection()"
+                        style="width:16px;height:16px;accent-color:#4285f4">
+                    <i class="ri-google-line" style="color:#4285f4"></i>
+                    <strong style="color:#e2e8f0">Travar agenda no Google Calendar</strong>
+                    <span id="op-chat-cal-status" style="margin-left:auto;font-size:.7rem;color:var(--text-muted)">Verificando...</span>
+                </label>
+                <div id="op-chat-agendar-body" class="hidden" style="margin-top:12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px">
+                    <div>
+                        <label style="font-size:.68rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Data</label>
+                        <input type="date" id="op-chat-data" class="filter-input" style="width:100%">
+                    </div>
+                    <div>
+                        <label style="font-size:.68rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Hora</label>
+                        <input type="time" id="op-chat-hora" class="filter-input" style="width:100%" value="10:00">
+                    </div>
+                    <div>
+                        <label style="font-size:.68rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Duração</label>
+                        <select id="op-chat-duracao" class="filter-select" style="width:100%">
+                            <option value="30">30 min</option>
+                            <option value="60" selected>1 hora</option>
+                            <option value="90">1h 30</option>
+                            <option value="120">2 horas</option>
+                            <option value="180">3 horas</option>
+                            <option value="240">4 horas</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="op-chat-agendar-extras" class="hidden" style="margin-top:10px">
+                    <input type="text" id="op-chat-titulo" class="filter-input" placeholder="Título do evento"
+                        style="width:100%;margin-bottom:8px">
+                    <input type="text" id="op-chat-local" class="filter-input" placeholder="Local (ex: Cidade, MG)"
+                        style="width:100%">
+                </div>
+                <div id="op-chat-cal-desconectado" class="hidden" style="margin-top:10px;padding:8px 10px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);border-radius:6px;font-size:.78rem;color:#fbbf24">
+                    <i class="ri-alarm-warning-line"></i> Google Calendar não conectado.
+                    <button type="button" onclick="conectarGoogleCalendar()" style="background:#4285f4;color:#fff;border:none;padding:4px 10px;border-radius:4px;margin-left:6px;cursor:pointer;font-size:.75rem">Conectar agora</button>
+                </div>
+            </div>
+
             <div class="op-chat-actions">
                 <button type="button" class="priority-btn" onclick="fecharChatOperacao()">Cancelar</button>
                 <button type="button" class="op-chat-btn-send" id="op-chat-send-btn" onclick="enviarMensagemOperacao()">
-                    <i class="ri-send-plane-2-line"></i> Enviar WhatsApp
+                    <i class="ri-send-plane-2-line"></i> <span id="op-chat-send-label">Enviar WhatsApp</span>
                 </button>
             </div>
         </div>
