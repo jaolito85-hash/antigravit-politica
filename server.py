@@ -4357,6 +4357,9 @@ def calendar_oauth_start():
             include_granted_scopes="true",
             prompt="consent",
         )
+        # PKCE — precisa do mesmo code_verifier no callback
+        if getattr(flow, "code_verifier", None):
+            session["google_oauth_code_verifier"] = flow.code_verifier
         return redirect(auth_url)
     except Exception as e:
         print(f"[calendar] oauth start erro: {e}")
@@ -4386,6 +4389,9 @@ def calendar_oauth_callback():
     try:
         from google_calendar import build_flow, salvar_credentials
         flow = build_flow(_calendar_redirect_uri(), state=state_retornado)
+        code_verifier = session.pop("google_oauth_code_verifier", None)
+        if code_verifier:
+            flow.code_verifier = code_verifier
         flow.fetch_token(code=code)
         creds = flow.credentials
 
