@@ -234,6 +234,278 @@
             justify-content: center;
         }
 
+        /* Sala de Situação */
+        .situation-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1.45fr) minmax(360px, 0.8fr);
+            gap: 22px;
+            align-items: stretch;
+        }
+
+        .situation-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 22px;
+        }
+
+        .briefing-card {
+            min-height: 260px;
+            background:
+                linear-gradient(135deg, rgba(245, 158, 11, .14), transparent 38%),
+                linear-gradient(160deg, rgba(59, 130, 246, .1), transparent 55%),
+                var(--bg-card);
+            border-left: 4px solid #f59e0b;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .briefing-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            width: fit-content;
+            padding: 7px 11px;
+            border-radius: 999px;
+            background: rgba(245, 158, 11, .14);
+            color: #fbbf24;
+            font-size: .78rem;
+            font-weight: 700;
+            letter-spacing: .02em;
+            text-transform: uppercase;
+        }
+
+        .briefing-title {
+            margin: 18px 0 10px;
+            font-size: clamp(1.6rem, 2.4vw, 2.55rem);
+            line-height: 1.08;
+            letter-spacing: -.04em;
+            color: #fff;
+            max-width: 920px;
+        }
+
+        .briefing-text {
+            color: #cbd5e1;
+            font-size: 1rem;
+            line-height: 1.55;
+            max-width: 850px;
+        }
+
+        .briefing-actions {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        .briefing-action {
+            border: 1px solid rgba(245, 158, 11, .22);
+            background: rgba(6, 8, 14, .45);
+            border-radius: 12px;
+            padding: 13px;
+            min-height: 82px;
+        }
+
+        .briefing-action small {
+            display: block;
+            color: #fbbf24;
+            font-size: .7rem;
+            font-weight: 700;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+        }
+
+        .briefing-action span {
+            color: #f8fafc;
+            font-size: .86rem;
+            line-height: 1.35;
+        }
+
+        .situation-kpis {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            gap: 14px;
+            margin: 22px 0;
+        }
+
+        .situation-kpi {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            min-height: 116px;
+        }
+
+        .situation-kpi label {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            color: var(--text-muted);
+            font-size: .75rem;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        .situation-kpi strong {
+            display: block;
+            color: #fff;
+            font-size: 1.65rem;
+            line-height: 1;
+            letter-spacing: -.03em;
+        }
+
+        .situation-kpi span {
+            display: block;
+            color: #94a3b8;
+            font-size: .76rem;
+            margin-top: 8px;
+            line-height: 1.35;
+        }
+
+        .kpi-danger { border-left: 3px solid #ef4444; }
+        .kpi-warning { border-left: 3px solid #f59e0b; }
+        .kpi-success { border-left: 3px solid #22c55e; }
+        .kpi-info { border-left: 3px solid #3b82f6; }
+
+        .situation-section-title {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .situation-section-title h2,
+        .situation-section-title h3 {
+            margin: 0;
+            color: #fff;
+            font-size: 1rem;
+            letter-spacing: -.01em;
+        }
+
+        .situation-section-title span {
+            color: #94a3b8;
+            font-size: .78rem;
+        }
+
+        .priority-command-list {
+            display: grid;
+            gap: 12px;
+        }
+
+        .priority-command {
+            display: grid;
+            grid-template-columns: 42px minmax(0, 1fr) 130px;
+            gap: 14px;
+            align-items: center;
+            padding: 14px;
+            border: 1px solid #23252e;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, .018);
+        }
+
+        .priority-rank {
+            width: 34px;
+            height: 34px;
+            border-radius: 10px;
+            display: grid;
+            place-items: center;
+            background: rgba(245, 158, 11, .14);
+            color: #fbbf24;
+            font-weight: 800;
+        }
+
+        .priority-command strong {
+            display: block;
+            color: #fff;
+            margin-bottom: 5px;
+        }
+
+        .priority-command p {
+            color: #cbd5e1;
+            font-size: .84rem;
+            line-height: 1.4;
+            margin: 0;
+        }
+
+        .priority-score {
+            text-align: right;
+        }
+
+        .priority-score strong {
+            font-size: 1.3rem;
+            color: #fff;
+        }
+
+        .priority-score span {
+            color: #94a3b8;
+            font-size: .72rem;
+        }
+
+        .risk-list,
+        .opportunity-list,
+        .field-list {
+            display: grid;
+            gap: 11px;
+        }
+
+        .signal-item {
+            padding: 13px;
+            border-radius: 12px;
+            border: 1px solid #23252e;
+            background: rgba(255, 255, 255, .018);
+        }
+
+        .signal-item strong {
+            display: block;
+            color: #fff;
+            font-size: .9rem;
+            margin-bottom: 5px;
+        }
+
+        .signal-item span {
+            color: #aeb8c7;
+            font-size: .8rem;
+            line-height: 1.38;
+        }
+
+        .signal-danger { border-left: 3px solid #ef4444; }
+        .signal-warning { border-left: 3px solid #f59e0b; }
+        .signal-success { border-left: 3px solid #22c55e; }
+        .signal-info { border-left: 3px solid #3b82f6; }
+
+        .situation-bottom {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 22px;
+            margin-top: 22px;
+        }
+
+        @media (max-width: 1280px) {
+            .situation-grid,
+            .situation-bottom {
+                grid-template-columns: 1fr;
+            }
+
+            .situation-kpis {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        @media (max-width: 760px) {
+            .briefing-actions,
+            .situation-kpis,
+            .priority-command {
+                grid-template-columns: 1fr;
+            }
+
+            .priority-score {
+                text-align: left;
+            }
+        }
+
         /* Feedbacks List */
         .feed-list {
             display: grid;
@@ -1902,8 +2174,8 @@
     <div class="main" id="view-dashboard">
         <div class="page-header">
             <div class="page-title">
-                <h1>Painel de Controle</h1>
-                <p>Visão geral do cenário político em tempo real</p>
+                <h1>Sala de Situação</h1>
+                <p>O que exige decisão política hoje</p>
             </div>
             <div class="export-dropdown">
                 <button class="export-btn" onclick="toggleExportMenu('dashboard')">
@@ -1918,83 +2190,85 @@
             </div>
         </div>
 
-        <div class="stats-grid">
-            <div class="stat-card" id="ai-pulse-card" style="border-left: 3px solid var(--accent-primary);">
-                <div class="stat-label">AI Pulse <i class="ri-sparkling-2-fill" style="color:#a855f7"></i></div>
-                <div id="ai-pulse-summary"
-                    style="font-size: 0.85rem; line-height: 1.5; color: #d1d5db; min-height: 40px;">
-                    Carregando análise...
+        <div class="situation-grid">
+            <section class="situation-card briefing-card" id="executive-briefing-card">
+                <div>
+                    <div class="briefing-status" id="briefing-status"><i class="ri-radar-line"></i> Calculando</div>
+                    <h2 class="briefing-title" id="briefing-title">Carregando leitura da campanha...</h2>
+                    <p class="briefing-text" id="briefing-text">Consolidando sinais do WhatsApp, campo, notícias e redes sociais.</p>
                 </div>
-                <div class="stat-sub" id="ai-pulse-updated" style="margin-top: 8px;">Atualizado: --</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">Feedbacks Hoje <i class="ri-pulse-line" style="color:#22c55e"></i></div>
-                <div class="stat-value" id="kpi-today">0</div>
-                <div class="stat-sub">Novos registros</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">Região Mais Ativa <i class="ri-map-pin-2-line text-red"></i></div>
-                <div class="stat-value" id="kpi-region" style="font-size: 1.4rem">--</div>
-                <div class="stat-sub" id="kpi-region-count">0 feedbacks</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">Principal Categoria <i class="ri-price-tag-3-line" style="color:#f59e0b"></i>
+                <div class="briefing-actions" id="briefing-actions"></div>
+            </section>
+
+            <aside class="situation-card">
+                <div class="situation-section-title">
+                    <h3><i class="ri-alarm-warning-line" style="color:#ef4444"></i> Crises nascendo</h3>
+                    <span id="risk-updated">Agora</span>
                 </div>
-                <div class="stat-value" id="kpi-cat" style="font-size: 1.4rem">--</div>
-                <div class="stat-sub" id="kpi-cat-count">0 feedbacks</div>
+                <div class="risk-list" id="risk-list"></div>
+            </aside>
+        </div>
+
+        <div class="situation-kpis">
+            <div class="situation-kpi kpi-danger">
+                <label>Cidades em alerta <i class="ri-map-pin-warning-line"></i></label>
+                <strong id="kpi-alert-cities">0</strong>
+                <span id="kpi-alert-cities-sub">Sem cidades críticas</span>
+            </div>
+            <div class="situation-kpi kpi-warning">
+                <label>Demandas críticas <i class="ri-error-warning-line"></i></label>
+                <strong id="kpi-critical-demands">0</strong>
+                <span id="kpi-critical-demands-sub">Abertas ou urgentes</span>
+            </div>
+            <div class="situation-kpi kpi-info">
+                <label>Narrativa dominante <i class="ri-chat-voice-line"></i></label>
+                <strong id="kpi-main-narrative" style="font-size:1.15rem">--</strong>
+                <span id="kpi-main-narrative-sub">Tema mais sensível</span>
+            </div>
+            <div class="situation-kpi kpi-success">
+                <label>Sentimento líquido <i class="ri-pulse-line"></i></label>
+                <strong id="kpi-net-sentiment">0%</strong>
+                <span id="kpi-net-sentiment-sub">Positivos menos negativos</span>
+            </div>
+            <div class="situation-kpi kpi-warning">
+                <label>Campo sem leitura <i class="ri-team-line"></i></label>
+                <strong id="kpi-field-gap">0</strong>
+                <span id="kpi-field-gap-sub">Cidades sem atualização</span>
             </div>
         </div>
 
-        <!-- ROW 1: Timeline + Sentimentos -->
-        <div class="dash-row">
-            <div class="chart-box">
-                <div class="chart-header"><i class="ri-line-chart-line" style="color:#1a3a6b"></i> Feedbacks por Hora
-                </div>
-                <div class="chart-container-bar">
-                    <canvas id="timelineChart"></canvas>
-                </div>
+        <section class="situation-card">
+            <div class="situation-section-title">
+                <h2><i class="ri-compass-3-line" style="color:#f59e0b"></i> Onde agir hoje</h2>
+                <span>Ranking por risco, base eleitoral e pressão local</span>
             </div>
-            <div class="chart-box">
-                <div class="chart-header"><i class="ri-emotion-line" style="color:#a855f7"></i> Sentimentos</div>
-                <div id="sentiment-bars" style="padding: 20px 0;">
-                    <!-- Populated by JS -->
-                </div>
-            </div>
-        </div>
+            <div class="priority-command-list" id="priority-command-list"></div>
+        </section>
 
-        <!-- ROW 2: Donut + Top Elogios -->
-        <div class="dash-row" style="margin-top: 24px;">
-            <div class="chart-box">
-                <div class="chart-header"><i class="ri-pie-chart-2-fill" style="color:#f59e0b"></i> Categorias</div>
-                <div style="display: flex; align-items: center; gap: 30px; padding: 10px 0;">
-                    <div style="position: relative; width: 180px; height: 180px;">
-                        <canvas id="donutChart"></canvas>
-                        <div id="donut-center"
-                            style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center;">
-                            <div style="font-size: 2rem; font-weight: 700; color: white;" id="donut-total">0</div>
-                            <div style="font-size: 0.75rem; color: #9ca3af;">feedbacks</div>
-                        </div>
-                    </div>
-                    <div id="donut-legend" style="flex: 1; font-size: 0.85rem;"></div>
+        <div class="situation-bottom">
+            <section class="situation-card">
+                <div class="situation-section-title">
+                    <h3><i class="ri-flashlight-line" style="color:#22c55e"></i> Oportunidades</h3>
+                    <span>Conteúdo e agenda</span>
                 </div>
-            </div>
-            <div class="chart-box">
-                <div class="chart-header"><i class="ri-map-pin-2-fill" style="color:#3b82f6"></i> Top Cidades</div>
-                <div id="top-cidades-list" style="display:flex;flex-direction:column;gap:10px;padding:8px 0;">
-                    <p style="color:var(--text-muted);font-size:0.85rem;">Carregando...</p>
-                </div>
-            </div>
-        </div>
+                <div class="opportunity-list" id="opportunity-list"></div>
+            </section>
 
-        <!-- ROW 3: Top Problemas -->
-        <div class="dash-row" style="margin-top: 24px;">
-            <div class="chart-box" style="grid-column: span 2;">
-                <div class="chart-header" style="color:#ef4444"><i class="ri-alert-fill"></i> Top 3 Problemas</div>
-                <div id="top-problems-list"
-                    style="font-size: 0.9rem; color: #d1d5db; display: flex; gap: 20px; flex-wrap: wrap;">
-                    <p style="color:var(--text-muted)">Aguardando dados...</p>
+            <section class="situation-card">
+                <div class="situation-section-title">
+                    <h3><i class="ri-group-line" style="color:#3b82f6"></i> Operação de campo</h3>
+                    <span>Execução</span>
                 </div>
-            </div>
+                <div class="field-list" id="field-list"></div>
+            </section>
+
+            <section class="situation-card">
+                <div class="situation-section-title">
+                    <h3><i class="ri-newspaper-line" style="color:#a855f7"></i> Radar narrativo</h3>
+                    <span>Temas que merecem fala</span>
+                </div>
+                <div class="field-list" id="narrative-list"></div>
+            </section>
         </div>
     </div>
 
@@ -3017,35 +3291,211 @@ https://www.instagram.com/p/YYYYY/"
             if (view === 'simulador') loadSimulador();
         }
 
+        const DASHBOARD_MOCK_EVENTS = [
+            ...Array.from({ length: 32 }, (_, i) => ({ city: 'Vespasiano', region: 'Metropolitana', category: i % 2 ? 'Transporte & Mobilidade' : 'Saúde & Educação', sentiment: 'Negativo', urgency: i % 3 ? 'Urgente' : 'Critico', status: 'aberto' })),
+            ...Array.from({ length: 24 }, (_, i) => ({ city: 'Lagoa Santa', region: 'Metropolitana', category: i % 2 ? 'Saúde & Educação' : 'Infraestrutura & Obras', sentiment: i % 5 ? 'Negativo' : 'Neutro', urgency: i % 4 ? 'Urgente' : 'Critico', status: 'aberto' })),
+            ...Array.from({ length: 19 }, (_, i) => ({ city: 'Itaúna', region: 'Centro-Oeste', category: 'Infraestrutura & Obras', sentiment: i % 4 ? 'Negativo' : 'Neutro', urgency: 'Urgente', status: i % 5 ? 'aberto' : 'resolvido' })),
+            ...Array.from({ length: 16 }, (_, i) => ({ city: 'Pedro Leopoldo', region: 'Metropolitana', category: 'Desenvolvimento Econômico', sentiment: i % 3 ? 'Positivo' : 'Neutro', urgency: 'Neutro', status: 'aberto' })),
+            ...Array.from({ length: 14 }, (_, i) => ({ city: 'Patrocínio', region: 'Alto Paranaíba', category: i % 2 ? 'Meio Ambiente' : 'Propostas & Projetos', sentiment: 'Positivo', urgency: 'Neutro', status: 'aberto' }))
+        ];
+
+        const DASHBOARD_MOCK_PRIORIDADES = [
+            { cidade: 'Vespasiano', score: 88, nivel: 'alta', acao_recomendada: 'Acionar coordenador local e preparar resposta sobre transporte e saúde.', motivos: ['Pressão negativa alta', 'Demandas críticas abertas'] },
+            { cidade: 'Lagoa Santa', score: 81, nivel: 'alta', acao_recomendada: 'Priorizar agenda curta com lideranças e checar filas de atendimento.', motivos: ['Saúde subindo nas reclamações', 'Volume recente relevante'] },
+            { cidade: 'Itaúna', score: 67, nivel: 'media', acao_recomendada: 'Mandar equipe levantar obras citadas e responder com prazo verificável.', motivos: ['Infraestrutura concentrada', 'Chamados abertos'] },
+            { cidade: 'Pedro Leopoldo', score: 54, nivel: 'media', acao_recomendada: 'Aproveitar percepção positiva para conteúdo de prestação de contas.', motivos: ['Sinais positivos', 'Boa pauta para redes'] },
+            { cidade: 'Patrocínio', score: 49, nivel: 'monitorar', acao_recomendada: 'Monitorar elogios e transformar em agenda propositiva.', motivos: ['Oportunidade narrativa', 'Baixa pressão negativa'] }
+        ];
+
+        function contarPorCampo(items, campo) {
+            return items.reduce((acc, item) => {
+                const valor = item[campo] || 'Não informado';
+                acc[valor] = (acc[valor] || 0) + 1;
+                return acc;
+            }, {});
+        }
+
+        function maiorEntrada(obj) {
+            const entries = Object.entries(obj || {});
+            if (!entries.length) return ['Sem dados', 0];
+            return entries.sort((a, b) => b[1] - a[1])[0];
+        }
+
+        function normalizarSentimento(valor) {
+            const s = (valor || '').toLowerCase();
+            if (s.includes('pos')) return 'positivo';
+            if (s.includes('neg') || s.includes('crit')) return 'negativo';
+            return 'neutro';
+        }
+
+        function normalizarUrgencia(valor) {
+            const s = (valor || '').toLowerCase();
+            return s.includes('critic') || s.includes('crít') || s.includes('urgent') || s.includes('alta');
+        }
+
+        function montarAnaliseExecutiva(events, prioridades) {
+            const cityStats = {};
+            events.forEach(e => {
+                const cidade = (e.city || e.cidade || '').trim();
+                if (!cidade) return;
+                if (!cityStats[cidade]) cityStats[cidade] = { total: 0, negativos: 0, positivos: 0, urgentes: 0, abertos: 0, categorias: {} };
+                const grupo = cityStats[cidade];
+                const sentimento = normalizarSentimento(e.sentiment || e.sentimento || e.urgency);
+                grupo.total++;
+                if (sentimento === 'negativo') grupo.negativos++;
+                if (sentimento === 'positivo') grupo.positivos++;
+                if (normalizarUrgencia(e.urgency || e.prioridade)) grupo.urgentes++;
+                if ((e.status || 'aberto').toLowerCase() !== 'resolvido') grupo.abertos++;
+                const categoria = e.category || e.categoria || 'Demanda cidadã';
+                grupo.categorias[categoria] = (grupo.categorias[categoria] || 0) + 1;
+            });
+
+            const categoryCounts = contarPorCampo(events.map(e => ({ category: e.category || e.categoria || 'Demanda cidadã' })), 'category');
+            const [topCategory, topCategoryCount] = maiorEntrada(categoryCounts);
+            const positivos = events.filter(e => normalizarSentimento(e.sentiment || e.sentimento) === 'positivo').length;
+            const negativos = events.filter(e => normalizarSentimento(e.sentiment || e.sentimento || e.urgency) === 'negativo').length;
+            const total = events.length || 1;
+            const net = Math.round(((positivos - negativos) / total) * 100);
+
+            const cidadesOrdenadas = Object.entries(cityStats)
+                .map(([cidade, s]) => ({ cidade, ...s, scoreLocal: s.negativos * 4 + s.urgentes * 5 + s.abertos + s.total }))
+                .sort((a, b) => b.scoreLocal - a.scoreLocal);
+
+            const cidadesAlerta = cidadesOrdenadas.filter(c => c.negativos >= 6 || c.urgentes >= 4).length;
+            const demandasCriticas = cidadesOrdenadas.reduce((sum, c) => sum + c.urgentes, 0);
+            const prioridadeBase = prioridades.length ? prioridades : cidadesOrdenadas.slice(0, 5).map((c, i) => ({
+                cidade: c.cidade,
+                score: Math.max(42, Math.min(96, c.scoreLocal + 35 - i * 5)),
+                nivel: i < 2 ? 'alta' : 'media',
+                acao_recomendada: `Acionar liderança local e responder sobre ${maiorEntrada(c.categorias)[0]}.`,
+                motivos: [`${c.negativos} sinais negativos`, `${c.urgentes} urgências`]
+            }));
+
+            return {
+                total,
+                topCategory,
+                topCategoryCount,
+                net,
+                cidadesOrdenadas,
+                cidadesAlerta,
+                demandasCriticas,
+                prioridadeBase: prioridadeBase.slice(0, 5)
+            };
+        }
+
+        function renderSignalList(id, items) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.innerHTML = items.map(item => `
+                <div class="signal-item ${item.classe || 'signal-info'}">
+                    <strong>${escapeHtml(item.titulo)}</strong>
+                    <span>${escapeHtml(item.texto)}</span>
+                </div>
+            `).join('');
+        }
+
+        function renderSalaSituacao(events, prioridades, meta = {}) {
+            const analise = montarAnaliseExecutiva(events, prioridades);
+            const topCidade = analise.prioridadeBase[0] || {};
+            const status = analise.demandasCriticas >= 25 ? 'Crise localizada' : analise.cidadesAlerta >= 2 ? 'Atenção' : 'Favorável';
+            const statusColor = status === 'Crise localizada' ? '#ef4444' : status === 'Atenção' ? '#f59e0b' : '#22c55e';
+
+            const briefingCard = document.getElementById('executive-briefing-card');
+            const briefingStatus = document.getElementById('briefing-status');
+            if (briefingCard) briefingCard.style.borderLeftColor = statusColor;
+            if (briefingStatus) {
+                briefingStatus.innerHTML = `<i class="ri-radar-line"></i> ${status}`;
+                briefingStatus.style.color = statusColor;
+                briefingStatus.style.background = statusColor + '22';
+            }
+
+            document.getElementById('briefing-title').textContent =
+                `${topCidade.cidade || 'A campanha'} exige foco em ${analise.topCategory}.`;
+            document.getElementById('briefing-text').textContent =
+                `${analise.cidadesAlerta} cidade(s) em alerta, ${analise.demandasCriticas} demanda(s) críticas e sentimento líquido de ${analise.net}%. A prioridade é transformar pressão local em ação visível ainda hoje.`;
+
+            const actions = [
+                ['1. Campo', `Acionar coordenador de ${topCidade.cidade || 'cidade prioritária'} e pedir leitura em até 2 horas.`],
+                ['2. Fala pública', `Preparar resposta curta sobre ${analise.topCategory}.`],
+                ['3. Agenda', 'Definir presença ou ligação nas 3 cidades com maior risco.']
+            ];
+            document.getElementById('briefing-actions').innerHTML = actions.map(a => `
+                <div class="briefing-action"><small>${a[0]}</small><span>${escapeHtml(a[1])}</span></div>
+            `).join('');
+
+            document.getElementById('kpi-alert-cities').textContent = analise.cidadesAlerta;
+            document.getElementById('kpi-alert-cities-sub').textContent = topCidade.cidade ? `Prioridade: ${topCidade.cidade}` : 'Sem prioridade formada';
+            document.getElementById('kpi-critical-demands').textContent = analise.demandasCriticas;
+            document.getElementById('kpi-critical-demands-sub').textContent = `${analise.total} sinais analisados`;
+            document.getElementById('kpi-main-narrative').textContent = analise.topCategory;
+            document.getElementById('kpi-main-narrative-sub').textContent = `${analise.topCategoryCount} menções no recorte`;
+            document.getElementById('kpi-net-sentiment').textContent = `${analise.net}%`;
+            document.getElementById('kpi-net-sentiment-sub').textContent = analise.net < 0 ? 'Ambiente exige contenção' : 'Ambiente permite ofensiva';
+            document.getElementById('kpi-field-gap').textContent = Math.max(0, 8 - analise.cidadesOrdenadas.length);
+            document.getElementById('kpi-field-gap-sub').textContent = 'Cidades sem leitura recente';
+
+            document.getElementById('priority-command-list').innerHTML = analise.prioridadeBase.map((p, i) => {
+                const motivos = Array.isArray(p.motivos) ? p.motivos.join(' • ') : (p.motivo || 'pressão local');
+                return `
+                    <div class="priority-command">
+                        <div class="priority-rank">${i + 1}</div>
+                        <div>
+                            <strong>${escapeHtml(p.cidade || 'Cidade')}</strong>
+                            <p>${escapeHtml(p.acao_recomendada || 'Acionar equipe local e levantar demanda dominante.')} <span style="color:#94a3b8">Motivo: ${escapeHtml(motivos)}.</span></p>
+                        </div>
+                        <div class="priority-score">
+                            <strong>${p.score || 50}/100</strong>
+                            <span>${escapeHtml(p.nivel || 'monitorar')}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            const cidade1 = analise.cidadesOrdenadas[0] || {};
+            const cidade2 = analise.cidadesOrdenadas[1] || {};
+            renderSignalList('risk-list', [
+                { classe: 'signal-danger', titulo: `${cidade1.cidade || 'Cidade crítica'} sob pressão`, texto: `${cidade1.negativos || 0} sinais negativos e ${cidade1.urgentes || 0} urgências abertas.` },
+                { classe: 'signal-warning', titulo: `${analise.topCategory} domina a conversa`, texto: 'Tema precisa de frase pronta, responsável definido e retorno com prazo.' },
+                { classe: 'signal-info', titulo: cidade2.cidade ? `${cidade2.cidade} merece leitura fina` : 'Cruzar sinais de campo', texto: 'Compare WhatsApp, Instagram e notícias antes de agenda pública.' }
+            ]);
+
+            renderSignalList('opportunity-list', [
+                { classe: 'signal-success', titulo: 'Transformar elogios em conteúdo', texto: 'Cidades com saldo positivo devem receber prestação de contas e corte curto para redes.' },
+                { classe: 'signal-info', titulo: 'Explorar pauta propositiva', texto: `${analise.topCategory} pode virar promessa objetiva com prazo, local e responsável.` },
+                { classe: 'signal-success', titulo: 'Reforçar base favorável', texto: 'Onde a pressão é baixa, usar agenda leve para consolidar apoiadores.' }
+            ]);
+
+            renderSignalList('field-list', [
+                { classe: 'signal-warning', titulo: 'Cobrar atualização de campo', texto: `${Math.max(0, 8 - analise.cidadesOrdenadas.length)} cidade(s) precisam de leitura dos coordenadores.` },
+                { classe: 'signal-info', titulo: 'Distribuir responsáveis', texto: 'Cada cidade do top 5 precisa ter dono, prazo e retorno registrado.' },
+                { classe: 'signal-danger', titulo: 'Fechar demandas críticas', texto: 'Demandas urgentes sem resposta devem virar tarefa antes do próximo briefing.' }
+            ]);
+
+            renderSignalList('narrative-list', [
+                { classe: 'signal-warning', titulo: 'Narrativa defensiva', texto: `Responder ${analise.topCategory} com empatia e providência concreta.` },
+                { classe: 'signal-success', titulo: 'Narrativa ofensiva', texto: 'Mostrar entrega, presença local e escuta ativa nos territórios favoráveis.' },
+                { classe: 'signal-info', titulo: 'Pergunta para o deputado', texto: `“O que podemos resolver em ${topCidade.cidade || 'uma cidade prioritária'} ainda nesta semana?”` }
+            ]);
+
+            const updated = document.getElementById('risk-updated');
+            if (updated) updated.textContent = meta.fallback ? 'Prévia local' : 'Agora';
+        }
+
         // Fetch Logic
         async function loadData() {
-            const [evRes, cfgRes] = await Promise.all([fetch('/api/events?limit=5500'), fetch('/api/config')]);
-            const evResult = await evRes.json();
-            const events = Array.isArray(evResult) ? evResult : (evResult.data || []);
-            const evTotal = evResult.total || events.length;
-            const config = await cfgRes.json();
-
-            document.getElementById('kpi-today').innerText = evTotal;
-
-            const regCount = {};
-            events.forEach(e => {
-                if (e.region && e.region !== 'N/A') {
-                    regCount[e.region] = (regCount[e.region] || 0) + 1;
-                }
-            });
-            const topReg = Object.keys(regCount).length ? Object.keys(regCount).reduce((a, b) => regCount[a] > regCount[b] ? a : b) : "Nenhuma";
-            document.getElementById('kpi-region').innerText = topReg;
-            document.getElementById('kpi-region-count').innerText = (regCount[topReg] || 0) + " feedbacks";
-
-            const catCount = {};
-            events.forEach(e => catCount[e.category] = (catCount[e.category] || 0) + 1);
-            const topCat = Object.keys(catCount).length ? Object.keys(catCount).reduce((a, b) => catCount[a] > catCount[b] ? a : b) : "N/A";
-            document.getElementById('kpi-cat').innerText = topCat;
-            document.getElementById('kpi-cat-count').innerText = (catCount[topCat] || 0) + " feedbacks";
-
-            renderCharts(events, config.categories);
-            renderTopCidades(events);
-            loadAiPulse();
+            try {
+                const [evRes, prioRes] = await Promise.all([
+                    fetch('/api/events?limit=5500'),
+                    fetch('/api/prioridades-semana?limit=5')
+                ]);
+                const evResult = await evRes.json();
+                const events = Array.isArray(evResult) ? evResult : (evResult.data || []);
+                const prioData = await prioRes.json();
+                const prioridades = Array.isArray(prioData.prioridades) ? prioData.prioridades : [];
+                renderSalaSituacao(events.length ? events : DASHBOARD_MOCK_EVENTS, prioridades.length ? prioridades : DASHBOARD_MOCK_PRIORIDADES);
+            } catch (e) {
+                renderSalaSituacao(DASHBOARD_MOCK_EVENTS, DASHBOARD_MOCK_PRIORIDADES, { fallback: true });
+            }
         }
 
         async function loadAiPulse() {
@@ -4632,6 +5082,7 @@ https://www.instagram.com/p/YYYYY/"
         }
 
         async function loadTopInsights() {
+            if (!document.getElementById('top-problems-list')) return;
             try {
                 const res = await fetch('/api/analytics/top');
                 const data = await res.json();
