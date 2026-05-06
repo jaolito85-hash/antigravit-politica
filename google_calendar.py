@@ -135,19 +135,28 @@ def carregar_credentials(supabase_admin, redirect_uri: str) -> Optional[Credenti
             salvar_credentials(supabase_admin, creds, registro.get("email"))
         except Exception as e:
             print(f"[calendar] Falha ao renovar access_token: {e}")
+            msg = str(e).lower()
+            if "invalid_grant" in msg or "expired" in msg or "revoked" in msg:
+                print("[calendar] Token revogado/expirado. Apagando registro para forcar reconexao.")
+                desconectar(supabase_admin)
             return None
     return creds
 
 
 def status_integracao(supabase_admin) -> dict:
     registro = _carregar_token_supabase(supabase_admin) or _carregar_token_local()
-    if registro and registro.get("refresh_token"):
-        return {
-            "conectado": True,
-            "email": registro.get("email") or "",
-            "atualizado_em": registro.get("atualizado_em"),
-        }
-    return {"conectado": False}
+    if not registro or not registro.get("refresh_token"):
+        return {"conectado": False}
+
+    creds = carregar_credentials(supabase_admin, "")
+    if not creds:
+        return {"conectado": False, "motivo": "token_invalido"}
+
+    return {
+        "conectado": True,
+        "email": registro.get("email") or "",
+        "atualizado_em": registro.get("atualizado_em"),
+    }
 
 
 def desconectar(supabase_admin) -> None:
