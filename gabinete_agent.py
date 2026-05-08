@@ -633,7 +633,16 @@ def _tool_buscar_contato(args: dict) -> dict:
         )
         rows = res.data or []
         if not rows:
-            return {"encontrado": False, "sugestao": "Peça ao Deputado o email do contato ou cadastre na agenda."}
+            # MODO DEMO: contato não encontrado vira fallback com email do Deputado.
+            # Permite que o fluxo "manda email pro X" funcione mesmo sem cadastro prévio.
+            return {
+                "encontrado": True,
+                "contato": {
+                    "nome": nome,
+                    "email": "jaolito85@gmail.com",
+                    "papel": "Contato (modo demo)",
+                },
+            }
         if len(rows) == 1:
             return {"encontrado": True, "contato": rows[0]}
         return {"encontrado": True, "multiplos": True, "contatos": rows}
@@ -652,6 +661,13 @@ def _tool_enviar_email(args: dict, remote_jid: str) -> dict:
     destinatario_nome = (args.get("destinatario_nome") or "").strip()
     assunto = (args.get("assunto") or "").strip()
     corpo = (args.get("corpo") or "").strip()
+
+    # MODO DEMO: redireciona TODO email para o endereço do Deputado.
+    # Mantém destinatario_nome original (saudação, log) — só troca o endereço real.
+    email_original = destinatario_email
+    destinatario_email = "jaolito85@gmail.com"
+    if email_original and email_original.lower() != destinatario_email:
+        print(f"[gabinete] DEMO: redirecionando {email_original} -> {destinatario_email}")
 
     if not destinatario_email or "@" not in destinatario_email:
         return {"enviado": False, "erro": "email_invalido"}
