@@ -1789,6 +1789,74 @@
             outline-offset: 2px;
         }
 
+        /* Loading bonito da pesquisa de cidade */
+        @keyframes bmSpin {
+            from { transform: rotate(0deg); }
+            to   { transform: rotate(360deg); }
+        }
+        @keyframes bmLoadingPulse {
+            0%, 100% {
+                box-shadow: 0 0 0 0 rgba(96, 165, 250, 0.45);
+                transform: scale(1);
+            }
+            50% {
+                box-shadow: 0 0 0 16px rgba(96, 165, 250, 0);
+                transform: scale(1.04);
+            }
+        }
+        .bm-spin {
+            display: inline-block;
+            animation: bmSpin 1s linear infinite;
+        }
+        .bm-loading {
+            display: flex !important;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+            padding: 64px 24px !important;
+            background: linear-gradient(180deg, rgba(15, 23, 42, 0.6), rgba(15, 23, 42, 0.35));
+            border: 1px solid rgba(96, 165, 250, 0.18);
+            border-radius: 14px;
+            margin: 8px 0 20px;
+            color: #f1f5f9 !important;
+        }
+        .bm-loading-icon {
+            font-size: 38px;
+            color: #60a5fa;
+            background: rgba(96, 165, 250, 0.12);
+            width: 76px;
+            height: 76px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            animation: bmLoadingPulse 1.6s ease-in-out infinite;
+        }
+        .bm-loading-title {
+            margin: 0;
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: #f8fafc;
+            letter-spacing: -0.2px;
+            text-align: center;
+        }
+        .bm-loading-title strong {
+            color: #93c5fd;
+            font-weight: 800;
+        }
+        .bm-loading-text {
+            margin: 0;
+            font-size: 0.9rem;
+            color: #cbd5e1;
+            text-align: center;
+            line-height: 1.55;
+            max-width: 460px;
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .bm-spin, .bm-loading-icon { animation: none !important; }
+        }
+
         /* Grid de detalhes da cidade (Tá na Mídia · Voz do Povo · IBGE) */
         .bm-detalhes-grid {
             display: grid;
@@ -6512,11 +6580,16 @@ https://www.instagram.com/p/YYYYY/"
 
             const btn = document.getElementById('btn-pesquisar-mg');
             btn.disabled = true;
-            btn.innerHTML = '<i class="ri-loader-4-line"></i> Pesquisando...';
-            document.getElementById('radar-mg-empty').style.display = 'block';
-            document.getElementById('radar-mg-empty').innerHTML =
-                '<i class="ri-loader-4-line" style="font-size:48px;opacity:.3;display:block;margin-bottom:12px"></i>' +
-                '<p>Coletando dados sobre ' + cidade + '... isso pode levar alguns minutos.</p>';
+            btn.innerHTML = '<i class="ri-loader-4-line bm-spin"></i> Pesquisando…';
+            const emptyEl = document.getElementById('radar-mg-empty');
+            emptyEl.style.display = 'block';
+            emptyEl.classList.add('bm-loading');
+            emptyEl.innerHTML =
+                '<i class="ri-radar-line bm-loading-icon"></i>' +
+                '<h3 class="bm-loading-title">Analisando <strong>' + escapeHtml(cidade) + '</strong></h3>' +
+                '<p class="bm-loading-text">Cruzando notícias, redes sociais e voz do povo. Leva alguns segundos.</p>';
+            const wrapper = document.getElementById('bm-wrapper');
+            if (wrapper) wrapper.style.display = 'none';
             document.getElementById('radar-mg-resultado').style.display = 'none';
 
             try {
@@ -6558,7 +6631,9 @@ https://www.instagram.com/p/YYYYY/"
         }
 
         function renderRadarMg(data) {
-            document.getElementById('radar-mg-empty').style.display = 'none';
+            const emptyEl = document.getElementById('radar-mg-empty');
+            emptyEl.style.display = 'none';
+            emptyEl.classList.remove('bm-loading');
             const resultado = document.getElementById('radar-mg-resultado');
             resultado.style.display = 'block';
             // Esconde o mapa enquanto os detalhes estao abertos (usuario volta com "Voltar ao mapa")
