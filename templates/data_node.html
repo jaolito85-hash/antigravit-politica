@@ -2569,7 +2569,7 @@
                     placeholder="Contexto: candidato, adversário ou pauta"
                     class="filter-input"
                     style="width:100%;padding:12px 14px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:#fff;border-radius:8px"
-                    value="Nikolas Ferreira">
+                    value="Candidato A">
                 <textarea id="coleta-urls" placeholder="Cole URLs dos posts do Instagram, uma por linha:
 https://www.instagram.com/p/XXXXX/
 https://www.instagram.com/p/YYYYY/"
@@ -2961,7 +2961,7 @@ https://www.instagram.com/p/YYYYY/"
             <div class="page-title">
                 <h1><i class="ri-bar-chart-grouped-line" style="color:#1a3a6b"></i> Mapa Eleitoral — <span
                         id="me-region-title">Vale do Rio Doce</span></h1>
-                <p>Potencial eleitoral para Deputado Estadual | Aliança Nikolas + Bruno + Chester</p>
+                <p>Potencial eleitoral para Deputado Estadual | Aliança Candidato A + Candidato B + Chester</p>
             </div>
             <select id="me-region-select" class="filter-select" onchange="switchMapaRegion(this.value)"
                 style="min-width:220px;font-size:0.9rem;padding:10px 14px;background:var(--bg-card);border:1px solid var(--accent-primary);color:var(--text-main);border-radius:8px;font-weight:600">
@@ -2985,23 +2985,20 @@ https://www.instagram.com/p/YYYYY/"
                 </div>
                 <h2 id="me-banner-title" style="font-size:1.5rem;margin-bottom:6px;color:#fff">O Vale do Rio Doce
                     precisa de um Deputado Estadual aliado</h2>
-                <p id="me-banner-desc" style="color:#94a3b8;font-size:0.9rem;max-width:700px;line-height:1.5">Nikolas
-                    Ferreira e Bruno
-                    Engler já dominam a região. Chester Nunes é o candidato ideal para canalizar esses votos para a
-                    Assembleia Legislativa.</p>
+                <p id="me-banner-desc" style="color:#94a3b8;font-size:0.9rem;max-width:700px;line-height:1.5">Candidato A e Candidato B já dominam a região. Chester Nunes é o candidato ideal para canalizar esses votos para a Assembleia Legislativa.</p>
             </div>
         </div>
 
         <!-- Stats Cards -->
         <div class="stats-grid" id="me-stats" style="margin-bottom:24px">
             <div class="stat-card" style="border-left:3px solid #3b82f6">
-                <div class="stat-label">Votos Nikolas <span style="color:#3b82f6">Dep. Federal</span></div>
-                <div class="stat-value" id="me-total-nikolas" style="color:#3b82f6">—</div>
+                <div class="stat-label">Votos Candidato A <span style="color:#3b82f6">Dep. Federal</span></div>
+                <div class="stat-value" id="me-total-candidato-a" style="color:#3b82f6">—</div>
                 <div class="stat-sub">na região do Vale</div>
             </div>
             <div class="stat-card" style="border-left:3px solid #8b5cf6">
-                <div class="stat-label">Votos Bruno <span style="color:#8b5cf6">Dep. Estadual</span></div>
-                <div class="stat-value" id="me-total-engler" style="color:#8b5cf6">—</div>
+                <div class="stat-label">Votos Candidato B <span style="color:#8b5cf6">Dep. Estadual</span></div>
+                <div class="stat-value" id="me-total-candidato-b" style="color:#8b5cf6">—</div>
                 <div class="stat-sub">na região do Vale</div>
             </div>
             <div class="stat-card" style="border-left:3px solid #f59e0b">
@@ -3039,10 +3036,10 @@ https://www.instagram.com/p/YYYYY/"
             <div class="chart-header" style="margin-bottom:16px">
                 <i class="ri-trophy-fill" style="color:#f59e0b"></i> Ranking de Cidades — Top 20
                 <div style="margin-left:auto;display:flex;gap:8px">
-                    <button id="btn-sort-nikolas" onclick="sortMapaTable('nikolas')" class="export-btn"
-                        style="font-size:11px;padding:5px 12px;background:#3b82f6">Nikolas</button>
-                    <button id="btn-sort-engler" onclick="sortMapaTable('engler')" class="export-btn"
-                        style="font-size:11px;padding:5px 12px;background:#8b5cf6">Bruno</button>
+                    <button id="btn-sort-candidato-a" onclick="sortMapaTable('candidato_a')" class="export-btn"
+                        style="font-size:11px;padding:5px 12px;background:#3b82f6">Candidato A</button>
+                    <button id="btn-sort-candidato-b" onclick="sortMapaTable('candidato_b')" class="export-btn"
+                        style="font-size:11px;padding:5px 12px;background:#8b5cf6">Candidato B</button>
                     <button id="btn-sort-total" onclick="sortMapaTable('total')" class="export-btn"
                         style="font-size:11px;padding:5px 12px;background:#f59e0b">Combinado</button>
                 </div>
@@ -3053,8 +3050,8 @@ https://www.instagram.com/p/YYYYY/"
                         <th>#</th>
                         <th>Cidade</th>
                         <th>Polo</th>
-                        <th style="text-align:right;color:#3b82f6">Nikolas</th>
-                        <th style="text-align:right;color:#8b5cf6">Bruno</th>
+                        <th style="text-align:right;color:#3b82f6">Candidato A</th>
+                        <th style="text-align:right;color:#8b5cf6">Candidato B</th>
                         <th style="text-align:right;color:#f59e0b">Total</th>
                         <th style="width:200px">Proporção</th>
                     </tr>
@@ -3094,8 +3091,7 @@ https://www.instagram.com/p/YYYYY/"
                     <span
                         style="background:#f59e0b;color:#000;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;letter-spacing:.5px">SIMULADOR</span>
                     <span style="color:#94a3b8;font-size:13px">Se Chester capturar <strong id="sim-pct-label"
-                            style="color:#f59e0b;font-size:16px">40%</strong> da base eleitoral de Nikolas +
-                        Bruno...</span>
+                            style="color:#f59e0b;font-size:16px">40%</strong> da base eleitoral de Candidato A + Candidato B...</span>
                 </div>
                 <div style="display:flex;align-items:center;gap:16px">
                     <span style="color:#64748b;font-size:12px;font-weight:600">30%</span>
@@ -6083,16 +6079,16 @@ https://www.instagram.com/p/YYYYY/"
             'rio-doce': {
                 title: 'Vale do Rio Doce',
                 bannerTitle: 'O Vale do Rio Doce precisa de um Deputado Estadual aliado',
-                bannerDesc: 'Nikolas Ferreira e Bruno Engler já dominam a região. Chester Nunes é o candidato ideal para canalizar esses votos para a Assembleia Legislativa.'
+                bannerDesc: 'Candidato A e Candidato B já dominam a região. Chester Nunes é o candidato ideal para canalizar esses votos para a Assembleia Legislativa.'
             },
             'jequitinhonha': {
                 title: 'Vale do Jequitinhonha',
                 bannerTitle: 'O Jequitinhonha é território fértil para a aliança PL',
-                bannerDesc: 'Com quase 20 mil votos do Nikolas e mais de 6 mil do Bruno, o Vale do Jequitinhonha representa uma base eleitoral estratégica para Chester Nunes.'
+                bannerDesc: 'Com quase 20 mil votos do Candidato A e mais de 6 mil do Candidato B, o Vale do Jequitinhonha representa uma base eleitoral estratégica para Chester Nunes.'
             },
             'mucuri': {
                 title: 'Vale do Mucuri',
-                bannerTitle: 'Teófilo Otoni e região — domínio absoluto de Nikolas',
+                bannerTitle: 'Teófilo Otoni e região — domínio absoluto do Candidato A',
                 bannerDesc: 'Com quase 7 mil votos só em Teófilo Otoni, o Vale do Mucuri é território consolidado. Chester Nunes pode herdar essa força na disputa estadual.'
             }
         };
@@ -6130,41 +6126,41 @@ https://www.instagram.com/p/YYYYY/"
 
             polos.forEach(polo => {
                 polo.cidades.forEach(c => {
-                    totalNik += c.nikolas;
-                    totalEng += c.engler;
+                    totalNik += c.candidato_a;
+                    totalEng += c.candidato_b;
                     totalCidades++;
                     allCities.push({ ...c, polo: polo.nome });
                 });
             });
 
             // Stats
-            document.getElementById('me-total-nikolas').textContent = totalNik.toLocaleString('pt-BR');
-            document.getElementById('me-total-engler').textContent = totalEng.toLocaleString('pt-BR');
+            document.getElementById('me-total-candidato-a').textContent = totalNik.toLocaleString('pt-BR');
+            document.getElementById('me-total-candidato-b').textContent = totalEng.toLocaleString('pt-BR');
             document.getElementById('me-total-combinado').textContent = (totalNik + totalEng).toLocaleString('pt-BR');
             document.getElementById('me-total-cidades').textContent = totalCidades;
 
             // Region bars — redesign premium
             const regDiv = document.getElementById('me-regions-chart');
-            const maxPoloTotal = Math.max(...polos.map(p => p.cidades.reduce((s, c) => s + c.nikolas + c.engler, 0)));
-            const maxNik = Math.max(...polos.map(p => p.cidades.reduce((s, c) => s + c.nikolas, 0)));
-            const maxEng = Math.max(...polos.map(p => p.cidades.reduce((s, c) => s + c.engler, 0)));
+            const maxPoloTotal = Math.max(...polos.map(p => p.cidades.reduce((s, c) => s + c.candidato_a + c.candidato_b, 0)));
+            const maxNik = Math.max(...polos.map(p => p.cidades.reduce((s, c) => s + c.candidato_a, 0)));
+            const maxEng = Math.max(...polos.map(p => p.cidades.reduce((s, c) => s + c.candidato_b, 0)));
 
             // Legenda global
             const legendHtml = `
                 <div style="display:flex;gap:20px;margin-bottom:20px;padding-bottom:14px;border-bottom:1px solid rgba(255,255,255,0.07);">
                     <span style="display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:600;color:#93c5fd;">
                         <span style="display:inline-block;width:28px;height:4px;border-radius:2px;background:linear-gradient(90deg,#1d4ed8,#3b82f6);"></span>
-                        Nikolas Ferreira
+                        Candidato A
                     </span>
                     <span style="display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:600;color:#c4b5fd;">
                         <span style="display:inline-block;width:28px;height:4px;border-radius:2px;background:linear-gradient(90deg,#5b21b6,#8b5cf6);"></span>
-                        Bruno Engler
+                        Candidato B
                     </span>
                 </div>`;
 
             regDiv.innerHTML = legendHtml + polos.map((polo, idx) => {
-                const pNik = polo.cidades.reduce((s, c) => s + c.nikolas, 0);
-                const pEng = polo.cidades.reduce((s, c) => s + c.engler, 0);
+                const pNik = polo.cidades.reduce((s, c) => s + c.candidato_a, 0);
+                const pEng = polo.cidades.reduce((s, c) => s + c.candidato_b, 0);
                 const pTotal = pNik + pEng;
                 const nikPct = Math.max(2, (pNik / maxNik * 92)).toFixed(1);
                 const engPct = Math.max(2, (pEng / maxEng * 92)).toFixed(1);
@@ -6186,7 +6182,7 @@ https://www.instagram.com/p/YYYYY/"
                         </span>
                     </div>
 
-                    <!-- Barra Nikolas -->
+                    <!-- Barra Candidato A -->
                     <div style="display:flex;align-items:center;gap:10px;margin-bottom:7px;">
                         <div style="flex:1;height:9px;border-radius:5px;background:rgba(255,255,255,0.05);overflow:hidden;">
                             <div style="height:100%;width:${nikPct}%;background:linear-gradient(90deg,#1d4ed8,#60a5fa);border-radius:5px;transition:width 0.6s cubic-bezier(.23,1,.32,1);"></div>
@@ -6194,7 +6190,7 @@ https://www.instagram.com/p/YYYYY/"
                         <span style="min-width:60px;text-align:right;font-size:12px;font-weight:700;color:#93c5fd;font-variant-numeric:tabular-nums;">${pNik.toLocaleString('pt-BR')}</span>
                     </div>
 
-                    <!-- Barra Engler -->
+                    <!-- Barra Candidato B -->
                     <div style="display:flex;align-items:center;gap:10px;">
                         <div style="flex:1;height:9px;border-radius:5px;background:rgba(255,255,255,0.05);overflow:hidden;">
                             <div style="height:100%;width:${engPct}%;background:linear-gradient(90deg,#5b21b6,#a78bfa);border-radius:5px;transition:width 0.6s cubic-bezier(.23,1,.32,1);animation-delay:${animDelay + 80}ms;"></div>
@@ -6208,7 +6204,7 @@ https://www.instagram.com/p/YYYYY/"
             // Donut
             const donutColors = ['#3b82f6', '#8b5cf6', '#f59e0b', '#22c55e', '#ef4444', '#06b6d4', '#ec4899'];
             const poloLabels = polos.map(p => p.nome);
-            const poloTotals = polos.map(p => p.cidades.reduce((s, c) => s + c.nikolas + c.engler, 0));
+            const poloTotals = polos.map(p => p.cidades.reduce((s, c) => s + c.candidato_a + c.candidato_b, 0));
             const ctx = document.getElementById('me-donut-chart');
             if (_meDonutChart) _meDonutChart.destroy();
             _meDonutChart = new Chart(ctx, {
@@ -6229,23 +6225,23 @@ https://www.instagram.com/p/YYYYY/"
 
         function renderMapaTable(cities) {
             const sorted = [...cities].sort((a, b) => {
-                if (_meSortField === 'nikolas') return b.nikolas - a.nikolas;
-                if (_meSortField === 'engler') return b.engler - a.engler;
-                return (b.nikolas + b.engler) - (a.nikolas + a.engler);
+                if (_meSortField === 'candidato_a') return b.candidato_a - a.candidato_a;
+                if (_meSortField === 'candidato_b') return b.candidato_b - a.candidato_b;
+                return (b.candidato_a + b.candidato_b) - (a.candidato_a + a.candidato_b);
             });
             const top = sorted.slice(0, 20);
-            const maxTotal = top[0] ? (top[0].nikolas + top[0].engler) : 1;
+            const maxTotal = top[0] ? (top[0].candidato_a + top[0].candidato_b) : 1;
             const tbody = document.getElementById('me-ranking-body');
             tbody.innerHTML = top.map((c, i) => {
-                const total = c.nikolas + c.engler;
-                const nikPct = (c.nikolas / total * 100).toFixed(0);
+                const total = c.candidato_a + c.candidato_b;
+                const nikPct = (c.candidato_a / total * 100).toFixed(0);
                 const engPct = 100 - nikPct;
                 return `<tr>
                     <td style="font-weight:700;color:${i < 3 ? '#f59e0b' : 'var(--text-muted)'}">${i < 3 ? ['🥇', '🥈', '🥉'][i] : i + 1}</td>
                     <td style="font-weight:600">${c.cidade}</td>
                     <td style="color:var(--text-muted);font-size:12px">${c.polo}</td>
-                    <td style="text-align:right;color:#3b82f6;font-weight:600">${c.nikolas.toLocaleString('pt-BR')}</td>
-                    <td style="text-align:right;color:#8b5cf6;font-weight:600">${c.engler.toLocaleString('pt-BR')}</td>
+                    <td style="text-align:right;color:#3b82f6;font-weight:600">${c.candidato_a.toLocaleString('pt-BR')}</td>
+                    <td style="text-align:right;color:#8b5cf6;font-weight:600">${c.candidato_b.toLocaleString('pt-BR')}</td>
                     <td style="text-align:right;color:#f59e0b;font-weight:700">${total.toLocaleString('pt-BR')}</td>
                     <td><div style="display:flex;height:14px;border-radius:4px;overflow:hidden;background:rgba(255,255,255,0.03)">
                         <div style="width:${nikPct}%;background:#3b82f6"></div>
@@ -6263,16 +6259,16 @@ https://www.instagram.com/p/YYYYY/"
                 data.polos.forEach(p => p.cidades.forEach(c => allCities.push({ ...c, polo: p.nome })));
                 renderMapaTable(allCities);
             }
-            document.getElementById('btn-sort-nikolas').style.opacity = field === 'nikolas' ? '1' : '0.5';
-            document.getElementById('btn-sort-engler').style.opacity = field === 'engler' ? '1' : '0.5';
+            document.getElementById('btn-sort-candidato-a').style.opacity = field === 'candidato_a' ? '1' : '0.5';
+            document.getElementById('btn-sort-candidato-b').style.opacity = field === 'candidato_b' ? '1' : '0.5';
             document.getElementById('btn-sort-total').style.opacity = field === 'total' ? '1' : '0.5';
         }
 
         function renderAllRegions(polos) {
             const container = document.getElementById('me-all-regions');
             container.innerHTML = polos.map(polo => {
-                const sorted = [...polo.cidades].sort((a, b) => (b.nikolas + b.engler) - (a.nikolas + a.engler));
-                const poloTotal = sorted.reduce((s, c) => s + c.nikolas + c.engler, 0);
+                const sorted = [...polo.cidades].sort((a, b) => (b.candidato_a + b.candidato_b) - (a.candidato_a + a.candidato_b));
+                const poloTotal = sorted.reduce((s, c) => s + c.candidato_a + c.candidato_b, 0);
                 return `<details style="margin-bottom:12px;border:1px solid var(--border);border-radius:10px;overflow:hidden" class="me-region-detail">
                     <summary style="padding:14px 18px;cursor:pointer;display:flex;align-items:center;gap:10px;background:var(--bg-hover);font-weight:600;font-size:13px">
                         <i class="ri-map-pin-2-fill" style="color:#1a3a6b"></i>
@@ -6281,12 +6277,12 @@ https://www.instagram.com/p/YYYYY/"
                     </summary>
                     <div style="padding:8px 12px">
                         <table class="radar-table" style="font-size:12px">
-                            <thead><tr><th>Cidade</th><th style="text-align:right;color:#3b82f6">Nikolas</th><th style="text-align:right;color:#8b5cf6">Bruno</th><th style="text-align:right;color:#f59e0b">Total</th></tr></thead>
+                            <thead><tr><th>Cidade</th><th style="text-align:right;color:#3b82f6">Candidato A</th><th style="text-align:right;color:#8b5cf6">Candidato B</th><th style="text-align:right;color:#f59e0b">Total</th></tr></thead>
                             <tbody>${sorted.map(c => `<tr class="me-city-row" data-city="${c.cidade.toLowerCase()}">
                                 <td>${c.cidade}</td>
-                                <td style="text-align:right;color:#3b82f6">${c.nikolas.toLocaleString('pt-BR')}</td>
-                                <td style="text-align:right;color:#8b5cf6">${c.engler.toLocaleString('pt-BR')}</td>
-                                <td style="text-align:right;color:#f59e0b;font-weight:600">${(c.nikolas + c.engler).toLocaleString('pt-BR')}</td>
+                                <td style="text-align:right;color:#3b82f6">${c.candidato_a.toLocaleString('pt-BR')}</td>
+                                <td style="text-align:right;color:#8b5cf6">${c.candidato_b.toLocaleString('pt-BR')}</td>
+                                <td style="text-align:right;color:#f59e0b;font-weight:600">${(c.candidato_a + c.candidato_b).toLocaleString('pt-BR')}</td>
                             </tr>`).join('')}</tbody>
                         </table>
                     </div>
@@ -6340,9 +6336,9 @@ https://www.instagram.com/p/YYYYY/"
                         polo.cidades.forEach(c => {
                             _simAllCities.push({
                                 cidade: c.cidade,
-                                nikolas: c.nikolas,
-                                engler: c.engler,
-                                total: c.nikolas + c.engler,
+                                candidato_a: c.candidato_a,
+                                candidato_b: c.candidato_b,
+                                total: c.candidato_a + c.candidato_b,
                                 polo: polo.nome,
                                 regiao: regionLabel,
                                 key: (c.cidade + '_' + polo.nome).toLowerCase().replace(/\s/g, '_')

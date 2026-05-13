@@ -2,14 +2,14 @@
     "eleicao": "2022",
     "regiao": "Vale do Rio Doce e Entorno",
     "candidatos": {
-        "nikolas": {
-            "nome": "Nikolas Ferreira",
+        "candidato_a": {
+            "nome": "Candidato A",
             "partido": "PL",
             "cargo": "Deputado Federal",
             "total_mg": 1492047
         },
-        "engler": {
-            "nome": "Bruno Engler",
+        "candidato_b": {
+            "nome": "Candidato B",
             "partido": "PL",
             "cargo": "Deputado Estadual",
             "total_mg": 635000
@@ -21,28 +21,28 @@
             "cidades": [
                 {
                     "cidade": "Ipatinga",
-                    "nikolas": 22904,
-                    "engler": 7641
+                    "candidato_a": 22904,
+                    "candidato_b": 7641
                 },
                 {
                     "cidade": "Santana do Paraíso",
-                    "nikolas": 2701,
-                    "engler": 1008
+                    "candidato_a": 2701,
+                    "candidato_b": 1008
                 },
                 {
                     "cidade": "Coronel Fabriciano",
-                    "nikolas": 8016,
-                    "engler": 1908
+                    "candidato_a": 8016,
+                    "candidato_b": 1908
                 },
                 {
                     "cidade": "Timóteo",
-                    "nikolas": 8192,
-                    "engler": 2618
+                    "candidato_a": 8192,
+                    "candidato_b": 2618
                 },
                 {
                     "cidade": "Jaguaraçu",
-                    "nikolas": 248,
-                    "engler": 110
+                    "candidato_a": 248,
+                    "candidato_b": 110
                 }
             ]
         },
@@ -51,18 +51,18 @@
             "cidades": [
                 {
                     "cidade": "Santa Bárbara do Leste",
-                    "nikolas": 262,
-                    "engler": 331
+                    "candidato_a": 262,
+                    "candidato_b": 331
                 },
                 {
                     "cidade": "Santa Rita de Minas",
-                    "nikolas": 907,
-                    "engler": 366
+                    "candidato_a": 907,
+                    "candidato_b": 366
                 },
                 {
                     "cidade": "Caratinga",
-                    "nikolas": 7885,
-                    "engler": 3220
+                    "candidato_a": 7885,
+                    "candidato_b": 3220
                 }
             ]
         },
@@ -71,18 +71,18 @@
             "cidades": [
                 {
                     "cidade": "Piedade de Caratinga",
-                    "nikolas": 836,
-                    "engler": 422
+                    "candidato_a": 836,
+                    "candidato_b": 422
                 },
                 {
                     "cidade": "Ubaporanga",
-                    "nikolas": 941,
-                    "engler": 374
+                    "candidato_a": 941,
+                    "candidato_b": 374
                 },
                 {
                     "cidade": "Imbé de Minas",
-                    "nikolas": 368,
-                    "engler": 177
+                    "candidato_a": 368,
+                    "candidato_b": 177
                 }
             ]
         },
@@ -91,18 +91,18 @@
             "cidades": [
                 {
                     "cidade": "São Sebastião do Anta",
-                    "nikolas": 352,
-                    "engler": 162
+                    "candidato_a": 352,
+                    "candidato_b": 162
                 },
                 {
                     "cidade": "São Domingos das Dores",
-                    "nikolas": 324,
-                    "engler": 122
+                    "candidato_a": 324,
+                    "candidato_b": 122
                 },
                 {
                     "cidade": "Inhapim",
-                    "nikolas": 1777,
-                    "engler": 931
+                    "candidato_a": 1777,
+                    "candidato_b": 931
                 }
             ]
         },
@@ -111,23 +111,23 @@
             "cidades": [
                 {
                     "cidade": "São João do Oriente",
-                    "nikolas": 561,
-                    "engler": 275
+                    "candidato_a": 561,
+                    "candidato_b": 275
                 },
                 {
                     "cidade": "Iapu",
-                    "nikolas": 625,
-                    "engler": 260
+                    "candidato_a": 625,
+                    "candidato_b": 260
                 },
                 {
                     "cidade": "Bugre",
-                    "nikolas": 237,
-                    "engler": 92
+                    "candidato_a": 237,
+                    "candidato_b": 92
                 },
                 {
                     "cidade": "Ipaba",
-                    "nikolas": 1231,
-                    "engler": 277
+                    "candidato_a": 1231,
+                    "candidato_b": 277
                 }
             ]
         },
@@ -136,28 +136,28 @@
             "cidades": [
                 {
                     "cidade": "Fernandes Tourinho",
-                    "nikolas": 193,
-                    "engler": 39
+                    "candidato_a": 193,
+                    "candidato_b": 39
                 },
                 {
                     "cidade": "Sobrália",
-                    "nikolas": 219,
-                    "engler": 87
+                    "candidato_a": 219,
+                    "candidato_b": 87
                 },
                 {
                     "cidade": "Engenheiro Caldas",
-                    "nikolas": 316,
-                    "engler": 78
+                    "candidato_a": 316,
+                    "candidato_b": 78
                 },
                 {
                     "cidade": "Tarumirim",
-                    "nikolas": 548,
-                    "engler": 194
+                    "candidato_a": 548,
+                    "candidato_b": 194
                 },
                 {
                     "cidade": "Dom Cavati",
-                    "nikolas": 203,
-                    "engler": 119
+                    "candidato_a": 203,
+                    "candidato_b": 119
                 }
             ]
         },
@@ -166,23 +166,23 @@
             "cidades": [
                 {
                     "cidade": "São Pedro dos Ferros",
-                    "nikolas": 285,
-                    "engler": 82
+                    "candidato_a": 285,
+                    "candidato_b": 82
                 },
                 {
                     "cidade": "Raul Soares",
-                    "nikolas": 1243,
-                    "engler": 358
+                    "candidato_a": 1243,
+                    "candidato_b": 358
                 },
                 {
                     "cidade": "Vermelho Novo",
-                    "nikolas": 128,
-                    "engler": 37
+                    "candidato_a": 128,
+                    "candidato_b": 37
                 },
                 {
                     "cidade": "Bom Jesus do Galho",
-                    "nikolas": 563,
-                    "engler": 184
+                    "candidato_a": 563,
+                    "candidato_b": 184
                 }
             ]
         },
@@ -191,23 +191,23 @@
             "cidades": [
                 {
                     "cidade": "Pingo d'Água",
-                    "nikolas": 222,
-                    "engler": 63
+                    "candidato_a": 222,
+                    "candidato_b": 63
                 },
                 {
                     "cidade": "Córrego Novo",
-                    "nikolas": 192,
-                    "engler": 73
+                    "candidato_a": 192,
+                    "candidato_b": 73
                 },
                 {
                     "cidade": "Entre Folhas",
-                    "nikolas": 535,
-                    "engler": 286
+                    "candidato_a": 535,
+                    "candidato_b": 286
                 },
                 {
                     "cidade": "Vargem Alegre",
-                    "nikolas": 173,
-                    "engler": 173
+                    "candidato_a": 173,
+                    "candidato_b": 173
                 }
             ]
         },
@@ -216,23 +216,23 @@
             "cidades": [
                 {
                     "cidade": "Antônio Dias",
-                    "nikolas": 478,
-                    "engler": 161
+                    "candidato_a": 478,
+                    "candidato_b": 161
                 },
                 {
                     "cidade": "Itabira",
-                    "nikolas": 9542,
-                    "engler": 2814
+                    "candidato_a": 9542,
+                    "candidato_b": 2814
                 },
                 {
                     "cidade": "Nova Era",
-                    "nikolas": 1124,
-                    "engler": 382
+                    "candidato_a": 1124,
+                    "candidato_b": 382
                 },
                 {
                     "cidade": "São Domingos do Prata",
-                    "nikolas": 718,
-                    "engler": 228
+                    "candidato_a": 718,
+                    "candidato_b": 228
                 }
             ]
         },
@@ -241,23 +241,23 @@
             "cidades": [
                 {
                     "cidade": "Rio Piracicaba",
-                    "nikolas": 628,
-                    "engler": 198
+                    "candidato_a": 628,
+                    "candidato_b": 198
                 },
                 {
                     "cidade": "São Gonçalo do Rio Abaixo",
-                    "nikolas": 317,
-                    "engler": 98
+                    "candidato_a": 317,
+                    "candidato_b": 98
                 },
                 {
                     "cidade": "João Monlevade",
-                    "nikolas": 6834,
-                    "engler": 2138
+                    "candidato_a": 6834,
+                    "candidato_b": 2138
                 },
                 {
                     "cidade": "Bela Vista de Minas",
-                    "nikolas": 325,
-                    "engler": 108
+                    "candidato_a": 325,
+                    "candidato_b": 108
                 }
             ]
         },
@@ -266,13 +266,13 @@
             "cidades": [
                 {
                     "cidade": "São José do Goiabal",
-                    "nikolas": 218,
-                    "engler": 70
+                    "candidato_a": 218,
+                    "candidato_b": 70
                 },
                 {
                     "cidade": "Dionísio",
-                    "nikolas": 198,
-                    "engler": 66
+                    "candidato_a": 198,
+                    "candidato_b": 66
                 }
             ]
         },
@@ -281,18 +281,18 @@
             "cidades": [
                 {
                     "cidade": "Braúnas",
-                    "nikolas": 217,
-                    "engler": 114
+                    "candidato_a": 217,
+                    "candidato_b": 114
                 },
                 {
                     "cidade": "Joanésia",
-                    "nikolas": 295,
-                    "engler": 112
+                    "candidato_a": 295,
+                    "candidato_b": 112
                 },
                 {
                     "cidade": "Mesquita",
-                    "nikolas": 307,
-                    "engler": 116
+                    "candidato_a": 307,
+                    "candidato_b": 116
                 }
             ]
         },
@@ -301,23 +301,23 @@
             "cidades": [
                 {
                     "cidade": "Açucena",
-                    "nikolas": 398,
-                    "engler": 90
+                    "candidato_a": 398,
+                    "candidato_b": 90
                 },
                 {
                     "cidade": "Belo Oriente",
-                    "nikolas": 2113,
-                    "engler": 568
+                    "candidato_a": 2113,
+                    "candidato_b": 568
                 },
                 {
                     "cidade": "Periquito",
-                    "nikolas": 235,
-                    "engler": 72
+                    "candidato_a": 235,
+                    "candidato_b": 72
                 },
                 {
                     "cidade": "Naque",
-                    "nikolas": 361,
-                    "engler": 101
+                    "candidato_a": 361,
+                    "candidato_b": 101
                 }
             ]
         },
@@ -326,18 +326,18 @@
             "cidades": [
                 {
                     "cidade": "Alpercata",
-                    "nikolas": 440,
-                    "engler": 146
+                    "candidato_a": 440,
+                    "candidato_b": 146
                 },
                 {
                     "cidade": "Itanhomi",
-                    "nikolas": 460,
-                    "engler": 135
+                    "candidato_a": 460,
+                    "candidato_b": 135
                 },
                 {
                     "cidade": "Governador Valadares",
-                    "nikolas": 25447,
-                    "engler": 4452
+                    "candidato_a": 25447,
+                    "candidato_b": 4452
                 }
             ]
         },
@@ -346,48 +346,48 @@
             "cidades": [
                 {
                     "cidade": "Belo Horizonte",
-                    "nikolas": 118543,
-                    "engler": 41822
+                    "candidato_a": 118543,
+                    "candidato_b": 41822
                 },
                 {
                     "cidade": "Caeté",
-                    "nikolas": 2147,
-                    "engler": 689
+                    "candidato_a": 2147,
+                    "candidato_b": 689
                 },
                 {
                     "cidade": "Contagem",
-                    "nikolas": 37916,
-                    "engler": 12480
+                    "candidato_a": 37916,
+                    "candidato_b": 12480
                 },
                 {
                     "cidade": "Santa Luzia",
-                    "nikolas": 10523,
-                    "engler": 3218
+                    "candidato_a": 10523,
+                    "candidato_b": 3218
                 },
                 {
                     "cidade": "Betim",
-                    "nikolas": 22834,
-                    "engler": 7512
+                    "candidato_a": 22834,
+                    "candidato_b": 7512
                 },
                 {
                     "cidade": "Nova Lima",
-                    "nikolas": 8214,
-                    "engler": 2936
+                    "candidato_a": 8214,
+                    "candidato_b": 2936
                 },
                 {
                     "cidade": "Sabará",
-                    "nikolas": 6812,
-                    "engler": 2204
+                    "candidato_a": 6812,
+                    "candidato_b": 2204
                 },
                 {
                     "cidade": "Vespasiano",
-                    "nikolas": 6534,
-                    "engler": 2118
+                    "candidato_a": 6534,
+                    "candidato_b": 2118
                 },
                 {
                     "cidade": "Lagoa Santa",
-                    "nikolas": 4823,
-                    "engler": 1657
+                    "candidato_a": 4823,
+                    "candidato_b": 1657
                 }
             ]
         }

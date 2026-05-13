@@ -2,13 +2,13 @@
     "eleicao": "2022",
     "regiao": "Vale do Jequitinhonha",
     "candidatos": {
-        "nikolas": {
-            "nome": "Nikolas Ferreira",
+        "candidato_a": {
+            "nome": "Candidato A",
             "partido": "PL",
             "cargo": "Deputado Federal"
         },
-        "engler": {
-            "nome": "Bruno Engler",
+        "candidato_b": {
+            "nome": "Candidato B",
             "partido": "PL",
             "cargo": "Deputado Estadual"
         }
@@ -19,118 +19,118 @@
             "cidades": [
                 {
                     "cidade": "Itamarandiba",
-                    "nikolas": 1831,
-                    "engler": 429
+                    "candidato_a": 1831,
+                    "candidato_b": 429
                 },
                 {
                     "cidade": "Capelinha",
-                    "nikolas": 1718,
-                    "engler": 587
+                    "candidato_a": 1718,
+                    "candidato_b": 587
                 },
                 {
                     "cidade": "Diamantina",
-                    "nikolas": 1452,
-                    "engler": 656
+                    "candidato_a": 1452,
+                    "candidato_b": 656
                 },
                 {
                     "cidade": "Turmalina",
-                    "nikolas": 754,
-                    "engler": 339
+                    "candidato_a": 754,
+                    "candidato_b": 339
                 },
                 {
                     "cidade": "Minas Novas",
-                    "nikolas": 466,
-                    "engler": 200
+                    "candidato_a": 466,
+                    "candidato_b": 200
                 },
                 {
                     "cidade": "Gouveia",
-                    "nikolas": 406,
-                    "engler": 185
+                    "candidato_a": 406,
+                    "candidato_b": 185
                 },
                 {
                     "cidade": "Rio Vermelho",
-                    "nikolas": 258,
-                    "engler": 80
+                    "candidato_a": 258,
+                    "candidato_b": 80
                 },
                 {
                     "cidade": "Angelândia",
-                    "nikolas": 256,
-                    "engler": 47
+                    "candidato_a": 256,
+                    "candidato_b": 47
                 },
                 {
                     "cidade": "Aricanduva",
-                    "nikolas": 173,
-                    "engler": 52
+                    "candidato_a": 173,
+                    "candidato_b": 52
                 },
                 {
                     "cidade": "Coluna",
-                    "nikolas": 171,
-                    "engler": 65
+                    "candidato_a": 171,
+                    "candidato_b": 65
                 },
                 {
                     "cidade": "Veredinha",
-                    "nikolas": 168,
-                    "engler": 74
+                    "candidato_a": 168,
+                    "candidato_b": 74
                 },
                 {
                     "cidade": "Felício dos Santos",
-                    "nikolas": 163,
-                    "engler": 51
+                    "candidato_a": 163,
+                    "candidato_b": 51
                 },
                 {
                     "cidade": "Carbonita",
-                    "nikolas": 147,
-                    "engler": 33
+                    "candidato_a": 147,
+                    "candidato_b": 33
                 },
                 {
                     "cidade": "Datas",
-                    "nikolas": 142,
-                    "engler": 75
+                    "candidato_a": 142,
+                    "candidato_b": 75
                 },
                 {
                     "cidade": "Chapada do Norte",
-                    "nikolas": 122,
-                    "engler": 53
+                    "candidato_a": 122,
+                    "candidato_b": 53
                 },
                 {
                     "cidade": "Presidente Kubitschek",
-                    "nikolas": 94,
-                    "engler": 53
+                    "candidato_a": 94,
+                    "candidato_b": 53
                 },
                 {
                     "cidade": "Senador Modestino Gonçalves",
-                    "nikolas": 91,
-                    "engler": 34
+                    "candidato_a": 91,
+                    "candidato_b": 34
                 },
                 {
                     "cidade": "Berilo",
-                    "nikolas": 84,
-                    "engler": 49
+                    "candidato_a": 84,
+                    "candidato_b": 49
                 },
                 {
                     "cidade": "Couto de Magalhães de Minas",
-                    "nikolas": 83,
-                    "engler": 39
+                    "candidato_a": 83,
+                    "candidato_b": 39
                 },
                 {
                     "cidade": "Francisco Badaró",
-                    "nikolas": 74,
-                    "engler": 38
+                    "candidato_a": 74,
+                    "candidato_b": 38
                 },
                 {
                     "cidade": "São Gonçalo do Rio Preto",
-                    "nikolas": 64,
-                    "engler": 38
+                    "candidato_a": 64,
+                    "candidato_b": 38
                 },
                 {
                     "cidade": "José Gonçalves de Minas",
-                    "nikolas": 60,
-                    "engler": 10
+                    "candidato_a": 60,
+                    "candidato_b": 10
                 },
                 {
                     "cidade": "Leme do Prado",
-                    "nikolas": 53,
-                    "engler": 32
+                    "candidato_a": 53,
+                    "candidato_b": 32
                 }
             ]
         },
@@ -139,163 +139,163 @@
             "cidades": [
                 {
                     "cidade": "Taiobeiras",
-                    "nikolas": 1421,
-                    "engler": 40
+                    "candidato_a": 1421,
+                    "candidato_b": 40
                 },
                 {
                     "cidade": "Almenara",
-                    "nikolas": 1368,
-                    "engler": 446
+                    "candidato_a": 1368,
+                    "candidato_b": 446
                 },
                 {
                     "cidade": "Araçuaí",
-                    "nikolas": 760,
-                    "engler": 552
+                    "candidato_a": 760,
+                    "candidato_b": 552
                 },
                 {
                     "cidade": "Pedra Azul",
-                    "nikolas": 657,
-                    "engler": 162
+                    "candidato_a": 657,
+                    "candidato_b": 162
                 },
                 {
                     "cidade": "Itaobim",
-                    "nikolas": 614,
-                    "engler": 210
+                    "candidato_a": 614,
+                    "candidato_b": 210
                 },
                 {
                     "cidade": "Novo Cruzeiro",
-                    "nikolas": 564,
-                    "engler": 173
+                    "candidato_a": 564,
+                    "candidato_b": 173
                 },
                 {
                     "cidade": "Santo Antônio do Jacinto",
-                    "nikolas": 502,
-                    "engler": 41
+                    "candidato_a": 502,
+                    "candidato_b": 41
                 },
                 {
                     "cidade": "Bandeira",
-                    "nikolas": 483,
-                    "engler": 25
+                    "candidato_a": 483,
+                    "candidato_b": 25
                 },
                 {
                     "cidade": "Jequitinhonha",
-                    "nikolas": 404,
-                    "engler": 112
+                    "candidato_a": 404,
+                    "candidato_b": 112
                 },
                 {
                     "cidade": "Padre Paraíso",
-                    "nikolas": 389,
-                    "engler": 168
+                    "candidato_a": 389,
+                    "candidato_b": 168
                 },
                 {
                     "cidade": "Jordânia",
-                    "nikolas": 377,
-                    "engler": 171
+                    "candidato_a": 377,
+                    "candidato_b": 171
                 },
                 {
                     "cidade": "Medina",
-                    "nikolas": 348,
-                    "engler": 128
+                    "candidato_a": 348,
+                    "candidato_b": 128
                 },
                 {
                     "cidade": "Jacinto",
-                    "nikolas": 342,
-                    "engler": 107
+                    "candidato_a": 342,
+                    "candidato_b": 107
                 },
                 {
                     "cidade": "Mata Verde",
-                    "nikolas": 305,
-                    "engler": 95
+                    "candidato_a": 305,
+                    "candidato_b": 95
                 },
                 {
                     "cidade": "Divisa Alegre",
-                    "nikolas": 220,
-                    "engler": 30
+                    "candidato_a": 220,
+                    "candidato_b": 30
                 },
                 {
                     "cidade": "Itinga",
-                    "nikolas": 219,
-                    "engler": 93
+                    "candidato_a": 219,
+                    "candidato_b": 93
                 },
                 {
                     "cidade": "Ponto dos Volantes",
-                    "nikolas": 216,
-                    "engler": 79
+                    "candidato_a": 216,
+                    "candidato_b": 79
                 },
                 {
                     "cidade": "Rubim",
-                    "nikolas": 208,
-                    "engler": 55
+                    "candidato_a": 208,
+                    "candidato_b": 55
                 },
                 {
                     "cidade": "Joaíma",
-                    "nikolas": 202,
-                    "engler": 101
+                    "candidato_a": 202,
+                    "candidato_b": 101
                 },
                 {
                     "cidade": "Salto da Divisa",
-                    "nikolas": 191,
-                    "engler": 27
+                    "candidato_a": 191,
+                    "candidato_b": 27
                 },
                 {
                     "cidade": "Divisópolis",
-                    "nikolas": 184,
-                    "engler": 50
+                    "candidato_a": 184,
+                    "candidato_b": 50
                 },
                 {
                     "cidade": "São José do Jacuri",
-                    "nikolas": 162,
-                    "engler": 68
+                    "candidato_a": 162,
+                    "candidato_b": 68
                 },
                 {
                     "cidade": "Coronel Murta",
-                    "nikolas": 148,
-                    "engler": 78
+                    "candidato_a": 148,
+                    "candidato_b": 78
                 },
                 {
                     "cidade": "Palmópolis",
-                    "nikolas": 133,
-                    "engler": 36
+                    "candidato_a": 133,
+                    "candidato_b": 36
                 },
                 {
                     "cidade": "Cachoeira de Pajeú",
-                    "nikolas": 125,
-                    "engler": 47
+                    "candidato_a": 125,
+                    "candidato_b": 47
                 },
                 {
                     "cidade": "Monte Formoso",
-                    "nikolas": 121,
-                    "engler": 48
+                    "candidato_a": 121,
+                    "candidato_b": 48
                 },
                 {
                     "cidade": "Felisburgo",
-                    "nikolas": 116,
-                    "engler": 45
+                    "candidato_a": 116,
+                    "candidato_b": 45
                 },
                 {
                     "cidade": "Berizal",
-                    "nikolas": 93,
-                    "engler": 13
+                    "candidato_a": 93,
+                    "candidato_b": 13
                 },
                 {
                     "cidade": "Comercinho",
-                    "nikolas": 81,
-                    "engler": 28
+                    "candidato_a": 81,
+                    "candidato_b": 28
                 },
                 {
                     "cidade": "Fronteira dos Vales",
-                    "nikolas": 81,
-                    "engler": 31
+                    "candidato_a": 81,
+                    "candidato_b": 31
                 },
                 {
                     "cidade": "Virgem da Lapa",
-                    "nikolas": 66,
-                    "engler": 33
+                    "candidato_a": 66,
+                    "candidato_b": 33
                 },
                 {
                     "cidade": "Santa Maria do Salto",
-                    "nikolas": 61,
-                    "engler": 4
+                    "candidato_a": 61,
+                    "candidato_b": 4
                 }
             ]
         }

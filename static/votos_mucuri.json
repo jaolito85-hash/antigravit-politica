@@ -2,13 +2,13 @@
     "eleicao": "2022",
     "regiao": "Vale do Mucuri",
     "candidatos": {
-        "nikolas": {
-            "nome": "Nikolas Ferreira",
+        "candidato_a": {
+            "nome": "Candidato A",
             "partido": "PL",
             "cargo": "Deputado Federal"
         },
-        "engler": {
-            "nome": "Bruno Engler",
+        "candidato_b": {
+            "nome": "Candidato B",
             "partido": "PL",
             "cargo": "Deputado Estadual"
         }
@@ -19,93 +19,93 @@
             "cidades": [
                 {
                     "cidade": "Teófilo Otoni",
-                    "nikolas": 6783,
-                    "engler": 685
+                    "candidato_a": 6783,
+                    "candidato_b": 685
                 },
                 {
                     "cidade": "Águas Formosas",
-                    "nikolas": 1120,
-                    "engler": 125
+                    "candidato_a": 1120,
+                    "candidato_b": 125
                 },
                 {
                     "cidade": "Novo Cruzeiro",
-                    "nikolas": 564,
-                    "engler": 173
+                    "candidato_a": 564,
+                    "candidato_b": 173
                 },
                 {
                     "cidade": "Poté",
-                    "nikolas": 423,
-                    "engler": 130
+                    "candidato_a": 423,
+                    "candidato_b": 130
                 },
                 {
                     "cidade": "Carlos Chagas",
-                    "nikolas": 311,
-                    "engler": 179
+                    "candidato_a": 311,
+                    "candidato_b": 179
                 },
                 {
                     "cidade": "Serra dos Aimorés",
-                    "nikolas": 250,
-                    "engler": 60
+                    "candidato_a": 250,
+                    "candidato_b": 60
                 },
                 {
                     "cidade": "Malacacheta",
-                    "nikolas": 249,
-                    "engler": 69
+                    "candidato_a": 249,
+                    "candidato_b": 69
                 },
                 {
                     "cidade": "Ladainha",
-                    "nikolas": 219,
-                    "engler": 63
+                    "candidato_a": 219,
+                    "candidato_b": 63
                 },
                 {
                     "cidade": "Pavão",
-                    "nikolas": 212,
-                    "engler": 33
+                    "candidato_a": 212,
+                    "candidato_b": 33
                 },
                 {
                     "cidade": "Ouro Verde de Minas",
-                    "nikolas": 179,
-                    "engler": 46
+                    "candidato_a": 179,
+                    "candidato_b": 46
                 },
                 {
                     "cidade": "Setubinha",
-                    "nikolas": 171,
-                    "engler": 51
+                    "candidato_a": 171,
+                    "candidato_b": 51
                 },
                 {
                     "cidade": "Umburatiba",
-                    "nikolas": 140,
-                    "engler": 31
+                    "candidato_a": 140,
+                    "candidato_b": 31
                 },
                 {
                     "cidade": "Crisólita",
-                    "nikolas": 130,
-                    "engler": 24
+                    "candidato_a": 130,
+                    "candidato_b": 24
                 },
                 {
                     "cidade": "Itaipé",
-                    "nikolas": 128,
-                    "engler": 68
+                    "candidato_a": 128,
+                    "candidato_b": 68
                 },
                 {
                     "cidade": "Santa Helena de Minas",
-                    "nikolas": 128,
-                    "engler": 60
+                    "candidato_a": 128,
+                    "candidato_b": 60
                 },
                 {
                     "cidade": "Franciscópolis",
-                    "nikolas": 115,
-                    "engler": 39
+                    "candidato_a": 115,
+                    "candidato_b": 39
                 },
                 {
                     "cidade": "Catuji",
-                    "nikolas": 109,
-                    "engler": 26
+                    "candidato_a": 109,
+                    "candidato_b": 26
                 },
                 {
                     "cidade": "Fronteira dos Vales",
-                    "nikolas": 81,
-                    "engler": 31
+                    "candidato_a": 81,
+                    "candidato_b": 31
                 }
             ]
         },
@@ -114,23 +114,23 @@
             "cidades": [
                 {
                     "cidade": "Nanuque",
-                    "nikolas": 1267,
-                    "engler": 429
+                    "candidato_a": 1267,
+                    "candidato_b": 429
                 },
                 {
                     "cidade": "Ataléia",
-                    "nikolas": 501,
-                    "engler": 71
+                    "candidato_a": 501,
+                    "candidato_b": 71
                 },
                 {
                     "cidade": "Machacalis",
-                    "nikolas": 237,
-                    "engler": 130
+                    "candidato_a": 237,
+                    "candidato_b": 130
                 },
                 {
                     "cidade": "Bertópolis",
-                    "nikolas": 155,
-                    "engler": 98
+                    "candidato_a": 155,
+                    "candidato_b": 98
                 }
             ]
         }

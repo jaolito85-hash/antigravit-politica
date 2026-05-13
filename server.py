@@ -1643,7 +1643,7 @@ def _filtrar_qualidade(comentarios):
 def coletar_dados():
     """
     Recebe URLs de posts do Instagram → scraper Apify → filtra qualidade → IA classifica.
-    Body: { "urls": ["https://instagram.com/p/..."], "contexto": "Nikolas Ferreira" }
+    Body: { "urls": ["https://instagram.com/p/..."], "contexto": "Candidato A" }
     """
     data = request.get_json(force=True) or {}
     urls = data.get("urls", [])
@@ -3414,11 +3414,11 @@ def _carregar_votos_eleitorais():
                     'cidade': nome,
                     'regiao_eleitoral': regiao_nome,
                     'polo': polo.get('nome', ''),
-                    'votos_nikolas': 0,
-                    'votos_engler': 0,
+                    'votos_candidato_a': 0,
+                    'votos_candidato_b': 0,
                 })
-                registro['votos_nikolas'] += int(item.get('nikolas') or 0)
-                registro['votos_engler'] += int(item.get('engler') or 0)
+                registro['votos_candidato_a'] += int(item.get('candidato_a') or 0)
+                registro['votos_candidato_b'] += int(item.get('candidato_b') or 0)
     return cidades
 
 
@@ -3605,11 +3605,11 @@ def api_prioridades_semana():
 
         chaves_candidatas = set(votos_por_cidade) | set(feedbacks_por_cidade) | set(radar_por_cidade) | set(operacao_por_cidade)
         max_base = max([
-            (v.get('votos_nikolas', 0) + v.get('votos_engler', 0))
+            (v.get('votos_candidato_a', 0) + v.get('votos_candidato_b', 0))
             for v in votos_por_cidade.values()
         ] or [1])
         max_gap = max([
-            max((v.get('votos_nikolas', 0) - v.get('votos_engler', 0)), 0)
+            max((v.get('votos_candidato_a', 0) - v.get('votos_candidato_b', 0)), 0)
             for v in votos_por_cidade.values()
         ] or [1])
 
@@ -3622,10 +3622,10 @@ def api_prioridades_semana():
             operacao = operacao_por_cidade.get(chave, {})
             meta = cidades_meta.get(chave, {})
 
-            votos_nikolas = int(votos.get('votos_nikolas') or 0)
-            votos_engler = int(votos.get('votos_engler') or 0)
-            base_aliada = votos_nikolas + votos_engler
-            gap_conversao = max(votos_nikolas - votos_engler, 0)
+            votos_candidato_a = int(votos.get('votos_candidato_a') or 0)
+            votos_candidato_b = int(votos.get('votos_candidato_b') or 0)
+            base_aliada = votos_candidato_a + votos_candidato_b
+            gap_conversao = max(votos_candidato_a - votos_candidato_b, 0)
 
             base_score = 0 if not max_base else 30 * ((base_aliada / max_base) ** 0.55)
             gap_score = 0 if not max_gap else 30 * ((gap_conversao / max_gap) ** 0.55)
@@ -3708,8 +3708,8 @@ def api_prioridades_semana():
                 'polo': votos.get('polo') or '',
                 'score': score,
                 'nivel': nivel,
-                'votos_nikolas': votos_nikolas,
-                'votos_engler': votos_engler,
+                'votos_candidato_a': votos_candidato_a,
+                'votos_candidato_b': votos_candidato_b,
                 'base_aliada': base_aliada,
                 'gap_conversao': gap_conversao,
                 'feedbacks': total_fb,
