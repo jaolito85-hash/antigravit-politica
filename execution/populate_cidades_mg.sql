@@ -583,7 +583,7 @@ INSERT INTO feedbacks (sender, name, message, timestamp, category, region, urgen
  'em_andamento', 'Ituiutaba', null, now() - interval '8 days 7 hours'),
 
 -- Alfenas
-('5535987410035', 'Matheus Ferreira',
+('5535987410035', 'Eduardo Lima',
  'O café especial de Alfenas ganhou prêmio internacional mas os produtores não conseguem certificação por falta de apoio do Estado. Temos o melhor café do Brasil e ninguém sabe!',
  now() - interval '6 days 5 hours',
  'Desenvolvimento Econômico', 'Zona Rural', 'Neutro', 'Neutro', 'café especial Alfenas sem apoio',
