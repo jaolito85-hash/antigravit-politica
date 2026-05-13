@@ -1,0 +1,429 @@
+{
+  "fonte": "Demonstração — base eleitoral fictícia para apresentação",
+  "eleicao": "2022",
+  "candidato_referencia": "Lula (PT)",
+  "estado": "MG",
+  "total_municipios": 60,
+  "cidades": {
+    "Ipatinga": {
+      "cidade": "Ipatinga",
+      "regiao": "Vale do Aço",
+      "latitude": -19.4683,
+      "longitude": -42.5373,
+      "votos_lula_2022": 5000
+    },
+    "Santana do Paraíso": {
+      "cidade": "Santana do Paraíso",
+      "regiao": "Vale do Aço",
+      "latitude": -19.3622,
+      "longitude": -42.5483,
+      "votos_lula_2022": 1357
+    },
+    "Coronel Fabriciano": {
+      "cidade": "Coronel Fabriciano",
+      "regiao": "Vale do Aço",
+      "latitude": -19.5176,
+      "longitude": -42.6328,
+      "votos_lula_2022": 4200
+    },
+    "Timóteo": {
+      "cidade": "Timóteo",
+      "regiao": "Vale do Aço",
+      "latitude": -19.5816,
+      "longitude": -42.6444,
+      "votos_lula_2022": 3800
+    },
+    "Jaguaraçu": {
+      "cidade": "Jaguaraçu",
+      "regiao": "Vale do Aço",
+      "latitude": -19.6187,
+      "longitude": -42.6936,
+      "votos_lula_2022": 3279
+    },
+    "Santa Bárbara do Leste": {
+      "cidade": "Santa Bárbara do Leste",
+      "regiao": "Vale do Caratinga",
+      "latitude": -19.9747,
+      "longitude": -42.3158,
+      "votos_lula_2022": 2563
+    },
+    "Santa Rita de Minas": {
+      "cidade": "Santa Rita de Minas",
+      "regiao": "Vale do Caratinga",
+      "latitude": -19.8733,
+      "longitude": -42.135,
+      "votos_lula_2022": 3369
+    },
+    "Caratinga": {
+      "cidade": "Caratinga",
+      "regiao": "Vale do Caratinga",
+      "latitude": -19.7823,
+      "longitude": -42.1393,
+      "votos_lula_2022": 2800
+    },
+    "Piedade de Caratinga": {
+      "cidade": "Piedade de Caratinga",
+      "regiao": "Vale do Caratinga",
+      "latitude": -19.9542,
+      "longitude": -42.2044,
+      "votos_lula_2022": 2719
+    },
+    "Ubaporanga": {
+      "cidade": "Ubaporanga",
+      "regiao": "Vale do Caratinga",
+      "latitude": -19.7186,
+      "longitude": -42.0283,
+      "votos_lula_2022": 1885
+    },
+    "Imbé de Minas": {
+      "cidade": "Imbé de Minas",
+      "regiao": "Vale do Rio Doce",
+      "latitude": -19.4842,
+      "longitude": -41.9861,
+      "votos_lula_2022": 2865
+    },
+    "São Sebastião do Anta": {
+      "cidade": "São Sebastião do Anta",
+      "regiao": "Vale do Rio Doce",
+      "latitude": -19.5392,
+      "longitude": -42.0936,
+      "votos_lula_2022": 657
+    },
+    "São Domingos das Dores": {
+      "cidade": "São Domingos das Dores",
+      "regiao": "Vale do Caratinga",
+      "latitude": -19.5708,
+      "longitude": -42.2353,
+      "votos_lula_2022": 1329
+    },
+    "Inhapim": {
+      "cidade": "Inhapim",
+      "regiao": "Vale do Caratinga",
+      "latitude": -19.5608,
+      "longitude": -42.1153,
+      "votos_lula_2022": 1339
+    },
+    "São João do Oriente": {
+      "cidade": "São João do Oriente",
+      "regiao": "Vale do Rio Doce",
+      "latitude": -19.4847,
+      "longitude": -42.2183,
+      "votos_lula_2022": 1884
+    },
+    "Japu": {
+      "cidade": "Japu",
+      "regiao": "Vale do Rio Doce",
+      "latitude": -19.3928,
+      "longitude": -42.2358,
+      "votos_lula_2022": 3268
+    },
+    "Bugre": {
+      "cidade": "Bugre",
+      "regiao": "Vale do Aço",
+      "latitude": -19.4531,
+      "longitude": -42.3706,
+      "votos_lula_2022": 3094
+    },
+    "Ipaba": {
+      "cidade": "Ipaba",
+      "regiao": "Vale do Aço",
+      "latitude": -19.3997,
+      "longitude": -42.4278,
+      "votos_lula_2022": 1031
+    },
+    "Fernandes Tourinho": {
+      "cidade": "Fernandes Tourinho",
+      "regiao": "Vale do Aço",
+      "latitude": -19.4856,
+      "longitude": -42.3011,
+      "votos_lula_2022": 2739
+    },
+    "Sobrália": {
+      "cidade": "Sobrália",
+      "regiao": "Vale do Rio Doce",
+      "latitude": -19.3667,
+      "longitude": -42.0908,
+      "votos_lula_2022": 1913
+    },
+    "Engenheiro Caldas": {
+      "cidade": "Engenheiro Caldas",
+      "regiao": "Vale do Rio Doce",
+      "latitude": -19.2261,
+      "longitude": -42.2994,
+      "votos_lula_2022": 2175
+    },
+    "Tarumirim": {
+      "cidade": "Tarumirim",
+      "regiao": "Vale do Rio Doce",
+      "latitude": -19.2697,
+      "longitude": -42.0,
+      "votos_lula_2022": 2052
+    },
+    "Dom Cavati": {
+      "cidade": "Dom Cavati",
+      "regiao": "Vale do Aço",
+      "latitude": -19.3931,
+      "longitude": -42.3169,
+      "votos_lula_2022": 2944
+    },
+    "São Pedro dos Ferros": {
+      "cidade": "São Pedro dos Ferros",
+      "regiao": "Leste Mineiro",
+      "latitude": -20.2083,
+      "longitude": -42.5308,
+      "votos_lula_2022": 610
+    },
+    "Raul Soares": {
+      "cidade": "Raul Soares",
+      "regiao": "Leste Mineiro",
+      "latitude": -20.1022,
+      "longitude": -42.4511,
+      "votos_lula_2022": 2556
+    },
+    "Vermelho Novo": {
+      "cidade": "Vermelho Novo",
+      "regiao": "Leste Mineiro",
+      "latitude": -19.8875,
+      "longitude": -42.4108,
+      "votos_lula_2022": 427
+    },
+    "Bom Jesus do Galho": {
+      "cidade": "Bom Jesus do Galho",
+      "regiao": "Leste Mineiro",
+      "latitude": -19.8333,
+      "longitude": -42.3017,
+      "votos_lula_2022": 2626
+    },
+    "Pingo d'Água": {
+      "cidade": "Pingo d'Água",
+      "regiao": "Leste Mineiro",
+      "latitude": -19.7197,
+      "longitude": -42.3989,
+      "votos_lula_2022": 2890
+    },
+    "Córrego Novo": {
+      "cidade": "Córrego Novo",
+      "regiao": "Leste Mineiro",
+      "latitude": -19.81,
+      "longitude": -42.3467,
+      "votos_lula_2022": 1929
+    },
+    "Entre Folhas": {
+      "cidade": "Entre Folhas",
+      "regiao": "Vale do Aço",
+      "latitude": -19.5197,
+      "longitude": -42.4489,
+      "votos_lula_2022": 1470
+    },
+    "Vargem Alegre": {
+      "cidade": "Vargem Alegre",
+      "regiao": "Leste Mineiro",
+      "latitude": -19.7017,
+      "longitude": -42.3489,
+      "votos_lula_2022": 840
+    },
+    "Antônio Dias": {
+      "cidade": "Antônio Dias",
+      "regiao": "Rio Piracicaba",
+      "latitude": -19.6528,
+      "longitude": -42.8728,
+      "votos_lula_2022": 653
+    },
+    "Itabira": {
+      "cidade": "Itabira",
+      "regiao": "Rio Piracicaba",
+      "latitude": -19.6189,
+      "longitude": -43.2267,
+      "votos_lula_2022": 5100
+    },
+    "Nova Era": {
+      "cidade": "Nova Era",
+      "regiao": "Rio Piracicaba",
+      "latitude": -19.7597,
+      "longitude": -43.0311,
+      "votos_lula_2022": 1210
+    },
+    "São Domingos do Prata": {
+      "cidade": "São Domingos do Prata",
+      "regiao": "Rio Piracicaba",
+      "latitude": -19.8714,
+      "longitude": -42.9922,
+      "votos_lula_2022": 2289
+    },
+    "Rio Piracicaba": {
+      "cidade": "Rio Piracicaba",
+      "regiao": "Rio Piracicaba",
+      "latitude": -19.9336,
+      "longitude": -43.1736,
+      "votos_lula_2022": 880
+    },
+    "São Gonçalo do Rio Abaixo": {
+      "cidade": "São Gonçalo do Rio Abaixo",
+      "regiao": "Rio Piracicaba",
+      "latitude": -19.8222,
+      "longitude": -43.3536,
+      "votos_lula_2022": 2473
+    },
+    "João Monlevade": {
+      "cidade": "João Monlevade",
+      "regiao": "Rio Piracicaba",
+      "latitude": -19.8139,
+      "longitude": -43.1736,
+      "votos_lula_2022": 1223
+    },
+    "Bela Vista de Minas": {
+      "cidade": "Bela Vista de Minas",
+      "regiao": "Rio Piracicaba",
+      "latitude": -19.8367,
+      "longitude": -43.1006,
+      "votos_lula_2022": 809
+    },
+    "São José do Goiabal": {
+      "cidade": "São José do Goiabal",
+      "regiao": "Leste Mineiro",
+      "latitude": -19.9133,
+      "longitude": -42.6986,
+      "votos_lula_2022": 563
+    },
+    "Dionísio": {
+      "cidade": "Dionísio",
+      "regiao": "Leste Mineiro",
+      "latitude": -19.7933,
+      "longitude": -42.7639,
+      "votos_lula_2022": 1691
+    },
+    "Braúnas": {
+      "cidade": "Braúnas",
+      "regiao": "Vale do Rio Doce",
+      "latitude": -19.0283,
+      "longitude": -42.7783,
+      "votos_lula_2022": 3347
+    },
+    "Joanésia": {
+      "cidade": "Joanésia",
+      "regiao": "Vale do Rio Doce",
+      "latitude": -19.1572,
+      "longitude": -42.7128,
+      "votos_lula_2022": 3400
+    },
+    "Mesquita": {
+      "cidade": "Mesquita",
+      "regiao": "Vale do Aço",
+      "latitude": -19.6956,
+      "longitude": -42.5808,
+      "votos_lula_2022": 2819
+    },
+    "Açucena": {
+      "cidade": "Açucena",
+      "regiao": "Vale do Rio Doce",
+      "latitude": -19.0536,
+      "longitude": -42.5378,
+      "votos_lula_2022": 2572
+    },
+    "Belo Oriente": {
+      "cidade": "Belo Oriente",
+      "regiao": "Vale do Rio Doce",
+      "latitude": -19.3011,
+      "longitude": -42.4733,
+      "votos_lula_2022": 2275
+    },
+    "Periquito": {
+      "cidade": "Periquito",
+      "regiao": "Vale do Rio Doce",
+      "latitude": -19.1872,
+      "longitude": -42.4481,
+      "votos_lula_2022": 730
+    },
+    "Naque": {
+      "cidade": "Naque",
+      "regiao": "Vale do Rio Doce",
+      "latitude": -19.1783,
+      "longitude": -42.4736,
+      "votos_lula_2022": 2595
+    },
+    "Alpercata": {
+      "cidade": "Alpercata",
+      "regiao": "Vale do Rio Doce",
+      "latitude": -19.2003,
+      "longitude": -42.0344,
+      "votos_lula_2022": 1545
+    },
+    "Itanhomi": {
+      "cidade": "Itanhomi",
+      "regiao": "Vale do Rio Doce",
+      "latitude": -19.1639,
+      "longitude": -41.8664,
+      "votos_lula_2022": 2206
+    },
+    "Governador Valadares": {
+      "cidade": "Governador Valadares",
+      "regiao": "Vale do Rio Doce",
+      "latitude": -18.8514,
+      "longitude": -41.9494,
+      "votos_lula_2022": 3000
+    },
+    "Belo Horizonte": {
+      "cidade": "Belo Horizonte",
+      "regiao": "Metropolitana de BH",
+      "latitude": -19.9167,
+      "longitude": -43.9345,
+      "votos_lula_2022": 120000
+    },
+    "Caeté": {
+      "cidade": "Caeté",
+      "regiao": "Metropolitana de BH",
+      "latitude": -19.8839,
+      "longitude": -43.6706,
+      "votos_lula_2022": 4197
+    },
+    "Contagem": {
+      "cidade": "Contagem",
+      "regiao": "Metropolitana de BH",
+      "latitude": -19.9317,
+      "longitude": -44.0533,
+      "votos_lula_2022": 18000
+    },
+    "Santa Luzia": {
+      "cidade": "Santa Luzia",
+      "regiao": "Metropolitana de BH",
+      "latitude": -19.7703,
+      "longitude": -43.8511,
+      "votos_lula_2022": 9200
+    },
+    "Betim": {
+      "cidade": "Betim",
+      "regiao": "Metropolitana de BH",
+      "latitude": -19.9678,
+      "longitude": -44.1978,
+      "votos_lula_2022": 15000
+    },
+    "Nova Lima": {
+      "cidade": "Nova Lima",
+      "regiao": "Metropolitana de BH",
+      "latitude": -20.0,
+      "longitude": -43.85,
+      "votos_lula_2022": 5400
+    },
+    "Sabará": {
+      "cidade": "Sabará",
+      "regiao": "Metropolitana de BH",
+      "latitude": -19.8825,
+      "longitude": -43.8089,
+      "votos_lula_2022": 6700
+    },
+    "Vespasiano": {
+      "cidade": "Vespasiano",
+      "regiao": "Metropolitana de BH",
+      "latitude": -19.6931,
+      "longitude": -43.9203,
+      "votos_lula_2022": 5900
+    },
+    "Lagoa Santa": {
+      "cidade": "Lagoa Santa",
+      "regiao": "Metropolitana de BH",
+      "latitude": -19.6328,
+      "longitude": -43.8947,
+      "votos_lula_2022": 4131
+    }
+  }
+}

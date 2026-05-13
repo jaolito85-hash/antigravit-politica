@@ -2213,6 +2213,178 @@ def _mascarar_telefone(valor: str) -> str:
     return f"{digitos[:4]}***{digitos[-2:]}"
 
 
+# ============================================================
+# Score de prioridade do operador (Operação Local)
+# Fórmula: (influencia × 10) + (peso_funcao × 5) + (votos_cidade ÷ 1000)
+# Documentada no painel "Como o score funciona" do dashboard.
+# ============================================================
+PESOS_FUNCAO_OPERADOR = {
+    "prefeito": 10,
+    "vice-prefeito": 9,
+    "vereador": 8,
+    "secretario": 7,
+    "lideranca-comunitaria": 6,
+    "cabo-eleitoral": 5,
+    "influenciador": 4,
+    "voluntario": 3,
+}
+
+FUNCOES_OPERADOR_LABEL = {
+    "prefeito": "Prefeito",
+    "vice-prefeito": "Vice-prefeito",
+    "vereador": "Vereador",
+    "secretario": "Secretário",
+    "lideranca-comunitaria": "Liderança comunitária",
+    "cabo-eleitoral": "Cabo eleitoral",
+    "influenciador": "Influenciador",
+    "voluntario": "Voluntário",
+}
+
+# SLA por faixa de score (em horas) — usado no badge URGENTE
+FAIXAS_SCORE_OPERADOR = [
+    {"min": 100, "nivel": "maxima", "label": "Prioridade máxima", "sla_horas": 2},
+    {"min": 60, "nivel": "alta", "label": "Prioridade alta", "sla_horas": 4},
+    {"min": 30, "nivel": "media", "label": "Prioridade média", "sla_horas": 8},
+    {"min": 0, "nivel": "normal", "label": "Prioridade normal", "sla_horas": 24},
+]
+
+
+def _normalizar_funcao_chave(valor) -> str:
+    """Converte rótulo livre em chave canônica de função."""
+    if not valor:
+        return "voluntario"
+    chave = str(valor).strip().lower()
+    if chave in PESOS_FUNCAO_OPERADOR:
+        return chave
+    # Aceita rótulos humanos comuns
+    normalizado = _normalizar_texto(chave).replace(" ", "-")
+    if normalizado in PESOS_FUNCAO_OPERADOR:
+        return normalizado
+    # Heurística para casos legados (campo livre)
+    for k in PESOS_FUNCAO_OPERADOR:
+        if k.split("-")[0] in normalizado:
+            return k
+    return "voluntario"
+
+
+def calcular_score_operador(funcao_chave: str, influencia, votos_cidade) -> float:
+    """Score de prioridade do operador. Fórmula auditável:
+    score = (influencia × 10) + (peso_funcao × 10) + (votos_cidade ÷ 1000)
+    Exemplo: prefeito (peso 10) + 8★ + cidade 5k votos = 80 + 100 + 5 = 185 pts.
+    """
+    peso_funcao = PESOS_FUNCAO_OPERADOR.get(_normalizar_funcao_chave(funcao_chave), 3)
+    try:
+        infl = int(influencia or 0)
+    except (TypeError, ValueError):
+        infl = 0
+    infl = max(1, min(10, infl)) if infl else 1
+    try:
+        votos = max(0, int(votos_cidade or 0))
+    except (TypeError, ValueError):
+        votos = 0
+    return round((infl * 10) + (peso_funcao * 10) + (votos / 1000), 2)
+
+
+def faixa_score_operador(score) -> dict:
+    """Devolve a faixa (nível, label, SLA em horas) para um score numérico."""
+    try:
+        valor = float(score or 0)
+    except (TypeError, ValueError):
+        valor = 0
+    for faixa in FAIXAS_SCORE_OPERADOR:
+        if valor >= faixa["min"]:
+            return faixa
+    return FAIXAS_SCORE_OPERADOR[-1]
+
+
+# Cache em memória da base eleitoral demo (recarrega só uma vez)
+_BASE_ELEITORAL_CACHE = {"data": None}
+
+
+def carregar_base_eleitoral_demo() -> dict:
+    """Carrega static/base_eleitoral_demo.json (votos Lula 2022 fictícios por município MG)."""
+    if _BASE_ELEITORAL_CACHE["data"] is not None:
+        return _BASE_ELEITORAL_CACHE["data"]
+    caminho = os.path.join(BASE_DIR, "static", "base_eleitoral_demo.json")
+    try:
+        with open(caminho, "r", encoding="utf-8") as f:
+            payload = json.load(f)
+        _BASE_ELEITORAL_CACHE["data"] = payload
+        return payload
+    except Exception as e:
+        print(f"[operacao] Falha ao carregar base_eleitoral_demo: {e}")
+        return {"cidades": {}, "total_municipios": 0}
+
+
+def carregar_base_eleitoral_unificada() -> dict:
+    """Une a base do Mapa Eleitoral (votos_*.json — fonte cadastrada) com a base
+    demo (fallback) em um único dicionário por cidade. Mapa Eleitoral tem prioridade.
+
+    Retorna: { cidade_nome: {
+        cidade, regiao, polo, votos_total, votos_candidato_a, votos_candidato_b, origem
+    } }
+    """
+    cidades = {}
+
+    # 1) Mapa Eleitoral — fonte cadastrada (prioritária)
+    try:
+        from os.path import getmtime
+        # _carregar_votos_eleitorais já está definida mais abaixo no módulo.
+        # Aqui usamos referência tardia para evitar problemas de ordem.
+        base_mapa = _carregar_votos_eleitorais()
+        for dados in base_mapa.values():
+            nome = dados.get("cidade")
+            if not nome:
+                continue
+            votos_a = int(dados.get("votos_candidato_a") or 0)
+            votos_b = int(dados.get("votos_candidato_b") or 0)
+            cidades[nome] = {
+                "cidade": nome,
+                "regiao": dados.get("regiao_eleitoral") or "",
+                "polo": dados.get("polo") or "",
+                "votos_total": votos_a + votos_b,
+                "votos_candidato_a": votos_a,
+                "votos_candidato_b": votos_b,
+                "origem": "mapa_eleitoral",
+            }
+    except Exception as e:
+        print(f"[operacao] Falha ao consolidar Mapa Eleitoral: {e}")
+
+    # 2) Base demo — complementa cidades não cobertas pelo Mapa
+    try:
+        base_demo = carregar_base_eleitoral_demo()
+        for nome, dados in (base_demo.get("cidades") or {}).items():
+            if nome in cidades:
+                continue
+            cidades[nome] = {
+                "cidade": nome,
+                "regiao": dados.get("regiao") or "",
+                "polo": "",
+                "votos_total": int(dados.get("votos_lula_2022") or 0),
+                "votos_candidato_a": 0,
+                "votos_candidato_b": 0,
+                "origem": "demo",
+            }
+    except Exception as e:
+        print(f"[operacao] Falha ao mesclar base demo: {e}")
+
+    return cidades
+
+
+def buscar_votos_cidade(cidade_nome: str):
+    """Retorna votos cadastrados para a cidade (Mapa Eleitoral ou demo)."""
+    if not cidade_nome:
+        return None
+    base = carregar_base_eleitoral_unificada()
+    if cidade_nome in base:
+        return base[cidade_nome].get("votos_total")
+    alvo = _normalizar_texto(cidade_nome)
+    for nome, dados in base.items():
+        if _normalizar_texto(nome) == alvo:
+            return dados.get("votos_total")
+    return None
+
+
 def _operadores_demo_padrao():
     """Seed visual usado quando ainda nao ha operadores reais cadastrados."""
     return [{
@@ -2241,6 +2413,26 @@ def _normalizar_operador(row: dict) -> dict:
     row["telefone_normalizado"] = _normalizar_telefone_jid(jid or telefone)
     row["telefone_mascarado"] = _mascarar_telefone(jid or telefone)
     row["status"] = row.get("status") or "ativo"
+
+    # Score de prioridade (Operação Local)
+    funcao_chave = row.get("funcao_chave") or _normalizar_funcao_chave(row.get("funcao"))
+    row["funcao_chave"] = funcao_chave
+    row["funcao_label"] = FUNCOES_OPERADOR_LABEL.get(funcao_chave, row.get("funcao") or "Operador")
+    row["peso_funcao"] = PESOS_FUNCAO_OPERADOR.get(funcao_chave, 3)
+    try:
+        row["influencia"] = max(1, min(10, int(row.get("influencia") or 1)))
+    except (TypeError, ValueError):
+        row["influencia"] = 1
+    try:
+        row["votos_cidade"] = max(0, int(row.get("votos_cidade") or 0))
+    except (TypeError, ValueError):
+        row["votos_cidade"] = 0
+    row["especificacao"] = (row.get("especificacao") or "").strip()
+    row["score"] = calcular_score_operador(funcao_chave, row["influencia"], row["votos_cidade"])
+    faixa = faixa_score_operador(row["score"])
+    row["score_nivel"] = faixa["nivel"]
+    row["score_label"] = faixa["label"]
+    row["sla_horas"] = faixa["sla_horas"]
     return row
 
 
@@ -2298,11 +2490,29 @@ def salvar_operador_campo(payload: dict) -> dict:
     if any(_variantes_telefone_jid(op.get("jid") or op.get("telefone")) & variantes_telefone for op in listar_operadores_campo(incluir_demo=False)):
         raise ValueError("telefone_ja_cadastrado")
 
+    funcao_chave = _normalizar_funcao_chave(payload.get("funcao_chave") or payload.get("funcao"))
+    funcao_label = FUNCOES_OPERADOR_LABEL.get(funcao_chave, (payload.get("funcao") or "Operador de campo").strip()[:120])
+    try:
+        influencia = max(1, min(10, int(payload.get("influencia") or 1)))
+    except (TypeError, ValueError):
+        influencia = 1
+    try:
+        votos_cidade = max(0, int(payload.get("votos_cidade") or 0))
+    except (TypeError, ValueError):
+        votos_cidade = 0
+    especificacao = (payload.get("especificacao") or "").strip()[:160]
+    score_calculado = calcular_score_operador(funcao_chave, influencia, votos_cidade)
+
     operador = {
         "nome": nome[:120],
         "telefone": telefone_norm,
         "jid": _jid_para_envio(telefone),
-        "funcao": (payload.get("funcao") or "Operador de campo").strip()[:120],
+        "funcao": funcao_label[:120],
+        "funcao_chave": funcao_chave,
+        "especificacao": especificacao,
+        "influencia": influencia,
+        "votos_cidade": votos_cidade,
+        "score": score_calculado,
         "cidade_base": (payload.get("cidade_base") or "").strip()[:120],
         "regiao": (payload.get("regiao") or "").strip()[:120],
         "status": payload.get("status") if payload.get("status") in ("ativo", "pausado") else "ativo",
@@ -3162,25 +3372,92 @@ def api_operacao_local():
     try:
         operadores = listar_operadores_campo()
         atualizacoes = listar_atualizacoes_campo(request.args.get("limit", 80, type=int))
-        hoje = datetime.utcnow().date()
-        cidades = {a.get("cidade") for a in atualizacoes if a.get("cidade")}
+
+        # Indexa operadores por variações de JID/telefone para enriquecer cada atualização
+        index_operadores = {}
+        for op in operadores:
+            for chave in _variantes_telefone_jid(op.get("jid") or op.get("telefone")):
+                if chave:
+                    index_operadores[chave] = op
+
+        agora = datetime.utcnow()
+        hoje = agora.date()
+        cidades = set()
         hoje_count = 0
         atencao_count = 0
+        urgentes_sem_resposta = 0
+
+        enriquecidas = []
         for item in atualizacoes:
+            item = dict(item or {})
+            jid_op = item.get("operador_jid") or item.get("operador_telefone") or ""
+            operador = None
+            for chave in _variantes_telefone_jid(jid_op):
+                if chave in index_operadores:
+                    operador = index_operadores[chave]
+                    break
+
+            if operador:
+                item["operador_score"] = operador.get("score") or 0
+                item["operador_nivel"] = operador.get("score_nivel") or "normal"
+                item["operador_funcao_chave"] = operador.get("funcao_chave")
+                item["operador_funcao_label"] = operador.get("funcao_label")
+                item["operador_influencia"] = operador.get("influencia")
+                item["operador_sla_horas"] = operador.get("sla_horas") or 24
+            else:
+                item["operador_score"] = 0
+                item["operador_nivel"] = "normal"
+                item["operador_sla_horas"] = 24
+
             data_item = _parse_data_feedback(item.get("criada_em"))
-            if data_item and data_item.date() == hoje:
-                hoje_count += 1
+            if data_item:
+                if data_item.date() == hoje:
+                    hoje_count += 1
+                horas = max(0.0, (agora - data_item).total_seconds() / 3600.0)
+                item["horas_desde_chamado"] = round(horas, 2)
+                sla = item.get("operador_sla_horas") or 24
+                item["fora_sla"] = bool(horas > sla)
+                item["urgente_sem_resposta"] = bool(horas >= 24)
+                if item["urgente_sem_resposta"]:
+                    urgentes_sem_resposta += 1
+            else:
+                item["horas_desde_chamado"] = None
+                item["fora_sla"] = False
+                item["urgente_sem_resposta"] = False
+
             if item.get("sentimento") == "atencao":
                 atencao_count += 1
+            if item.get("cidade"):
+                cidades.add(item["cidade"])
+
+            enriquecidas.append(item)
+
+        # Ordenação tipo tabela de prioridade: URGENTE >24h sobe sempre,
+        # depois score do operador (decrescente), depois data (mais recente primeiro)
+        def chave_ordenacao(a):
+            data = _parse_data_feedback(a.get("criada_em"))
+            return (
+                0 if a.get("urgente_sem_resposta") else 1,
+                -(a.get("operador_score") or 0),
+                -(data.timestamp() if data else 0),
+            )
+        enriquecidas.sort(key=chave_ordenacao)
+
+        # Operadores: ativos primeiro, depois por score decrescente
+        operadores_ordenados = sorted(
+            operadores,
+            key=lambda op: (op.get("status") != "ativo", -(op.get("score") or 0)),
+        )
 
         return jsonify({
-            "operadores": operadores,
-            "atualizacoes": atualizacoes,
+            "operadores": operadores_ordenados,
+            "atualizacoes": enriquecidas,
             "kpis": {
                 "operadores_ativos": sum(1 for op in operadores if op.get("status") == "ativo" and not op.get("demo")),
                 "atualizacoes_hoje": hoje_count,
                 "cidades_movimentadas": len(cidades),
                 "pontos_atencao": atencao_count,
+                "urgentes_sem_resposta": urgentes_sem_resposta,
             }
         })
     except Exception as e:
@@ -3203,6 +3480,55 @@ def api_operadores_campo():
     except Exception as e:
         print(f"[operacao] Erro ao cadastrar operador: {e}")
         return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/operacao-local/base-eleitoral", methods=["GET"])
+def api_base_eleitoral_operacao():
+    """Base eleitoral unificada para o formulário da Operação Local.
+
+    Fonte prioritária: Mapa Eleitoral (static/votos_*.json — votos Candidato A + B 2022).
+    Fonte complementar: base demo (static/base_eleitoral_demo.json), apenas para cidades
+    fora do Mapa Eleitoral.
+    """
+    base = carregar_base_eleitoral_unificada()
+
+    por_regiao = {}
+    for nome, dados in base.items():
+        regiao = dados.get("regiao") or "Outras regiões"
+        por_regiao.setdefault(regiao, []).append({
+            "cidade": nome,
+            "votos_total": int(dados.get("votos_total") or 0),
+            "votos_candidato_a": int(dados.get("votos_candidato_a") or 0),
+            "votos_candidato_b": int(dados.get("votos_candidato_b") or 0),
+            "origem": dados.get("origem") or "demo",
+            "polo": dados.get("polo") or "",
+        })
+    for lista in por_regiao.values():
+        lista.sort(key=lambda c: c["votos_total"], reverse=True)
+
+    top_cidades = sorted(
+        ({"cidade": n, **d} for n, d in base.items()),
+        key=lambda c: c.get("votos_total") or 0,
+        reverse=True,
+    )[:6]
+
+    mapa_count = sum(1 for d in base.values() if d.get("origem") == "mapa_eleitoral")
+    demo_count = sum(1 for d in base.values() if d.get("origem") == "demo")
+
+    return jsonify({
+        "fonte": "Mapa Eleitoral (Candidato A + Candidato B, 2022) + base demo",
+        "total_municipios": len(base),
+        "mapa_eleitoral_municipios": mapa_count,
+        "demo_municipios": demo_count,
+        "por_regiao": por_regiao,
+        "regioes": sorted(por_regiao.keys()),
+        "top_cidades": top_cidades,
+        "funcoes": [
+            {"chave": chave, "label": FUNCOES_OPERADOR_LABEL[chave], "peso": peso}
+            for chave, peso in PESOS_FUNCAO_OPERADOR.items()
+        ],
+        "faixas": FAIXAS_SCORE_OPERADOR,
+    })
 
 
 @app.route("/api/operacao-local/atualizacoes", methods=["GET", "POST"])

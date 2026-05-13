@@ -1155,6 +1155,285 @@
             flex-wrap: wrap;
             margin-top: 12px;
         }
+
+        /* Operação Local — formulário de cadastro de operador com score */
+        .op-cadastro-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+            gap: 16px;
+            align-items: start;
+        }
+        .op-form-card { padding: 18px 20px; }
+        .op-form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px 16px;
+            margin-top: 6px;
+        }
+        .op-field { display: flex; flex-direction: column; gap: 5px; }
+        .op-field--full { grid-column: 1 / -1; }
+        .op-field label {
+            color: #cbd5e1;
+            font-size: 0.78rem;
+            font-weight: 600;
+        }
+        .op-field input,
+        .op-field select {
+            background: rgba(15, 23, 42, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #f8fafc;
+            border-radius: 8px;
+            padding: 10px 12px;
+            font-size: 0.86rem;
+            font-family: inherit;
+            outline: none;
+            transition: border-color .15s ease, box-shadow .15s ease;
+        }
+        .op-field input:focus,
+        .op-field select:focus {
+            border-color: rgba(96, 165, 250, 0.65);
+            box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.18);
+        }
+        .op-field input::placeholder { color: #64748b; }
+
+        .op-stars {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 8px;
+            padding: 8px 12px;
+            user-select: none;
+        }
+        .op-stars i {
+            font-size: 1.1rem;
+            color: rgba(148, 163, 184, 0.4);
+            cursor: pointer;
+            transition: color .12s ease, transform .12s ease;
+        }
+        .op-stars i.on { color: #fbbf24; }
+        .op-stars i:hover { transform: scale(1.18); }
+        .op-stars .op-stars-label {
+            margin-left: 8px;
+            color: #94a3b8;
+            font-size: 0.78rem;
+            font-weight: 600;
+        }
+
+        .op-score-box {
+            margin-top: 16px;
+            border: 1px solid rgba(34, 197, 94, 0.25);
+            background: rgba(34, 197, 94, 0.06);
+            border-radius: 10px;
+            padding: 12px 14px;
+        }
+        .op-score-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .op-score-label { color: #e2e8f0; font-size: 0.86rem; font-weight: 700; }
+        .op-score-badge {
+            font-size: 0.75rem;
+            font-weight: 800;
+            padding: 4px 10px;
+            border-radius: 999px;
+            background: rgba(148, 163, 184, 0.2);
+            color: #cbd5e1;
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            white-space: nowrap;
+        }
+        .op-score-bar {
+            height: 6px;
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.08);
+            margin: 10px 0 8px;
+            overflow: hidden;
+        }
+        .op-score-bar-fill {
+            height: 100%;
+            width: 8%;
+            background: linear-gradient(90deg, #94a3b8, #cbd5e1);
+            border-radius: 4px;
+            transition: width .25s ease, background .25s ease;
+        }
+        .op-score-explain {
+            color: #94a3b8;
+            font-size: 0.76rem;
+            line-height: 1.45;
+        }
+
+        /* Badges de nível por faixa */
+        .op-score-badge.nivel-maxima {
+            background: rgba(34, 197, 94, 0.18); color: #34d399;
+            border-color: rgba(34, 197, 94, 0.55);
+        }
+        .op-score-badge.nivel-alta {
+            background: rgba(132, 204, 22, 0.16); color: #bef264;
+            border-color: rgba(132, 204, 22, 0.45);
+        }
+        .op-score-badge.nivel-media {
+            background: rgba(245, 158, 11, 0.16); color: #fbbf24;
+            border-color: rgba(245, 158, 11, 0.45);
+        }
+        .op-score-badge.nivel-normal {
+            background: rgba(148, 163, 184, 0.16); color: #cbd5e1;
+            border-color: rgba(148, 163, 184, 0.35);
+        }
+
+        .op-cta-btn {
+            margin-top: 14px;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            color: #f8fafc;
+            font-weight: 700;
+            font-size: 0.92rem;
+            border-radius: 10px;
+            padding: 12px 16px;
+            cursor: pointer;
+            transition: border-color .15s ease, background .15s ease;
+        }
+        .op-cta-btn:hover {
+            border-color: rgba(34, 197, 94, 0.55);
+            background: rgba(34, 197, 94, 0.1);
+            color: #bbf7d0;
+        }
+
+        .op-side-stack { display: flex; flex-direction: column; gap: 14px; }
+        .op-side-card { padding: 16px 18px; }
+        .op-formula {
+            color: #cbd5e1;
+            font-size: 0.82rem;
+            line-height: 1.55;
+            margin: 6px 0 12px;
+        }
+        .op-formula code {
+            display: inline-block;
+            background: rgba(15, 23, 42, 0.75);
+            padding: 4px 8px;
+            border-radius: 6px;
+            margin-top: 6px;
+            font-size: 0.78rem;
+            color: #e2e8f0;
+        }
+        .op-faixas {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin: 8px 0 12px;
+        }
+        .op-faixa {
+            border-radius: 8px;
+            padding: 8px 10px;
+            font-size: 0.75rem;
+            line-height: 1.4;
+            border: 1px solid transparent;
+        }
+        .op-faixa strong { display: block; font-size: 0.82rem; margin-bottom: 2px; }
+        .op-faixa--max {
+            background: rgba(34, 197, 94, 0.14);
+            color: #bbf7d0;
+            border-color: rgba(34, 197, 94, 0.35);
+        }
+        .op-faixa--alta {
+            background: rgba(132, 204, 22, 0.14);
+            color: #ecfccb;
+            border-color: rgba(132, 204, 22, 0.35);
+        }
+        .op-faixa--media {
+            background: rgba(245, 158, 11, 0.14);
+            color: #fed7aa;
+            border-color: rgba(245, 158, 11, 0.35);
+        }
+        .op-faixa--baixa {
+            background: rgba(148, 163, 184, 0.12);
+            color: #cbd5e1;
+            border-color: rgba(148, 163, 184, 0.28);
+        }
+        .op-sla-rule {
+            color: #cbd5e1;
+            font-size: 0.78rem;
+            line-height: 1.5;
+            background: rgba(239, 68, 68, 0.08);
+            border: 1px dashed rgba(239, 68, 68, 0.3);
+            border-radius: 8px;
+            padding: 8px 10px;
+            margin: 8px 0 12px;
+            display: flex;
+            gap: 6px;
+            align-items: flex-start;
+        }
+        .op-sla-rule i {
+            color: #f87171;
+            font-size: 1rem;
+            margin-top: 1px;
+        }
+        .op-exemplo {
+            color: #cbd5e1;
+            font-size: 0.8rem;
+            line-height: 1.5;
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            padding-top: 10px;
+        }
+        .op-base-sub {
+            color: var(--text-muted);
+            font-size: 0.78rem;
+            margin: 4px 0 10px;
+        }
+        .op-base-top {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .op-base-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 0;
+            border-bottom: 1px dashed rgba(255, 255, 255, 0.06);
+            font-size: 0.84rem;
+        }
+        .op-base-row:last-child { border-bottom: none; }
+        .op-base-row strong { color: #f8fafc; font-weight: 600; }
+        .op-base-row span { color: #94a3b8; font-weight: 700; font-variant-numeric: tabular-nums; }
+        .op-base-footer {
+            color: var(--text-muted);
+            font-size: 0.72rem;
+            margin-top: 8px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        /* Badge URGENTE para chamados sem resposta há mais de 24h */
+        .op-urgente-badge {
+            background: rgba(239, 68, 68, 0.18);
+            color: #fca5a5;
+            border: 1px solid rgba(239, 68, 68, 0.5);
+            border-radius: 6px;
+            padding: 3px 8px;
+            font-size: 0.68rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            animation: opPulseUrgente 1.6s ease-in-out infinite;
+        }
+        @keyframes opPulseUrgente {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+            50% { box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.18); }
+        }
+
+        @media (max-width: 1100px) {
+            .op-cadastro-row { grid-template-columns: 1fr; }
+            .op-form-grid { grid-template-columns: 1fr; }
+            .op-faixas { grid-template-columns: 1fr; }
+        }
         @media (max-width: 980px) {
             .priority-brief,
             .priority-card {
@@ -2421,27 +2700,120 @@
             </div>
         </div>
 
-        <div class="dash-row" style="align-items:start">
-            <div class="chart-box">
-                <div class="chart-header"><i class="ri-user-add-line" style="color:#22c55e"></i> Cadastrar Operador</div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-                    <input id="op-nome" class="filter-select" placeholder="Nome do operador">
-                    <input id="op-telefone" class="filter-select" placeholder="Telefone com DDD e país">
-                    <input id="op-funcao" class="filter-select" placeholder="Função ex: Cabo eleitoral">
-                    <input id="op-cidade" class="filter-select" placeholder="Cidade base">
-                    <input id="op-regiao" class="filter-select" placeholder="Região" style="grid-column:span 2">
+        <div class="op-cadastro-row">
+            <div class="chart-box op-form-card">
+                <div class="chart-header"><i class="ri-user-add-line" style="color:#22c55e"></i> Cadastrar operador</div>
+
+                <div class="op-form-grid">
+                    <div class="op-field">
+                        <label>Nome do operador</label>
+                        <input id="op-nome" type="text" placeholder="Nome completo">
+                    </div>
+                    <div class="op-field">
+                        <label>Telefone (DDD + país)</label>
+                        <input id="op-telefone" type="text" placeholder="+55 31 9...">
+                    </div>
+
+                    <div class="op-field">
+                        <label>Função</label>
+                        <select id="op-funcao-chave" onchange="recalcularScoreOperador()">
+                            <option value="">Selecione...</option>
+                        </select>
+                    </div>
+                    <div class="op-field">
+                        <label>Especificação livre</label>
+                        <input id="op-especificacao" type="text" placeholder="ex: comerciante, pastor">
+                    </div>
+
+                    <div class="op-field">
+                        <label>Região de MG</label>
+                        <select id="op-regiao" onchange="onMudarRegiaoOperador()">
+                            <option value="">Selecione...</option>
+                        </select>
+                    </div>
+                    <div class="op-field">
+                        <label>Cidade</label>
+                        <select id="op-cidade" onchange="onMudarCidadeOperador()">
+                            <option value="">Selecione...</option>
+                        </select>
+                    </div>
+
+                    <div class="op-field op-field--full">
+                        <label>Potencial de votos nessa cidade <span style="color:#94a3b8;font-weight:500">(Mapa Eleitoral · Candidato A + Candidato B)</span></label>
+                        <input id="op-votos-cidade" type="number" min="0" step="100" placeholder="ex: 5000"
+                            oninput="recalcularScoreOperador()">
+                        <span id="op-votos-origem" style="color:#94a3b8;font-size:.72rem;margin-top:2px"></span>
+                    </div>
+
+                    <div class="op-field op-field--full">
+                        <label>Grau de influência nessa cidade / região (1–10 estrelas)</label>
+                        <div id="op-stars" class="op-stars"></div>
+                    </div>
                 </div>
-                <button class="export-btn" style="margin-top:12px" onclick="salvarOperadorCampo()"><i class="ri-save-line"></i> Cadastrar número</button>
-                <p style="color:var(--text-muted);font-size:.75rem;margin-top:10px;line-height:1.5">
-                    O número do prefeito/deputado continua protegido no Gabinete Digital. Operadores devem usar números próprios.
-                </p>
+
+                <div class="op-score-box" id="op-score-box">
+                    <div class="op-score-head">
+                        <span class="op-score-label">Score de prioridade calculado</span>
+                        <span class="op-score-badge" id="op-score-badge">10 pts — prioridade normal</span>
+                    </div>
+                    <div class="op-score-bar"><div class="op-score-bar-fill" id="op-score-bar-fill"></div></div>
+                    <div class="op-score-explain" id="op-score-explain">
+                        Fila padrão. Nenhuma mensagem fica sem resposta por mais de 24h.
+                    </div>
+                </div>
+
+                <button class="op-cta-btn" onclick="salvarOperadorCampo()">Cadastrar número</button>
             </div>
 
-            <div class="chart-box">
-                <div class="chart-header"><i class="ri-whatsapp-line" style="color:#22c55e"></i> Operadores Cadastrados</div>
-                <div id="op-operadores-lista" style="display:flex;flex-direction:column;gap:8px">
-                    <p style="color:var(--text-muted);font-size:.85rem">Carregando operadores...</p>
+            <div class="op-side-stack">
+                <div class="chart-box op-side-card">
+                    <div class="chart-header"><i class="ri-information-line" style="color:#22c55e"></i> Como o score funciona</div>
+                    <div class="op-formula">
+                        <strong>Fórmula:</strong>
+                        <code>Score = (influência × 10) + (peso_função × 10) + (votos_cidade ÷ 1000)</code>
+                    </div>
+                    <div class="op-faixas">
+                        <div class="op-faixa op-faixa--max">
+                            <strong>≥ 100 pts</strong>
+                            <span>Prioridade máxima · resposta em 2h</span>
+                        </div>
+                        <div class="op-faixa op-faixa--alta">
+                            <strong>60–99 pts</strong>
+                            <span>Prioridade alta · resposta em 4h</span>
+                        </div>
+                        <div class="op-faixa op-faixa--media">
+                            <strong>30–59 pts</strong>
+                            <span>Prioridade média · resposta em 8h</span>
+                        </div>
+                        <div class="op-faixa op-faixa--baixa">
+                            <strong>&lt; 30 pts</strong>
+                            <span>Prioridade normal · resposta em 24h</span>
+                        </div>
+                    </div>
+                    <div class="op-sla-rule">
+                        <i class="ri-shield-check-line"></i> Regra inviolável: nenhuma mensagem fica sem resposta por mais de 24h. Após isso, sobe ao topo com badge <strong>URGENTE</strong>.
+                    </div>
+                    <div class="op-exemplo">
+                        <strong>Exemplo prático:</strong><br>
+                        Prefeito (peso 10) + influência 8★ + cidade 5k votos<br>
+                        = 80 + 100 + 5 = <strong style="color:#34d399">185 pts → máxima prioridade</strong>
+                    </div>
                 </div>
+
+                <div class="chart-box op-side-card">
+                    <div class="chart-header"><i class="ri-map-pin-2-line" style="color:#22c55e"></i> Base histórica por cidade</div>
+                    <div class="op-base-sub" id="op-base-sub">Votos cadastrados no Mapa Eleitoral (Candidato A + Candidato B, 2022)</div>
+                    <div id="op-base-top" class="op-base-top">
+                        <p style="color:var(--text-muted);font-size:.78rem">Carregando base...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="chart-box" style="margin-top:20px">
+            <div class="chart-header"><i class="ri-whatsapp-line" style="color:#22c55e"></i> Operadores Cadastrados</div>
+            <div id="op-operadores-lista" style="display:flex;flex-direction:column;gap:8px">
+                <p style="color:var(--text-muted);font-size:.85rem">Carregando operadores...</p>
             </div>
         </div>
 
@@ -3908,7 +4280,218 @@ https://www.instagram.com/p/YYYYY/"
             resumo.innerHTML = '<span>' + formatarNumeroBR(totalFiltrado) + ' de ' + formatarNumeroBR(totalOriginal) + ' atualização(ões)</span>' + chips.join('');
         }
 
+        // ============================================================
+        // Operação Local — formulário de cadastro com score de prioridade
+        // ============================================================
+        const OP_PESOS_FUNCAO = {
+            'prefeito': 10, 'vice-prefeito': 9, 'vereador': 8, 'secretario': 7,
+            'lideranca-comunitaria': 6, 'cabo-eleitoral': 5, 'influenciador': 4, 'voluntario': 3
+        };
+        let _opBaseEleitoral = null;
+        let _opInfluencia = 1;
+
+        async function loadBaseEleitoralOperacao() {
+            if (_opBaseEleitoral) return _opBaseEleitoral;
+            try {
+                const res = await fetch('/api/operacao-local/base-eleitoral');
+                if (!res.ok) throw new Error('Falha ao carregar base eleitoral');
+                _opBaseEleitoral = await res.json();
+                popularFormularioOperador();
+                renderBaseEleitoralTop();
+                return _opBaseEleitoral;
+            } catch (e) {
+                console.warn('[operacao] base eleitoral indisponivel:', e);
+                return null;
+            }
+        }
+
+        function popularFormularioOperador() {
+            if (!_opBaseEleitoral) return;
+
+            const selFuncao = document.getElementById('op-funcao-chave');
+            if (selFuncao && selFuncao.options.length <= 1) {
+                (_opBaseEleitoral.funcoes || []).forEach(f => {
+                    const opt = document.createElement('option');
+                    opt.value = f.chave;
+                    opt.textContent = f.label + ' (peso ' + f.peso + ')';
+                    selFuncao.appendChild(opt);
+                });
+            }
+
+            const selRegiao = document.getElementById('op-regiao');
+            if (selRegiao && selRegiao.options.length <= 1) {
+                (_opBaseEleitoral.regioes || []).forEach(r => {
+                    const opt = document.createElement('option');
+                    opt.value = r;
+                    opt.textContent = r;
+                    selRegiao.appendChild(opt);
+                });
+            }
+
+            // Inicializa estrelas
+            const stars = document.getElementById('op-stars');
+            if (stars && !stars.dataset.ready) {
+                let html = '';
+                for (let i = 1; i <= 10; i++) {
+                    html += '<i class="ri-star-line" data-val="' + i + '" onclick="setInfluenciaOperador(' + i + ')"></i>';
+                }
+                html += '<span class="op-stars-label" id="op-stars-label">1/10 — influência mínima</span>';
+                stars.innerHTML = html;
+                stars.dataset.ready = '1';
+                setInfluenciaOperador(1);
+            }
+        }
+
+        function renderBaseEleitoralTop() {
+            const el = document.getElementById('op-base-top');
+            if (!el || !_opBaseEleitoral) return;
+            const top = (_opBaseEleitoral.top_cidades || []).slice(0, 4);
+            const total = _opBaseEleitoral.total_municipios || 0;
+            const fromMapa = _opBaseEleitoral.mapa_eleitoral_municipios || 0;
+            const restantes = Math.max(0, total - top.length);
+            const rows = top.map(c => {
+                const votos = c.votos_total || 0;
+                const badge = c.origem === 'mapa_eleitoral'
+                    ? '<i class="ri-map-2-line" style="color:#22c55e;font-size:.7rem;margin-left:4px" title="Vindo do Mapa Eleitoral"></i>'
+                    : '';
+                return `
+                    <div class="op-base-row">
+                        <strong>${escapeHtml(c.cidade)}${badge}</strong>
+                        <span>~${Math.round(votos / 1000)}k</span>
+                    </div>
+                `;
+            }).join('');
+            const footer = restantes
+                ? `<div class="op-base-footer"><span>+ ${restantes} municípios...</span><span>${fromMapa} do Mapa Eleitoral</span></div>`
+                : `<div class="op-base-footer"><span>${total} cidades</span><span>${fromMapa} do Mapa Eleitoral</span></div>`;
+            el.innerHTML = rows + footer;
+        }
+
+        function onMudarRegiaoOperador() {
+            const regiao = document.getElementById('op-regiao').value;
+            const selCidade = document.getElementById('op-cidade');
+            selCidade.innerHTML = '<option value="">Selecione...</option>';
+            if (!regiao || !_opBaseEleitoral) return;
+            const cidades = (_opBaseEleitoral.por_regiao || {})[regiao] || [];
+            cidades.forEach(c => {
+                const votos = c.votos_total || 0;
+                const opt = document.createElement('option');
+                opt.value = c.cidade;
+                opt.dataset.votos = votos;
+                opt.dataset.origem = c.origem || 'demo';
+                opt.dataset.polo = c.polo || '';
+                opt.dataset.candA = c.votos_candidato_a || 0;
+                opt.dataset.candB = c.votos_candidato_b || 0;
+                const tag = c.origem === 'mapa_eleitoral' ? ' • Mapa Eleitoral' : '';
+                opt.textContent = c.cidade + ' (' + votos.toLocaleString('pt-BR') + ' votos' + tag + ')';
+                selCidade.appendChild(opt);
+            });
+            document.getElementById('op-votos-cidade').value = '';
+            const origemEl = document.getElementById('op-votos-origem');
+            if (origemEl) origemEl.textContent = '';
+            recalcularScoreOperador();
+        }
+
+        function onMudarCidadeOperador() {
+            const sel = document.getElementById('op-cidade');
+            const opt = sel.options[sel.selectedIndex];
+            const votos = opt && opt.dataset.votos ? parseInt(opt.dataset.votos, 10) : null;
+            const origem = opt && opt.dataset.origem ? opt.dataset.origem : '';
+            const polo = opt && opt.dataset.polo ? opt.dataset.polo : '';
+            const candA = parseInt(opt?.dataset?.candA, 10) || 0;
+            const candB = parseInt(opt?.dataset?.candB, 10) || 0;
+            const inputVotos = document.getElementById('op-votos-cidade');
+            if (votos != null && !isNaN(votos)) inputVotos.value = votos;
+
+            const origemEl = document.getElementById('op-votos-origem');
+            if (origemEl) {
+                if (origem === 'mapa_eleitoral') {
+                    const detalhes = (candA + candB > 0)
+                        ? ` (Candidato A: ${candA.toLocaleString('pt-BR')} + Candidato B: ${candB.toLocaleString('pt-BR')})`
+                        : '';
+                    origemEl.innerHTML = '<i class="ri-map-2-line" style="color:#22c55e"></i> Puxado do <strong>Mapa Eleitoral</strong>'
+                        + (polo ? ` · polo: ${escapeHtml(polo)}` : '') + detalhes;
+                    origemEl.style.color = '#86efac';
+                } else if (origem === 'demo') {
+                    origemEl.innerHTML = '<i class="ri-information-line"></i> Base demo (cidade fora do Mapa Eleitoral cadastrado)';
+                    origemEl.style.color = '#94a3b8';
+                } else {
+                    origemEl.textContent = '';
+                }
+            }
+            recalcularScoreOperador();
+        }
+
+        function setInfluenciaOperador(valor) {
+            _opInfluencia = Math.max(1, Math.min(10, parseInt(valor, 10) || 1));
+            const stars = document.getElementById('op-stars');
+            if (!stars) return;
+            stars.querySelectorAll('i').forEach(el => {
+                const v = parseInt(el.dataset.val, 10);
+                el.classList.toggle('on', v <= _opInfluencia);
+                el.className = (v <= _opInfluencia ? 'ri-star-fill on' : 'ri-star-line');
+                el.dataset.val = v;
+                el.onclick = () => setInfluenciaOperador(v);
+            });
+            const label = document.getElementById('op-stars-label');
+            if (label) {
+                const desc = _opInfluencia <= 3 ? 'influência mínima'
+                    : _opInfluencia <= 6 ? 'influência moderada'
+                    : _opInfluencia <= 8 ? 'forte influência'
+                    : 'influência máxima';
+                label.textContent = _opInfluencia + '/10 — ' + desc;
+            }
+            recalcularScoreOperador();
+        }
+
+        function calcularScoreOperadorJS(funcaoChave, influencia, votosCidade) {
+            const peso = OP_PESOS_FUNCAO[funcaoChave] || 3;
+            const infl = Math.max(1, Math.min(10, parseInt(influencia, 10) || 1));
+            const votos = Math.max(0, parseInt(votosCidade, 10) || 0);
+            // score = (influência × 10) + (peso_funcao × 10) + (votos_cidade ÷ 1000)
+            return Math.round(((infl * 10) + (peso * 10) + (votos / 1000)) * 100) / 100;
+        }
+
+        function faixaScoreOperadorJS(score) {
+            if (score >= 100) return { nivel: 'maxima', label: 'Prioridade máxima', sla: 2,
+                explain: 'Resposta obrigatória em até 2h. Chamados desse operador sobem ao topo da fila.' };
+            if (score >= 60) return { nivel: 'alta', label: 'Prioridade alta', sla: 4,
+                explain: 'Resposta em até 4h. Chamados ficam acima da fila padrão.' };
+            if (score >= 30) return { nivel: 'media', label: 'Prioridade média', sla: 8,
+                explain: 'Resposta em até 8h. Fica próximo do topo, mas atrás dos prioritários.' };
+            return { nivel: 'normal', label: 'prioridade normal', sla: 24,
+                explain: 'Fila padrão. Nenhuma mensagem fica sem resposta por mais de 24h.' };
+        }
+
+        function recalcularScoreOperador() {
+            const funcao = document.getElementById('op-funcao-chave')?.value || '';
+            const votos = document.getElementById('op-votos-cidade')?.value || 0;
+            const score = calcularScoreOperadorJS(funcao, _opInfluencia, votos);
+            const faixa = faixaScoreOperadorJS(score);
+
+            const badge = document.getElementById('op-score-badge');
+            if (badge) {
+                badge.textContent = score + ' pts — ' + faixa.label.toLowerCase();
+                badge.className = 'op-score-badge nivel-' + faixa.nivel;
+            }
+            const bar = document.getElementById('op-score-bar-fill');
+            if (bar) {
+                const pct = Math.max(4, Math.min(100, score));
+                bar.style.width = pct + '%';
+                const colors = {
+                    maxima: 'linear-gradient(90deg,#16a34a,#34d399)',
+                    alta: 'linear-gradient(90deg,#84cc16,#bef264)',
+                    media: 'linear-gradient(90deg,#f59e0b,#fbbf24)',
+                    normal: 'linear-gradient(90deg,#64748b,#cbd5e1)'
+                };
+                bar.style.background = colors[faixa.nivel];
+            }
+            const explain = document.getElementById('op-score-explain');
+            if (explain) explain.textContent = faixa.explain;
+        }
+
         async function loadOperacaoLocal() {
+            await loadBaseEleitoralOperacao();
             const operadoresEl = document.getElementById('op-operadores-lista');
             const atualizacoesEl = document.getElementById('op-atualizacoes-lista');
             if (!operadoresEl || !atualizacoesEl) return;
@@ -3946,17 +4529,32 @@ https://www.instagram.com/p/YYYYY/"
             el.innerHTML = operadores.map(op => {
                 const statusColor = op.status === 'ativo' ? '#22c55e' : '#f59e0b';
                 const demo = op.demo ? '<span style="color:#f59e0b;font-size:.68rem;font-weight:800;margin-left:6px">DEMO</span>' : '';
+                const score = Number(op.score || 0);
+                const nivel = op.score_nivel || 'normal';
+                const labelNivel = op.score_label || 'Prioridade normal';
+                const sla = op.sla_horas || 24;
+                const funcaoTxt = op.funcao_label || op.funcao || 'Operador de campo';
+                const espec = op.especificacao ? ' • ' + escapeHtml(op.especificacao) : '';
+                const stars = '★'.repeat(Math.max(0, Math.min(10, parseInt(op.influencia || 0, 10))));
+                const votosTxt = op.votos_cidade ? formatarNumeroBR(op.votos_cidade) + ' votos hist.' : 'sem base eleitoral';
                 return `
                     <div class="feedback-card" style="padding:12px 14px">
-                        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px">
-                            <div>
-                                <div style="font-weight:800;color:#f8fafc">${escapeHtml(op.nome || 'Operador')} ${demo}</div>
-                                <div style="color:var(--text-muted);font-size:.76rem;margin-top:3px">
+                        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap">
+                            <div style="min-width:0;flex:1">
+                                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                                    <span style="font-weight:800;color:#f8fafc">${escapeHtml(op.nome || 'Operador')}</span>
+                                    <span class="op-score-badge nivel-${nivel}">${score} pts — ${escapeHtml(labelNivel.toLowerCase())}</span>
+                                    ${demo}
+                                </div>
+                                <div style="color:var(--text-muted);font-size:.76rem;margin-top:4px">
                                     <i class="ri-phone-line"></i> ${escapeHtml(op.telefone_mascarado || op.telefone || '--')} •
-                                    ${escapeHtml(op.funcao || 'Operador de campo')}
+                                    ${escapeHtml(funcaoTxt)}${espec}
                                 </div>
                                 <div style="color:#94a3b8;font-size:.76rem;margin-top:3px">
-                                    <i class="ri-map-pin-line"></i> ${escapeHtml(op.cidade_base || 'Cidade não informada')} ${op.regiao ? '• ' + escapeHtml(op.regiao) : ''}
+                                    <i class="ri-map-pin-line"></i> ${escapeHtml(op.cidade_base || 'Cidade não informada')}${op.regiao ? ' • ' + escapeHtml(op.regiao) : ''}
+                                    • <span title="Grau de influência">${stars || '—'}</span>
+                                    • <span>${votosTxt}</span>
+                                    • <span>SLA ${sla}h</span>
                                 </div>
                             </div>
                             <span style="background:${statusColor}22;color:${statusColor};border:1px solid ${statusColor}55;border-radius:6px;padding:3px 8px;font-size:.68rem;font-weight:800;text-transform:uppercase">${escapeHtml(op.status || 'ativo')}</span>
@@ -4020,7 +4618,9 @@ https://www.instagram.com/p/YYYYY/"
 
             el.innerHTML = filtradas.map(a => {
                 const tipoKey = String(a.tipo || 'relato').toLowerCase();
-                const cor = tipoKey === 'pedido_financeiro' ? tipoColor.pedido_financeiro : (a.sentimento === 'atencao' ? '#ef4444' : (tipoColor[tipoKey] || tipoColor.relato));
+                const urgente = !!a.urgente_sem_resposta;
+                const corBase = tipoKey === 'pedido_financeiro' ? tipoColor.pedido_financeiro : (a.sentimento === 'atencao' ? '#ef4444' : (tipoColor[tipoKey] || tipoColor.relato));
+                const cor = urgente ? '#ef4444' : corBase;
                 const icone = tipoIcon[tipoKey] || tipoIcon.relato;
                 const rotuloTipo = tipoLabel[tipoKey] || 'relato';
                 const pessoas = a.quantidade_pessoas ? '<span class="priority-chip"><i class="ri-group-line"></i> ' + formatarNumeroBR(a.quantidade_pessoas) + ' pessoas</span>' : '';
@@ -4032,14 +4632,27 @@ https://www.instagram.com/p/YYYYY/"
                     .slice(0, 3)
                     .map(tema => '<button type="button" class="priority-chip chip-btn" onclick="filtrarOperacao(\'tema\', \'' + encodeURIComponent(tema) + '\')"><i class="ri-price-tag-3-line"></i> ' + escapeHtml(tema) + '</button>')
                     .join('');
+                const operadorScore = Number(a.operador_score || 0);
+                const operadorNivel = a.operador_nivel || 'normal';
+                const scoreBadge = operadorScore > 0
+                    ? `<span class="op-score-badge nivel-${operadorNivel}" title="Score do operador">${operadorScore} pts</span>`
+                    : '';
+                const urgenteBadge = urgente
+                    ? `<span class="op-urgente-badge" title="Sem resposta há mais de 24h"><i class="ri-alarm-warning-fill"></i> URGENTE</span>`
+                    : '';
+                const horasTxt = (a.horas_desde_chamado != null)
+                    ? (a.horas_desde_chamado < 1 ? '< 1h' : Math.round(a.horas_desde_chamado) + 'h')
+                    : '';
                 return `
                     <div class="feedback-card" style="padding:14px 16px;border-left:3px solid ${cor}">
                         <div style="display:flex;justify-content:space-between;gap:14px;align-items:flex-start">
                             <div style="min-width:0;flex:1">
                                 <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                                    ${urgenteBadge}
                                     <span style="background:${cor}22;color:${cor};border:1px solid ${cor}55;border-radius:6px;padding:3px 8px;font-size:.68rem;font-weight:800;text-transform:uppercase"><i class="${icone}"></i> ${escapeHtml(rotuloTipo)}</span>
+                                    ${scoreBadge}
                                     <button type="button" class="operation-link-btn" onclick="abrirRadarPrioridade('${encodeURIComponent(a.cidade || '')}')">${escapeHtml(a.cidade || 'Cidade não informada')}</button>
-                                    <span style="color:var(--text-muted);font-size:.75rem">${a.criada_em ? formatarTempo(a.criada_em) : ''}</span>
+                                    <span style="color:var(--text-muted);font-size:.75rem">${a.criada_em ? formatarTempo(a.criada_em) : ''}${horasTxt ? ' • ' + horasTxt + ' desde o chamado' : ''}</span>
                                 </div>
                                 <div style="color:#cbd5e1;font-size:.86rem;line-height:1.5;margin-top:8px">${escapeHtml(a.resumo || a.mensagem_original || '')}</div>
                                 <div class="priority-reasons">
@@ -4406,15 +5019,26 @@ https://www.instagram.com/p/YYYYY/"
         }
 
         async function salvarOperadorCampo() {
+            const funcaoChave = document.getElementById('op-funcao-chave').value.trim();
+            const cidade = document.getElementById('op-cidade').value.trim();
+            const regiao = document.getElementById('op-regiao').value.trim();
+            const votos = parseInt(document.getElementById('op-votos-cidade').value, 10) || 0;
             const payload = {
                 nome: document.getElementById('op-nome').value.trim(),
                 telefone: document.getElementById('op-telefone').value.trim(),
-                funcao: document.getElementById('op-funcao').value.trim(),
-                cidade_base: document.getElementById('op-cidade').value.trim(),
-                regiao: document.getElementById('op-regiao').value.trim(),
+                funcao_chave: funcaoChave,
+                especificacao: document.getElementById('op-especificacao').value.trim(),
+                cidade_base: cidade,
+                regiao: regiao,
+                influencia: _opInfluencia,
+                votos_cidade: votos,
             };
             if (!payload.nome || !payload.telefone) {
                 alert('Informe nome e telefone do operador.');
+                return;
+            }
+            if (!funcaoChave) {
+                alert('Selecione a função do operador.');
                 return;
             }
             try {
@@ -4425,9 +5049,21 @@ https://www.instagram.com/p/YYYYY/"
                 });
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.error || 'Erro ao cadastrar operador');
-                ['op-nome', 'op-telefone', 'op-funcao', 'op-cidade', 'op-regiao'].forEach(id => document.getElementById(id).value = '');
+
+                // Reset do formulário
+                ['op-nome', 'op-telefone', 'op-especificacao', 'op-votos-cidade'].forEach(id => {
+                    document.getElementById(id).value = '';
+                });
+                document.getElementById('op-funcao-chave').value = '';
+                document.getElementById('op-regiao').value = '';
+                document.getElementById('op-cidade').innerHTML = '<option value="">Selecione...</option>';
+                setInfluenciaOperador(1);
+                recalcularScoreOperador();
+
                 await loadOperacaoLocal();
-                alert('Operador cadastrado. Esse número já pode mandar atualizações pelo WhatsApp do bot.');
+                const scoreSalvo = data.data && data.data.score ? data.data.score : '-';
+                const nivelSalvo = data.data && data.data.score_label ? data.data.score_label : '';
+                alert('Operador cadastrado com score ' + scoreSalvo + (nivelSalvo ? ' (' + nivelSalvo + ')' : '') + '. Esse número já pode mandar atualizações pelo WhatsApp do bot.');
             } catch (e) {
                 alert('Erro ao cadastrar operador: ' + e.message);
             }
