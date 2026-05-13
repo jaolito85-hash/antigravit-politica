@@ -6399,9 +6399,22 @@ https://www.instagram.com/p/YYYYY/"
         // Init
         loadTopInsights();
         popularFiltrosCategorias();
-        if (document.getElementById('mapa-mg')) {
-            inicializarMapaMG();
-            carregarPesquisasAnteriores();
+        // Boot do mapa: só depois que o layout estabilizou.
+        // Se inicializar antes do CSS/fonts aplicarem, o Leaflet mede o container
+        // como 0x0 e nunca baixa tiles — e o usuario ve um retangulo chapado.
+        function _bootMapaMG() {
+            if (!document.getElementById('mapa-mg')) return;
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    inicializarMapaMG();
+                    carregarPesquisasAnteriores();
+                });
+            });
+        }
+        if (document.readyState === 'complete') {
+            _bootMapaMG();
+        } else {
+            window.addEventListener('load', _bootMapaMG, { once: true });
         }
         setInterval(() => { loadTopInsights(); }, 5000);
 
@@ -6706,10 +6719,18 @@ https://www.instagram.com/p/YYYYY/"
                 wheelDebounceTime: 60
             }).setView([-18.5, -44.5], 6);
 
-            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png', {
+            const tileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png', {
                 subdomains: 'abcd',
                 maxZoom: 19
             }).addTo(_mapaLeaflet);
+
+            // Hook no primeiro carregamento de tile: garante mais um invalidateSize
+            // ja com o container medido. Resolve o caso "mapa chapa azul na primeira carga".
+            tileLayer.once('load', () => {
+                if (_mapaLeaflet) {
+                    try { _mapaLeaflet.invalidateSize(); } catch (_) {}
+                }
+            });
 
             // Auto-correcao: sempre que o container muda de tamanho OU volta a ficar visivel,
             // forca invalidateSize. Resolve "mapa quebra ate trocar de aba" e listras de tile.
@@ -6733,9 +6754,14 @@ https://www.instagram.com/p/YYYYY/"
                     io.observe(mapaEl);
                 } catch (_) {}
             }
+            // Retries escalonados — cobre o caso de fontes/CSS chegarem depois do JS
             _mapaLeaflet.whenReady(() => {
-                setTimeout(() => { try { _mapaLeaflet.invalidateSize(); } catch (_) {} }, 100);
-                setTimeout(() => { try { _mapaLeaflet.invalidateSize(); } catch (_) {} }, 400);
+                requestAnimationFrame(() => {
+                    try { _mapaLeaflet.invalidateSize(); } catch (_) {}
+                });
+                [120, 350, 800, 1600].forEach(ms => {
+                    setTimeout(() => { try { _mapaLeaflet.invalidateSize(); } catch (_) {} }, ms);
+                });
             });
 
             const norm = s => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
