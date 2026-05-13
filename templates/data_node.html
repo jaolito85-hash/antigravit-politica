@@ -2711,8 +2711,9 @@
                     </div>
                     <div class="op-field">
                         <label>Telefone (DDD + número)</label>
-                        <input id="op-telefone" type="text" placeholder="(44) 91234-5678">
-                        <span style="color:#94a3b8;font-size:.7rem">Pode digitar com ou sem o +55. O sistema completa automaticamente.</span>
+                        <input id="op-telefone" type="tel" inputmode="numeric" maxlength="15"
+                            placeholder="(44) 91234-5678"
+                            oninput="onTelefoneInputOperador(event)">
                     </div>
 
                     <div class="op-field">
@@ -4290,6 +4291,27 @@ https://www.instagram.com/p/YYYYY/"
         };
         let _opBaseEleitoral = null;
         let _opInfluencia = 1;
+
+        function formatarTelefoneBR(valor) {
+            const d = String(valor || '').replace(/\D/g, '').slice(0, 11);
+            if (!d) return '';
+            if (d.length <= 2) return '(' + d;
+            if (d.length <= 6) return '(' + d.slice(0, 2) + ') ' + d.slice(2);
+            if (d.length <= 10) return '(' + d.slice(0, 2) + ') ' + d.slice(2, 6) + '-' + d.slice(6);
+            // 11 dígitos = celular com o 9 na frente
+            return '(' + d.slice(0, 2) + ') ' + d.slice(2, 7) + '-' + d.slice(7);
+        }
+
+        function onTelefoneInputOperador(ev) {
+            const el = ev.target;
+            const antesDigits = el.value.replace(/\D/g, '').length;
+            el.value = formatarTelefoneBR(el.value);
+            // Mantém o cursor próximo do final ao digitar
+            if (document.activeElement === el) {
+                const pos = el.value.length;
+                try { el.setSelectionRange(pos, pos); } catch (_) {}
+            }
+        }
 
         async function loadBaseEleitoralOperacao() {
             if (_opBaseEleitoral) return _opBaseEleitoral;
