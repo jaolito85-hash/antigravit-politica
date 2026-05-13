@@ -3544,6 +3544,113 @@ def api_base_eleitoral_operacao():
     })
 
 
+def _ultima_mensagem_por_operador() -> dict:
+    """Devolve dict {jid_normalizado: datetime} com a ultima mensagem trocada por operador.
+
+    Cruza tabela `operacao_local_mensagens` (Supabase) e fallback JSON local.
+    """
+    por_jid: dict[str, datetime] = {}
+    fontes: list[list[dict]] = []
+    if supabase_admin:
+        try:
+            res = supabase_admin.table("operacao_local_mensagens").select("operador_jid,enviada_em").execute()
+            fontes.append(res.data or [])
+        except Exception as e:
+            print(f"[operacao] Supabase ultima_mensagem indisponivel: {e}")
+    try:
+        fontes.append(load_json(OPERACAO_MSGS_FILE, []))
+    except Exception:
+        pass
+
+    for fonte in fontes:
+        for msg in fonte:
+            jid = (msg.get("operador_jid") or msg.get("jid") or "").strip()
+            if not jid:
+                continue
+            data = _parse_data_feedback(msg.get("enviada_em") or msg.get("criada_em"))
+            if not data:
+                continue
+            chave = _normalizar_telefone_jid(jid)
+            if not chave:
+                continue
+            if chave not in por_jid or data > por_jid[chave]:
+                por_jid[chave] = data
+    return por_jid
+
+
+@app.route("/api/operacao-local/sem-contato", methods=["GET"])
+def api_operadores_sem_contato():
+    """Lista operadores ativos que estao ha mais de 7 dias sem mensagem nem atualizacao.
+
+    Retorna ate 5 operadores ordenados por dias_sem_contato (desc). Serve para o
+    card "Quem precisa de mim agora" no painel lateral da Operacao Local.
+    """
+    try:
+        limite_dias = max(1, request.args.get("dias", 7, type=int))
+        topo = max(1, min(20, request.args.get("limit", 5, type=int)))
+
+        operadores = listar_operadores_campo(incluir_demo=False)
+        atualizacoes = listar_atualizacoes_campo(limit=500)
+        ultima_msg_por_jid = _ultima_mensagem_por_operador()
+
+        # Indexa ultima atualizacao por jid normalizado
+        ultima_atual_por_jid: dict[str, datetime] = {}
+        for a in atualizacoes:
+            jid = a.get("operador_jid") or ""
+            data = _parse_data_feedback(a.get("criada_em"))
+            if not jid or not data:
+                continue
+            chave = _normalizar_telefone_jid(jid)
+            if not chave:
+                continue
+            if chave not in ultima_atual_por_jid or data > ultima_atual_por_jid[chave]:
+                ultima_atual_por_jid[chave] = data
+
+        agora = datetime.utcnow()
+        dormentes = []
+        for op in operadores:
+            if op.get("status") != "ativo" or op.get("demo"):
+                continue
+            jid_variantes = _variantes_telefone_jid(op.get("jid") or op.get("telefone"))
+            if not jid_variantes:
+                continue
+            candidatos = []
+            for chave in jid_variantes:
+                if chave in ultima_atual_por_jid:
+                    candidatos.append(ultima_atual_por_jid[chave])
+                if chave in ultima_msg_por_jid:
+                    candidatos.append(ultima_msg_por_jid[chave])
+            ultima = max(candidatos) if candidatos else None
+            dias = (agora - ultima).days if ultima else 999
+            if dias < limite_dias:
+                continue
+            dormentes.append({
+                "jid": op.get("jid") or op.get("telefone"),
+                "nome": op.get("nome") or "Operador",
+                "telefone_mascarado": op.get("telefone_mascarado"),
+                "funcao_label": op.get("funcao_label") or op.get("funcao") or "Operador",
+                "especificacao": op.get("especificacao") or "",
+                "cidade_base": op.get("cidade_base") or "",
+                "regiao": op.get("regiao") or "",
+                "score": op.get("score") or 0,
+                "score_nivel": op.get("score_nivel") or "normal",
+                "influencia": op.get("influencia") or 0,
+                "dias_sem_contato": min(dias, 999),
+                "nunca_contatado": ultima is None,
+                "ultima_atividade_iso": ultima.isoformat() if ultima else None,
+            })
+
+        dormentes.sort(key=lambda d: (-d["dias_sem_contato"], -(d.get("score") or 0)))
+        return jsonify({
+            "data": dormentes[:topo],
+            "total_dormentes": len(dormentes),
+            "limite_dias": limite_dias,
+        })
+    except Exception as e:
+        print(f"[operacao] sem-contato erro: {e}")
+        return jsonify({"data": [], "total_dormentes": 0, "error": str(e)}), 200
+
+
 @app.route("/api/operacao-local/atualizacoes", methods=["GET", "POST"])
 def api_atualizacoes_campo():
     """Lista atualizacoes de campo ou cria uma atualizacao manual para demo."""
