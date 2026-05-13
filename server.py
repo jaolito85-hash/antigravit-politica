@@ -2198,11 +2198,24 @@ def _variantes_telefone_jid(valor: str) -> set[str]:
 
 
 def _jid_para_envio(telefone: str) -> str:
-    """Converte telefone cadastrado em identificador aceito pela Evolution API."""
+    """Converte telefone cadastrado em identificador aceito pela Evolution API.
+
+    Aceita os formatos comuns BR:
+      - "(44) 91236866"      → 554491236866
+      - "(44) 9 1236-8666"   → 5544912368666
+      - "+55 (44) 91236866"  → 554491236866
+      - "554491236866"       → 554491236866 (mantém)
+
+    Se vier só DDD + número (10 ou 11 dígitos), prepende automaticamente
+    o código do país BR (55) para garantir envio via Evolution API.
+    """
     texto = str(telefone or '').strip()
     if '@' in texto:
         return texto
-    return _normalizar_telefone_jid(texto)
+    digitos = _normalizar_telefone_jid(texto)
+    if len(digitos) in (10, 11):  # DDD + número sem código do país
+        digitos = "55" + digitos
+    return digitos
 
 
 def _mascarar_telefone(valor: str) -> str:
