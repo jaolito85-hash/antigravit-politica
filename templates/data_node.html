@@ -127,14 +127,17 @@
 
         /* Main Content */
         .main {
-            flex: 1;
+            flex: 1 1 0%;
+            min-width: 0;
+            width: 100%;
+            max-width: 100%;
             padding: 40px;
             overflow-y: auto;
             overflow-x: hidden;
             display: flex;
             flex-direction: column;
-            min-width: 0;
         }
+        .main > * { max-width: 100%; min-width: 0; }
 
         .page-header {
             margin-bottom: 30px;
@@ -1682,10 +1685,18 @@
         }
 
         /* ===== Battle Map MG (estado inicial do Painel) ===== */
-        .bm-wrapper { isolation: isolate; }
+        .bm-wrapper {
+            isolation: isolate;
+            width: 100%;
+            max-width: 100%;
+            overflow: hidden;
+            position: relative;
+        }
 
         /* Trava altura do mapa para nao "esmagar" durante mudanca de layout */
         #mapa-mg {
+            width: 100%;
+            max-width: 100%;
             min-height: 480px;
             height: 480px;
             background: #0f172a;
@@ -1848,9 +1859,12 @@
             gap: 16px;
             margin-bottom: 20px;
             align-items: stretch;
+            width: 100%;
+            max-width: 100%;
         }
         .bm-detalhes-grid > * {
             min-width: 0;
+            max-width: 100%;
             box-sizing: border-box;
             display: flex;
             flex-direction: column;
@@ -1864,6 +1878,11 @@
         .ibge-card {
             box-sizing: border-box;
             min-width: 0;
+            max-width: 100%;
+        }
+        #radar-mg-resultado {
+            width: 100%;
+            max-width: 100%;
         }
 
         @keyframes fadeSlideIn {
@@ -2699,7 +2718,7 @@
         </div>
 
         <!-- Battle Map MG — sempre visível -->
-        <div class="stat-card bm-wrapper" style="padding:12px;margin-bottom:16px;position:relative">
+        <div class="stat-card bm-wrapper" style="padding:12px;margin-bottom:16px">
             <div id="mapa-mg"></div>
             <div class="bm-legend" id="bm-legend">
                 <div class="bm-legend-title">Mapa de Batalha · MG</div>
