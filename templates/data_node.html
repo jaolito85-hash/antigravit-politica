@@ -3320,7 +3320,7 @@
                 <footer class="op-revive-footer">
                     <span class="op-revive-dest" id="op-revive-dest">—</span>
                     <button type="button" class="op-revive-cta" id="op-revive-cta" onclick="enviarRevive()">
-                        <i class="ri-whatsapp-line" aria-hidden="true"></i> Abrir WhatsApp
+                        <i class="ri-whatsapp-line" aria-hidden="true"></i> Enviar WhatsApp
                     </button>
                 </footer>
             </div>
@@ -4803,14 +4803,58 @@ https://www.instagram.com/p/YYYYY/"
             });
         }
 
-        function enviarRevive() {
+        async function enviarRevive() {
             if (!_opReviveAtual) return;
             const texto = document.getElementById('op-revive-mensagem').value.trim();
+            if (!texto) { alert('Escreva a mensagem (ou escolha um modelo).'); return; }
             const jidNorm = String(_opReviveAtual.jid || '').replace(/\D+/g, '');
             if (!jidNorm) { alert('Operador sem telefone cadastrado.'); return; }
-            const url = 'https://wa.me/' + jidNorm + (texto ? '?text=' + encodeURIComponent(texto) : '');
-            window.open(url, '_blank', 'noopener,noreferrer');
-            fecharRevive();
+
+            const btn = document.getElementById('op-revive-cta');
+            const labelOriginal = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="ri-loader-4-line bm-spin" aria-hidden="true"></i> Enviando…';
+
+            try {
+                const res = await fetch('/api/operacao-local/mensagens', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        destinatario: jidNorm,
+                        destinatario_nome: _opReviveAtual.nome || 'Operador',
+                        cidade: _opReviveAtual.cidade || '',
+                        mensagem: texto,
+                        autor: 'gabinete'
+                    })
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) {
+                    const motivo = data.error === 'whatsapp_nao_configurado'
+                        ? 'WhatsApp do bot não está configurado neste ambiente.'
+                        : (data.error || ('HTTP ' + res.status));
+                    throw new Error(motivo);
+                }
+
+                btn.innerHTML = '<i class="ri-check-double-line" aria-hidden="true"></i> Enviado!';
+                btn.style.background = '#16a34a';
+                setTimeout(() => {
+                    fecharRevive();
+                    btn.disabled = false;
+                    btn.innerHTML = labelOriginal;
+                    btn.style.background = '';
+                    carregarOperadoresSemContato();
+                }, 900);
+            } catch (e) {
+                console.warn('[revive] envio falhou:', e);
+                const fallback = confirm('Não consegui enviar pelo WhatsApp do bot:\n' + e.message + '\n\nQuer abrir o WhatsApp Web/celular para enviar manualmente?');
+                if (fallback) {
+                    const url = 'https://wa.me/' + jidNorm + '?text=' + encodeURIComponent(texto);
+                    window.open(url, '_blank', 'noopener,noreferrer');
+                    fecharRevive();
+                }
+                btn.disabled = false;
+                btn.innerHTML = labelOriginal;
+            }
         }
 
         function fecharRevive(ev) {
