@@ -4101,7 +4101,8 @@ def api_prioridades_semana():
 
 @app.route('/radar-mg')
 def radar_mg():
-    return render_template('data_node.html', active_page='radar_mg')
+    # Conteúdo migrado para o Painel. Redireciona para compatibilidade com links antigos.
+    return redirect(url_for('index'))
 
 
 @app.route('/static/cidades_mg.json')
