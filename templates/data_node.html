@@ -1678,7 +1678,7 @@
         }
 
         /* ===== Battle Map MG (estado inicial do Painel) ===== */
-        .bm-wrapper { overflow: hidden; }
+        .bm-wrapper { isolation: isolate; }
 
         @keyframes bmMarkerPulse {
             0%, 100% {
@@ -1709,9 +1709,10 @@
             font-size: 0.78rem;
             backdrop-filter: blur(4px);
             -webkit-backdrop-filter: blur(4px);
-            z-index: 500;
+            z-index: 400;
             min-width: 180px;
             box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+            pointer-events: none;
         }
         .bm-legend-title {
             font-size: 0.72rem;
@@ -1756,6 +1757,61 @@
 
         @media (max-width: 720px) {
             .bm-legend { left: 8px; bottom: 8px; padding: 9px 11px; min-width: 0; font-size: 0.72rem; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .bm-marker-pulse,
+            .bm-pulse-static { animation: none !important; }
+        }
+
+        .bm-detalhes-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 14px;
+            padding: 14px 16px;
+            background: rgba(15, 23, 42, 0.55);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-left: 3px solid #60a5fa;
+            border-radius: 10px;
+        }
+        .bm-detalhes-eyebrow {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            font-weight: 700;
+        }
+        .bm-detalhes-titulo {
+            margin: 4px 0 0;
+            font-size: 1.3rem;
+            color: #f8fafc;
+            font-weight: 800;
+        }
+        .bm-detalhes-fechar {
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #cbd5e1;
+            font: inherit;
+            font-size: 0.78rem;
+            font-weight: 600;
+            border-radius: 8px;
+            padding: 8px 12px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: border-color .15s ease, color .15s ease, background .15s ease;
+        }
+        .bm-detalhes-fechar:hover {
+            border-color: rgba(96, 165, 250, 0.55);
+            color: #f8fafc;
+            background: rgba(59, 130, 246, 0.08);
+        }
+        .bm-detalhes-fechar:focus-visible {
+            outline: 2px solid #60a5fa;
+            outline-offset: 2px;
         }
 
         @keyframes fadeSlideIn {
@@ -2605,6 +2661,16 @@
 
         <!-- Detalhes da cidade pesquisada -->
         <div id="radar-mg-resultado" style="display:none">
+
+            <div class="bm-detalhes-header">
+                <div>
+                    <div class="bm-detalhes-eyebrow">Detalhes da cidade</div>
+                    <h2 class="bm-detalhes-titulo" id="bm-detalhes-cidade">—</h2>
+                </div>
+                <button type="button" class="bm-detalhes-fechar" onclick="fecharDetalhesCidade()" aria-label="Fechar detalhes">
+                    <i class="ri-close-line" aria-hidden="true"></i> Voltar ao mapa
+                </button>
+            </div>
 
             <!-- Cards de info: resumo + oportunidades + ad -->
             <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:20px">
@@ -6459,9 +6525,37 @@ https://www.instagram.com/p/YYYYY/"
             }
         }
 
+        function fecharDetalhesCidade() {
+            const resultado = document.getElementById('radar-mg-resultado');
+            const empty = document.getElementById('radar-mg-empty');
+            if (resultado) resultado.style.display = 'none';
+            if (empty) empty.style.display = 'none';
+            const input = document.getElementById('radar-mg-cidade');
+            if (input) input.value = '';
+            const mapa = document.getElementById('mapa-mg');
+            if (mapa && typeof _mapaLeaflet !== 'undefined' && _mapaLeaflet) {
+                setTimeout(() => { try { _mapaLeaflet.invalidateSize(); } catch (_) {} }, 60);
+                mapa.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }
+
         function renderRadarMg(data) {
             document.getElementById('radar-mg-empty').style.display = 'none';
-            document.getElementById('radar-mg-resultado').style.display = 'block';
+            const resultado = document.getElementById('radar-mg-resultado');
+            resultado.style.display = 'block';
+
+            // Atualiza header da seção de detalhes
+            const cidadeBuscada = document.getElementById('radar-mg-cidade').value.trim() || data.cidade || '—';
+            const titulo = document.getElementById('bm-detalhes-cidade');
+            if (titulo) titulo.textContent = cidadeBuscada;
+
+            // Garante que o mapa redesenha corretamente após o layout abrir e leva o usuário aos detalhes
+            if (typeof _mapaLeaflet !== 'undefined' && _mapaLeaflet) {
+                try { _mapaLeaflet.invalidateSize(); } catch (_) {}
+            }
+            setTimeout(() => {
+                resultado.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 120);
 
             const resumoMidia = data.resumo_midia || data.resumo || 'Sem cobertura de mídia encontrada no período.';
             const resumoVozPovo = data.resumo_voz_povo || 'Sem voz direta da população capturada ainda.';
