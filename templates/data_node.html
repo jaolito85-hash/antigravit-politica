@@ -1733,69 +1733,6 @@
             animation: bmMarkerPulse 1.5s ease-in-out infinite;
         }
 
-        .bm-legend {
-            position: absolute;
-            bottom: 22px;
-            left: 22px;
-            top: auto;
-            right: auto;
-            background: rgba(15, 23, 42, 0.86);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 10px;
-            padding: 12px 14px;
-            color: #e2e8f0;
-            font-size: 0.78rem;
-            backdrop-filter: blur(4px);
-            -webkit-backdrop-filter: blur(4px);
-            z-index: 400;
-            min-width: 180px;
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
-            pointer-events: none;
-        }
-        .bm-legend-title {
-            font-size: 0.72rem;
-            font-weight: 800;
-            color: #cbd5e1;
-            text-transform: uppercase;
-            letter-spacing: 0.6px;
-            margin-bottom: 8px;
-        }
-        .bm-legend-row {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            line-height: 1.6;
-        }
-        .bm-legend-foot {
-            margin-top: 8px;
-            padding-top: 8px;
-            border-top: 1px dashed rgba(255, 255, 255, 0.08);
-            color: #94a3b8;
-            font-size: 0.7rem;
-        }
-        .bm-dot {
-            display: inline-block;
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
-        }
-        .bm-dot.bm-critica     { background: #ef4444; }
-        .bm-dot.bm-disputa     { background: #f59e0b; }
-        .bm-dot.bm-consolidada { background: #22c55e; }
-        .bm-dot.bm-neutra      { background: #64748b; }
-
-        @keyframes bmDotPulseStatic {
-            0%, 100% { box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.4); }
-            50%      { box-shadow: 0 0 0 5px rgba(239, 68, 68, 0.15); }
-        }
-        .bm-pulse-static {
-            animation: bmDotPulseStatic 1.5s ease-in-out infinite;
-        }
-
-        @media (max-width: 720px) {
-            .bm-legend { left: 8px; bottom: 8px; padding: 9px 11px; min-width: 0; font-size: 0.72rem; }
-        }
 
         @media (prefers-reduced-motion: reduce) {
             .bm-marker-pulse,
@@ -2717,17 +2654,9 @@
             </button>
         </div>
 
-        <!-- Battle Map MG — sempre visível -->
-        <div class="stat-card bm-wrapper" style="padding:12px;margin-bottom:16px">
+        <!-- Battle Map MG — escondido enquanto os detalhes de uma cidade estao abertos -->
+        <div class="stat-card bm-wrapper" id="bm-wrapper" style="padding:12px;margin-bottom:16px">
             <div id="mapa-mg"></div>
-            <div class="bm-legend" id="bm-legend">
-                <div class="bm-legend-title">Mapa de Batalha · MG</div>
-                <div class="bm-legend-row"><span class="bm-dot bm-critica bm-pulse-static"></span> Atenção máxima</div>
-                <div class="bm-legend-row"><span class="bm-dot bm-disputa"></span> Em disputa</div>
-                <div class="bm-legend-row"><span class="bm-dot bm-consolidada"></span> Consolidada</div>
-                <div class="bm-legend-row"><span class="bm-dot bm-neutra"></span> Monitorar</div>
-                <div class="bm-legend-foot" id="bm-legend-foot">Calculando prioridades…</div>
-            </div>
         </div>
 
         <!-- Detalhes da cidade pesquisada -->
@@ -6599,14 +6528,19 @@ https://www.instagram.com/p/YYYYY/"
         function fecharDetalhesCidade() {
             const resultado = document.getElementById('radar-mg-resultado');
             const empty = document.getElementById('radar-mg-empty');
+            const wrapper = document.getElementById('bm-wrapper');
             if (resultado) resultado.style.display = 'none';
             if (empty) empty.style.display = 'none';
+            if (wrapper) wrapper.style.display = '';   // mostra mapa de volta
             const input = document.getElementById('radar-mg-cidade');
             if (input) input.value = '';
-            const mapa = document.getElementById('mapa-mg');
-            if (mapa && typeof _mapaLeaflet !== 'undefined' && _mapaLeaflet) {
-                setTimeout(() => { try { _mapaLeaflet.invalidateSize(); } catch (_) {} }, 60);
-                mapa.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            if (typeof _mapaLeaflet !== 'undefined' && _mapaLeaflet) {
+                // Aguarda layout reaparecer antes de recalcular tiles
+                setTimeout(() => { try { _mapaLeaflet.invalidateSize(); } catch (_) {} }, 80);
+                setTimeout(() => { try { _mapaLeaflet.invalidateSize(); } catch (_) {} }, 320);
+            }
+            if (wrapper) {
+                setTimeout(() => wrapper.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
             }
         }
 
@@ -6614,19 +6548,14 @@ https://www.instagram.com/p/YYYYY/"
             document.getElementById('radar-mg-empty').style.display = 'none';
             const resultado = document.getElementById('radar-mg-resultado');
             resultado.style.display = 'block';
+            // Esconde o mapa enquanto os detalhes estao abertos (usuario volta com "Voltar ao mapa")
+            const wrapper = document.getElementById('bm-wrapper');
+            if (wrapper) wrapper.style.display = 'none';
 
             // Atualiza header da seção de detalhes
             const cidadeBuscada = document.getElementById('radar-mg-cidade').value.trim() || data.cidade || '—';
             const titulo = document.getElementById('bm-detalhes-cidade');
             if (titulo) titulo.textContent = cidadeBuscada;
-
-            // Garante que o mapa redesenha corretamente apos o layout abrir.
-            // Nao rolamos a pagina automaticamente — o mapa fica fixo no topo e o
-            // usuario rola para ver os detalhes que aparecem abaixo.
-            if (typeof _mapaLeaflet !== 'undefined' && _mapaLeaflet) {
-                try { _mapaLeaflet.invalidateSize(); } catch (_) {}
-                setTimeout(() => { try { _mapaLeaflet.invalidateSize(); } catch (_) {} }, 220);
-            }
 
             const resumoMidia = data.resumo_midia || data.resumo || 'Sem cobertura de mídia encontrada no período.';
             const resumoVozPovo = data.resumo_voz_povo || 'Sem voz direta da população capturada ainda.';
@@ -6911,18 +6840,8 @@ https://www.instagram.com/p/YYYYY/"
                     aplicadas++;
                 });
 
-                const foot = document.getElementById('bm-legend-foot');
-                if (foot) {
-                    if (aplicadas === 0) {
-                        foot.textContent = 'Sem dados de prioridade ainda.';
-                    } else {
-                        foot.textContent = `${aplicadas} cidades classificadas · ${pulsando} em alerta`;
-                    }
-                }
             } catch (e) {
                 console.warn('[battle-map] nao pude aplicar status:', e);
-                const foot = document.getElementById('bm-legend-foot');
-                if (foot) foot.textContent = 'Sem dados de prioridade ainda.';
             }
         }
 
