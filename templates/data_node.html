@@ -1692,12 +1692,12 @@
             background: #0f172a !important;
             outline: none !important;
         }
-        /* Hack anti-faixa-branca: garante render em camada propria, sem sub-pixel gaps */
-        .leaflet-tile-container,
+        /* Hint de composicao sem sobrescrever o transform que o Leaflet usa
+           para posicionar o grid de tiles. */
+        .leaflet-tile-container { will-change: transform; }
         .leaflet-tile {
-            transform: translate3d(0, 0, 0) !important;
-            backface-visibility: hidden;
             image-rendering: -webkit-optimize-contrast;
+            image-rendering: crisp-edges;
         }
         .leaflet-tile-loaded { opacity: 1 !important; }
 
@@ -6727,10 +6727,9 @@ https://www.instagram.com/p/YYYYY/"
                 wheelDebounceTime: 60
             }).setView([-18.5, -44.5], 6);
 
-            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', {
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png', {
                 subdomains: 'abcd',
-                maxZoom: 19,
-                detectRetina: true
+                maxZoom: 19
             }).addTo(_mapaLeaflet);
 
             // Auto-correcao: sempre que o container muda de tamanho OU volta a ficar visivel,
