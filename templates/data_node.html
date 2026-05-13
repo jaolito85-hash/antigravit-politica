@@ -130,8 +130,10 @@
             flex: 1;
             padding: 40px;
             overflow-y: auto;
+            overflow-x: hidden;
             display: flex;
             flex-direction: column;
+            min-width: 0;
         }
 
         .page-header {
@@ -169,6 +171,8 @@
             display: flex;
             flex-direction: column;
             justify-content: center;
+            box-sizing: border-box;
+            min-width: 0;
         }
 
         .stat-label {
@@ -1722,6 +1726,8 @@
             position: absolute;
             bottom: 22px;
             left: 22px;
+            top: auto;
+            right: auto;
             background: rgba(15, 23, 42, 0.86);
             border: 1px solid rgba(255, 255, 255, 0.08);
             border-radius: 10px;
@@ -1833,6 +1839,31 @@
         .bm-detalhes-fechar:focus-visible {
             outline: 2px solid #60a5fa;
             outline-offset: 2px;
+        }
+
+        /* Grid de detalhes da cidade (Tá na Mídia · Voz do Povo · IBGE) */
+        .bm-detalhes-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 16px;
+            margin-bottom: 20px;
+            align-items: stretch;
+        }
+        .bm-detalhes-grid > * {
+            min-width: 0;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+        }
+        .bm-detalhes-grid p,
+        .bm-detalhes-grid span {
+            min-width: 0;
+            overflow-wrap: anywhere;
+            word-break: normal;
+        }
+        .ibge-card {
+            box-sizing: border-box;
+            min-width: 0;
         }
 
         @keyframes fadeSlideIn {
@@ -2694,7 +2725,7 @@
             </div>
 
             <!-- Cards de info: resumo + oportunidades + ad -->
-            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:20px">
+            <div class="bm-detalhes-grid">
 
                 <!-- Tá na Mídia (scraper web) -->
                 <div class="stat-card" style="padding:16px;border-left:3px solid #60a5fa">
