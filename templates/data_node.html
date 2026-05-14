@@ -2246,6 +2246,38 @@
             color: var(--text-muted);
         }
 
+        /* Radar 360° — Sub-tabs e Briefing IA */
+        .radar-subtab-btn {
+            padding: 10px 18px;
+            background: transparent;
+            border: none;
+            color: #94a3b8;
+            font-weight: 600;
+            font-size: 0.88rem;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .radar-subtab-btn:hover {
+            color: #cbd5e1;
+        }
+        .radar-subtab-btn.active {
+            color: #fff;
+            border-bottom-color: #7c3aed;
+        }
+        .radar-subtab-panel.hidden {
+            display: none;
+        }
+        .tema-card {
+            transition: 0.2s;
+        }
+        .tema-card:hover {
+            background: rgba(15, 23, 42, .7) !important;
+        }
+
         /* News cards */
         .news-card {
             background: var(--bg-card);
@@ -2868,10 +2900,7 @@
         <div class="nav-item" onclick="nav('prioridades', this)"><i class="ri-compass-3-line"></i> Prioridades</div>
         <div class="nav-item" onclick="nav('operacao-local', this)"><i class="ri-team-line"></i> Operação Local</div>
         <div class="nav-item" onclick="nav('feedbacks', this)"><i class="ri-chat-3-line"></i> Voz do Povo</div>
-        <div class="nav-item" onclick="nav('radar-comentarios', this)"><i class="ri-radar-line"></i> Radar de
-            Comentários</div>
-        <div class="nav-item" onclick="nav('radar-noticias', this)"><i class="ri-newspaper-line"></i> Radar de Notícias
-        </div>
+        <div class="nav-item" onclick="nav('radar', this)"><i class="ri-radar-line"></i> Radar</div>
         <div class="nav-item" onclick="nav('mapa-eleitoral', this)"><i class="ri-bar-chart-grouped-line"></i> Mapa
             Eleitoral</div>
         <div class="nav-item" onclick="nav('simulador', this)"><i class="ri-crosshair-2-line"></i> Simulador de
@@ -3410,14 +3439,82 @@
         <div class="grid-manage" id="categories-grid"></div>
     </div>
 
-    <!-- RADAR DE COMENTÁRIOS VIEW -->
-    <div class="main hidden" id="view-radar-comentarios">
+    <!-- RADAR 360° VIEW UNIFICADA — substitui Radar de Comentários + Radar de Notícias -->
+    <div class="main hidden" id="view-radar">
         <div class="page-header">
             <div class="page-title">
-                <h1><i class="ri-radar-line" style="color:#1a3a6b"></i> Radar de Comentários</h1>
-                <p>Analise posts, perfis e reações da população nas redes</p>
+                <h1><i class="ri-radar-line" style="color:#1a3a6b"></i> Radar 360°</h1>
+                <p>Briefing inteligente cruzando imprensa e redes sociais — o que está pegando e como o candidato deve se posicionar</p>
             </div>
         </div>
+
+        <!-- Card de Configuração Unificado -->
+        <div class="chart-box" style="margin-bottom:16px;background:linear-gradient(135deg,rgba(26,58,107,.18),rgba(15,23,42,.6));border:1px solid rgba(26,58,107,.4)">
+            <div class="chart-header" style="margin-bottom:14px">
+                <i class="ri-user-search-line" style="color:#7ba4d4"></i> Monitorar Político-Cliente
+            </div>
+            <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end">
+                <div style="flex:1;min-width:180px">
+                    <div style="font-size:0.78rem;color:#8b949e;margin-bottom:5px">Político Cliente</div>
+                    <input id="radar-cliente" type="text" placeholder="Ex: Pedro Rousseff" class="filter-input" style="width:100%">
+                </div>
+                <div>
+                    <div style="font-size:0.78rem;color:#8b949e;margin-bottom:5px">
+                        <i class="ri-instagram-line" style="color:#e1306c"></i> Instagram
+                        <span style="opacity:0.6;font-size:0.72rem"> (sem o @)</span>
+                    </div>
+                    <input id="radar-instagram" type="text" placeholder="Ex: pedrorousseff" class="filter-input"
+                        style="width:180px">
+                </div>
+                <div>
+                    <div style="font-size:0.78rem;color:#8b949e;margin-bottom:5px">Período</div>
+                    <select id="briefing-periodo" class="filter-select" style="padding:8px 12px">
+                        <option value="7d" selected>Últimos 7 dias</option>
+                        <option value="30d">Últimos 30 dias</option>
+                    </select>
+                </div>
+                <div style="flex:1;min-width:200px">
+                    <div style="font-size:0.78rem;color:#8b949e;margin-bottom:5px">Adversários <span
+                            style="opacity:0.6">(Enter para adicionar)</span></div>
+                    <input id="radar-adversario-input" type="text" placeholder="Ex: Maria Santos" class="filter-input"
+                        onkeydown="addAdversario(event)" style="width:100%">
+                    <div id="adversarios-tags"
+                        style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;min-height:24px"></div>
+                </div>
+            </div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;padding-top:14px;border-top:1px solid rgba(255,255,255,.06)">
+                <button id="btn-briefing-ia" onclick="gerarBriefingIA()" class="export-btn"
+                    style="background:linear-gradient(135deg,#7c3aed,#5b21b6);padding:10px 18px;font-size:13px;font-weight:700">
+                    <i class="ri-brain-line"></i> Gerar Briefing IA
+                </button>
+                <button onclick="buscarComentarios()" class="export-btn">
+                    <i class="ri-search-line"></i> Buscar Comentários
+                </button>
+                <button id="btn-estrategia" onclick="gerarEstrategia()" class="export-btn"
+                    style="background:#1a3a6b;opacity:0.5;cursor:not-allowed" disabled>
+                    <i class="ri-lightbulb-line"></i> Gerar Estratégia (só comentários)
+                </button>
+            </div>
+            <div style="font-size:11px;color:#64748b;margin-top:10px;line-height:1.5">
+                <i class="ri-information-line"></i> O <strong>Briefing IA</strong> cruza notícias da imprensa + comentários do Instagram e gera o roteiro do candidato (panorama + temas quentes com "o que falar" / "o que evitar"). Cache de 30 min.
+            </div>
+        </div>
+
+        <!-- Briefing IA Card (escondido até gerar) -->
+        <div id="briefing-card" class="chart-box hidden" style="margin-bottom:18px;background:linear-gradient(135deg,rgba(124,58,237,.08),rgba(15,23,42,.6));border:1px solid rgba(124,58,237,.3)"></div>
+
+        <!-- Sub-tabs nav -->
+        <div style="display:flex;gap:0;border-bottom:1px solid rgba(255,255,255,.08);margin-bottom:18px">
+            <button class="radar-subtab-btn active" data-tab="comentarios" onclick="switchRadarSubtab('comentarios')">
+                <i class="ri-chat-3-line"></i> Comentários
+            </button>
+            <button class="radar-subtab-btn" data-tab="noticias" onclick="switchRadarSubtab('noticias')">
+                <i class="ri-newspaper-line"></i> Notícias
+            </button>
+        </div>
+
+        <!-- ============== SUB-PANEL: COMENTÁRIOS ============== -->
+        <div id="radar-panel-comentarios" class="radar-subtab-panel">
 
         <!-- Análise por URLs -->
         <div class="priority-brief" style="border-left-color:#10b981;border-color:rgba(16,185,129,.22);background:linear-gradient(135deg,rgba(16,185,129,.08),rgba(15,23,42,.62));margin-bottom:18px">
@@ -3507,41 +3604,6 @@ https://www.instagram.com/p/YYYYY/"
             </div>
         </div>
 
-        <!-- Configuração -->
-        <div class="chart-box" style="margin-bottom:16px">
-            <div class="chart-header"><i class="ri-user-search-line" style="color:#1a3a6b"></i> Monitorar Perfil
-            </div>
-            <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end">
-                <div>
-                    <div style="font-size:0.78rem;color:#8b949e;margin-bottom:5px">Político Cliente</div>
-                    <input id="radar-cliente" type="text" placeholder="Ex: Pedro Rousseff" class="filter-input">
-                </div>
-                <div>
-                    <div style="font-size:0.78rem;color:#8b949e;margin-bottom:5px">
-                        <i class="ri-instagram-line" style="color:#e1306c"></i> Instagram
-                        <span style="opacity:0.6;font-size:0.72rem"> (sem o @)</span>
-                    </div>
-                    <input id="radar-instagram" type="text" placeholder="Ex: pedrorousseff" class="filter-input"
-                        style="width:180px">
-                </div>
-                <div>
-                    <div style="font-size:0.78rem;color:#8b949e;margin-bottom:5px">Adversários <span
-                            style="opacity:0.6">(Enter para adicionar)</span></div>
-                    <input id="radar-adversario-input" type="text" placeholder="Ex: Maria Santos" class="filter-input"
-                        onkeydown="addAdversario(event)">
-                    <div id="adversarios-tags"
-                        style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;min-height:24px"></div>
-                </div>
-                <button onclick="buscarComentarios()" class="export-btn" style="align-self:flex-end">
-                    <i class="ri-search-line"></i> Buscar Comentários
-                </button>
-                <button id="btn-estrategia" onclick="gerarEstrategia()" class="export-btn"
-                    style="align-self:flex-end;background:#1a3a6b;opacity:0.5;cursor:not-allowed" disabled>
-                    <i class="ri-lightbulb-line"></i> Gerar Estratégia IA
-                </button>
-            </div>
-        </div>
-
         <!-- Filtros -->
         <div class="filters-bar" style="margin-bottom:16px">
             <select id="filtro-periodo" onchange="filtrarEExibir()" class="filter-select">
@@ -3606,14 +3668,16 @@ https://www.instagram.com/p/YYYYY/"
             <div class="chart-header"><i class="ri-history-fill" style="color:#64748b"></i> Histórico de Análises</div>
             <div id="col-history" style="padding:12px 0;color:var(--text-muted);font-size:13px">Carregando...</div>
         </div>
-    </div>
 
-    <!-- RADAR DE NOTÍCIAS VIEW -->
-    <div class="main hidden" id="view-radar-noticias">
-        <div class="page-header">
-            <div class="page-title">
-                <h1><i class="ri-newspaper-line" style="color:#1a3a6b"></i> Radar de Notícias</h1>
-                <p>Cobertura da imprensa sobre os políticos monitorados</p>
+        </div><!-- /radar-panel-comentarios -->
+
+        <!-- ============== SUB-PANEL: NOTÍCIAS ============== -->
+        <div id="radar-panel-noticias" class="radar-subtab-panel hidden">
+
+        <!-- Header interno da sub-tab -->
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+            <div style="color:#94a3b8;font-size:0.88rem">
+                <i class="ri-newspaper-line" style="color:#1a3a6b"></i> Cobertura da imprensa sobre os políticos monitorados
             </div>
             <button onclick="buscarNoticias()" class="export-btn">
                 <i class="ri-search-line"></i> Atualizar Notícias
@@ -3643,7 +3707,11 @@ https://www.instagram.com/p/YYYYY/"
         <div id="noticias-timeline" style="display:flex;flex-direction:column;gap:12px">
             <p style="color:var(--text-muted)">Carregando notícias...</p>
         </div>
-    </div>
+
+        </div><!-- /radar-panel-noticias -->
+
+    </div><!-- /view-radar -->
+
 
     <!-- MAPA ELEITORAL VIEW -->
     <div class="main hidden" id="view-mapa-eleitoral">
@@ -3998,17 +4066,15 @@ https://www.instagram.com/p/YYYYY/"
                 aplicarFiltros();
             }
             if (view === 'regions' || view === 'categories') loadConfigViews();
-            if (view === 'radar-comentarios') {
-                // NUNCA dispara scraper automaticamente — apenas re-exibe dados já carregados
+            if (view === 'radar') {
+                // Aba unificada — inicializa sub-tab Comentários (default) sem disparar scraper
                 loadColetaHistory();
                 if (_comentariosCompletos.length > 0) {
                     filtrarEExibir();
                 } else {
-                    // Tentar carregar dados salvos em disco (sem disparar Apify)
                     _carregarCacheDisco();
                 }
             }
-            if (view === 'radar-noticias') buscarNoticias();
             if (view === 'tarefas-gabinete') carregarTarefasGabinete();
             if (view === 'mapa-eleitoral') loadMapaEleitoral();
             if (view === 'simulador') loadSimulador();
@@ -6756,6 +6822,128 @@ https://www.instagram.com/p/YYYYY/"
                     <div style="color:#f59e0b;font-size:0.72rem;font-weight:600;margin-bottom:6px">💡 OPORTUNIDADE IDENTIFICADA</div>
                     <p style="color:#fcd34d;font-size:0.87rem;margin:0;line-height:1.5">${data.oportunidade}</p>
                 </div>` : ''}`;
+        }
+
+        // ===== RADAR 360° — SUB-TABS + BRIEFING IA UNIFICADO =====
+
+        function switchRadarSubtab(tab) {
+            document.querySelectorAll('.radar-subtab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.radar-subtab-panel').forEach(p => p.classList.add('hidden'));
+            const btn = document.querySelector(`.radar-subtab-btn[data-tab="${tab}"]`);
+            const panel = document.getElementById(`radar-panel-${tab}`);
+            if (btn) btn.classList.add('active');
+            if (panel) panel.classList.remove('hidden');
+            // Carregamento lazy de cada sub-aba
+            if (tab === 'noticias' && !window._radarNoticiasLoaded) {
+                buscarNoticias();
+                window._radarNoticiasLoaded = true;
+            }
+        }
+
+        async function gerarBriefingIA(forceRefresh = false) {
+            const politico  = (document.getElementById('radar-cliente').value || '').trim();
+            const instagram = (document.getElementById('radar-instagram').value || '').trim().replace(/^@/, '');
+            const periodo   = document.getElementById('briefing-periodo')?.value || '7d';
+
+            if (!politico) {
+                alert('Informe o nome do político-cliente antes de gerar o briefing.');
+                document.getElementById('radar-cliente').focus();
+                return;
+            }
+
+            const btn  = document.getElementById('btn-briefing-ia');
+            const card = document.getElementById('briefing-card');
+            const originalBtnHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="ri-loader-4-line"></i> Gerando briefing…';
+            card.classList.remove('hidden');
+            card.innerHTML = `
+                <div style="text-align:center;padding:36px;color:#94a3b8">
+                    <div style="font-size:2rem;margin-bottom:8px"><i class="ri-loader-4-line"></i></div>
+                    <div style="font-weight:600;color:#cbd5e1">Cruzando imprensa e redes sociais…</div>
+                    <div style="font-size:0.78rem;margin-top:6px">Pode levar 5-20 segundos na primeira vez (Apify + OpenAI).</div>
+                </div>`;
+
+            try {
+                const r = await fetch('/api/radar/briefing', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ politico, instagram, periodo, force_refresh: forceRefresh })
+                });
+                const data = await r.json();
+                if (!r.ok) throw new Error(data.error || data.detalhe || 'Falha ao gerar briefing');
+                renderBriefing(data);
+            } catch (e) {
+                card.innerHTML = `
+                    <div style="padding:18px;color:#ef4444">
+                        <strong><i class="ri-error-warning-line"></i> Erro:</strong> ${e.message}
+                    </div>`;
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalBtnHtml;
+            }
+        }
+
+        function renderBriefing(data) {
+            const card = document.getElementById('briefing-card');
+            const tempColors  = { fria: '#3b82f6', morna: '#f59e0b', aquecendo: '#f97316', quente: '#ef4444' };
+            const tempLabels  = { fria: 'Cenário Frio', morna: 'Cenário Morno', aquecendo: 'Aquecendo', quente: 'Cenário Quente' };
+            const sentColors  = { positivo: '#22c55e', negativo: '#ef4444', misto: '#f59e0b' };
+            const relevColors = { alta: '#ef4444', media: '#f59e0b', baixa: '#94a3b8' };
+
+            const temp = data.temperatura || 'morna';
+            const tempCor = tempColors[temp] || '#3b82f6';
+            const tempLabel = tempLabels[temp] || temp;
+
+            const temas = (data.temas_quentes || []).map(t => {
+                const rc = relevColors[t.relevancia] || '#94a3b8';
+                const sc = sentColors[t.sentimento_popular] || '#94a3b8';
+                return `
+                <div class="tema-card" style="background:rgba(15,23,42,.5);border:1px solid rgba(255,255,255,.08);border-left:3px solid ${rc};padding:14px 16px;border-radius:8px;margin-bottom:10px">
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:8px;flex-wrap:wrap">
+                        <strong style="font-size:0.98rem;color:#e5e7eb">${escapeHtml(t.tema || 'Tema')}</strong>
+                        <span style="font-size:0.7rem;color:${sc};font-weight:700;text-transform:uppercase;letter-spacing:0.06em">
+                            ${escapeHtml(t.relevancia || '')} · ${escapeHtml(t.sentimento_popular || '')}
+                        </span>
+                    </div>
+                    <div style="font-size:0.78rem;color:#94a3b8;margin-bottom:5px">
+                        <i class="ri-newspaper-line" style="color:#7ba4d4"></i> <strong>Imprensa:</strong> ${escapeHtml(t.evidencia_imprensa || 'sem dados')}
+                    </div>
+                    <div style="font-size:0.78rem;color:#94a3b8;margin-bottom:10px">
+                        <i class="ri-chat-3-line" style="color:#e1306c"></i> <strong>Redes:</strong> ${escapeHtml(t.evidencia_redes || 'sem dados')}
+                    </div>
+                    <div style="background:rgba(34,197,94,.08);border-left:2px solid #22c55e;padding:8px 10px;border-radius:4px;margin-bottom:6px;font-size:0.84rem;color:#d1fae5">
+                        <strong style="color:#22c55e">✅ O que falar:</strong> ${escapeHtml(t.o_que_falar || '—')}
+                    </div>
+                    <div style="background:rgba(239,68,68,.08);border-left:2px solid #ef4444;padding:8px 10px;border-radius:4px;font-size:0.84rem;color:#fecaca">
+                        <strong style="color:#ef4444">⛔ Evitar:</strong> ${escapeHtml(t.o_que_evitar || '—')}
+                    </div>
+                </div>`;
+            }).join('');
+
+            const meta = data.meta || {};
+            const cachedTag = data.cached
+                ? `<span style="font-size:0.72rem;color:#94a3b8">⏱ em cache (${Math.round((data.cache_age_s||0)/60)} min) · <a href="#" onclick="gerarBriefingIA(true);return false" style="color:#a78bfa">regerar</a></span>`
+                : `<span style="font-size:0.72rem;color:#22c55e">✓ gerado agora</span>`;
+
+            card.innerHTML = `
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px">
+                    <div style="display:flex;align-items:center;gap:10px">
+                        <span style="background:${tempCor};color:white;padding:4px 12px;border-radius:14px;font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em">${tempLabel}</span>
+                        <strong style="font-size:1.05rem;color:#e5e7eb"><i class="ri-brain-line" style="color:#a78bfa"></i> Briefing 360° · ${escapeHtml(meta.politico || '')}</strong>
+                    </div>
+                    ${cachedTag}
+                </div>
+                <div style="background:rgba(26,58,107,.18);border-left:3px solid #1a3a6b;padding:14px 16px;border-radius:6px;margin-bottom:18px;line-height:1.6;color:#e5e7eb;font-size:0.92rem">
+                    ${escapeHtml(data.panorama || 'Sem panorama disponível.')}
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-size:0.82rem;color:#94a3b8">
+                    <strong style="color:#cbd5e1">Temas Quentes</strong>
+                    <span>📰 ${meta.total_noticias||0} notícias · 💬 ${meta.total_comentarios||0} comentários</span>
+                </div>
+                ${temas || '<div style="color:#94a3b8;padding:14px;text-align:center;background:rgba(15,23,42,.5);border-radius:8px">Nenhum tema relevante detectado.</div>'}
+            `;
+            card.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
 
         // ===== RADAR DE NOTÍCIAS =====
