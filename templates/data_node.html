@@ -3494,9 +3494,14 @@
                     style="background:#1a3a6b;opacity:0.5;cursor:not-allowed" disabled>
                     <i class="ri-lightbulb-line"></i> Gerar Estratégia (só comentários)
                 </button>
+                <button id="btn-reclassificar" onclick="reclassificarHistorico()" class="export-btn"
+                    style="background:transparent;border:1px solid #f97316;color:#f97316">
+                    <i class="ri-refresh-line"></i> Reclassificar histórico
+                </button>
             </div>
             <div style="font-size:11px;color:#64748b;margin-top:10px;line-height:1.5">
                 <i class="ri-information-line"></i> O <strong>Briefing IA</strong> cruza notícias da imprensa + comentários do Instagram e gera o roteiro do candidato (panorama + temas quentes com "o que falar" / "o que evitar"). Cache de 30 min.
+                <br><i class="ri-information-line"></i> <strong>Adversários</strong> ficam salvos no navegador e influenciam toda classificação: apoio explícito a um adversário (ex: "FULANO PRESIDENTE!") é contado como Negativo. Use <strong>Reclassificar histórico</strong> após cadastrar/alterar adversários para recalcular os comentários já salvos.
             </div>
         </div>
 
@@ -3638,13 +3643,14 @@ https://www.instagram.com/p/YYYYY/"
                                 <th>Usuário</th>
                                 <th>Comentário</th>
                                 <th>Sentimento</th>
+                                <th title="Pro/Anti candidato ou adversário">Alinhamento</th>
                                 <th>Categoria</th>
                                 <th>Data</th>
                             </tr>
                         </thead>
                         <tbody id="comentarios-tbody">
                             <tr>
-                                <td colspan="6" style="color:var(--text-muted);text-align:center;padding:20px">Preencha
+                                <td colspan="7" style="color:var(--text-muted);text-align:center;padding:20px">Preencha
                                     o nome e o @ do Instagram e clique em "Buscar Comentários"</td>
                             </tr>
                         </tbody>
@@ -6442,27 +6448,48 @@ https://www.instagram.com/p/YYYYY/"
 
         // ===== RADAR DE COMENTÁRIOS =====
 
+        const _ADV_STORAGE_KEY = 'radar_adversarios';
+
+        function _salvarAdversarios() {
+            try { localStorage.setItem(_ADV_STORAGE_KEY, JSON.stringify(adversarios)); }
+            catch (e) { /* localStorage cheio ou bloqueado — ignorar */ }
+        }
+
+        function _carregarAdversarios() {
+            try {
+                const raw = localStorage.getItem(_ADV_STORAGE_KEY);
+                if (!raw) return;
+                const arr = JSON.parse(raw);
+                if (Array.isArray(arr)) {
+                    adversarios = arr.filter(a => typeof a === 'string' && a.trim());
+                }
+            } catch (e) { /* ignorar */ }
+        }
+
         function addAdversario(event) {
             if (event.key !== 'Enter') return;
             const input = document.getElementById('radar-adversario-input');
             const nome = input.value.trim();
             if (!nome || adversarios.includes(nome)) { input.value = ''; return; }
             adversarios.push(nome);
+            _salvarAdversarios();
             renderAdversariosTags();
             input.value = '';
         }
 
         function removeAdversario(nome) {
             adversarios = adversarios.filter(a => a !== nome);
+            _salvarAdversarios();
             renderAdversariosTags();
         }
 
         function renderAdversariosTags() {
             const container = document.getElementById('adversarios-tags');
+            if (!container) return;
             container.innerHTML = adversarios.map(nome => `
                 <span class="adversario-tag">
-                    ${nome}
-                    <button onclick="removeAdversario('${nome}')" title="Remover">×</button>
+                    ${escapeHtml(nome)}
+                    <button onclick="removeAdversario('${nome.replace(/'/g, "\\'")}')" title="Remover">×</button>
                 </span>
             `).join('');
         }
@@ -6497,7 +6524,7 @@ https://www.instagram.com/p/YYYYY/"
             const politico = cliente;   // usar só o nome digitado, nunca o dropdown
 
             const tbody = document.getElementById('comentarios-tbody');
-            tbody.innerHTML = `<tr><td colspan="6" style="color:var(--text-muted);text-align:center;padding:24px">
+            tbody.innerHTML = `<tr><td colspan="7" style="color:var(--text-muted);text-align:center;padding:24px">
                 <i class="ri-loader-4-line"></i> Buscando comentários no Instagram${username ? ' @' + username : ''}...
                 ${username ? '<br><span style="font-size:0.78rem;opacity:0.6">Isso pode levar até 60 segundos na primeira busca</span>' : ''}
             </td></tr>`;
@@ -6505,6 +6532,7 @@ https://www.instagram.com/p/YYYYY/"
             let url = `/api/radar-comentarios?periodo=30d`;
             if (politico) url += `&politico=${encodeURIComponent(politico)}`;
             if (username) url += `&username=${encodeURIComponent(username)}`;
+            if (adversarios && adversarios.length) url += `&adversarios=${encodeURIComponent(JSON.stringify(adversarios))}`;
 
             const btn = document.querySelector('button[onclick="buscarComentarios()"]');
             if (btn) {
@@ -6534,12 +6562,12 @@ https://www.instagram.com/p/YYYYY/"
                     // Manter dados anteriores e apenas re-exibir
                     filtrarEExibir();
                 } else {
-                    tbody.innerHTML = '<tr><td colspan="6" style="color:var(--text-muted);text-align:center;padding:24px">Nenhum comentário encontrado. Verifique o @ do Instagram e tente novamente.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="7" style="color:var(--text-muted);text-align:center;padding:24px">Nenhum comentário encontrado. Verifique o @ do Instagram e tente novamente.</td></tr>';
                 }
             } catch (e) {
                 console.error("Erro na busca de comentários:", e);
                 const tbody = document.getElementById('comentarios-tbody');
-                tbody.innerHTML = `<tr><td colspan="6" style="color:#ef4444;text-align:center;padding:24px">
+                tbody.innerHTML = `<tr><td colspan="7" style="color:#ef4444;text-align:center;padding:24px">
                     ❌ Falha ao buscar comentários. Verifique a conexão.
                 </td></tr>`;
             } finally {
@@ -6636,12 +6664,22 @@ https://www.instagram.com/p/YYYYY/"
             // Fill table
             const tbody = document.getElementById('comentarios-tbody');
             if (comentarios.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" style="color:var(--text-muted);text-align:center;padding:20px">Nenhum comentário encontrado. Verifique o @ do Instagram e tente novamente.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" style="color:var(--text-muted);text-align:center;padding:20px">Nenhum comentário encontrado. Verifique o @ do Instagram e tente novamente.</td></tr>';
             } else {
                 const fonteIcons = {
                     'Instagram': '<i class="ri-instagram-line" style="color:#e1306c"></i>',
                     'YouTube': '<i class="ri-youtube-line" style="color:#ff0000"></i>',
                     'Twitter/X': '<i class="ri-twitter-x-line" style="color:#fff"></i>'
+                };
+                // Cores e rótulos por alinhamento — pro_adversario chama atenção (laranja)
+                const alinhamentoStyle = {
+                    'pro_candidato':   { cor: '#16a34a', label: 'Pró-candidato',  emoji: '🟢' },
+                    'anti_candidato':  { cor: '#dc2626', label: 'Anti-candidato', emoji: '🔴' },
+                    'pro_adversario':  { cor: '#f97316', label: 'Pró-adversário', emoji: '🟠' },
+                    'anti_adversario': { cor: '#3b82f6', label: 'Anti-adversário',emoji: '🔵' },
+                    'neutro':          { cor: '#94a3b8', label: 'Neutro',         emoji: '⚪' },
+                    'spam':            { cor: '#64748b', label: 'Spam',           emoji: '🚫' },
+                    'off_topic':       { cor: '#64748b', label: 'Off-topic',      emoji: '◽' },
                 };
 
                 tbody.innerHTML = comentarios.map(c => {
@@ -6653,12 +6691,17 @@ https://www.instagram.com/p/YYYYY/"
                     const catBadge = c.categoria
                         ? `<span style="background:${catColor}20;color:${catColor};border:1px solid ${catColor};font-size:0.68rem;padding:2px 6px;border-radius:4px;white-space:nowrap">${c.categoria}</span>`
                         : '';
+                    const al = (c.alinhamento || 'neutro');
+                    const ast = alinhamentoStyle[al] || alinhamentoStyle.neutro;
+                    const advTip = c.adversario_mencionado ? ` · ${escapeHtml(c.adversario_mencionado)}` : '';
+                    const alinhamentoBadge = `<span title="${ast.label}${advTip}" style="background:${ast.cor}1a;color:${ast.cor};border:1px solid ${ast.cor};font-size:0.68rem;padding:2px 6px;border-radius:4px;white-space:nowrap">${ast.emoji} ${ast.label}</span>`;
                     return `
                         <tr>
                             <td><span class="fonte-badge">${fonteIcons[c.fonte] || ''} ${c.fonte}</span></td>
                             <td>${usuario} ${postLink}</td>
                             <td style="max-width:280px;color:#d1d5db;font-size:0.82rem">${c.trecho}</td>
                             <td><span class="sentimento-badge ${sentBadgeClass}">${c.sentimento}</span></td>
+                            <td>${alinhamentoBadge}</td>
                             <td>${catBadge}</td>
                             <td style="color:var(--text-muted);white-space:nowrap;font-size:0.8rem">${dataFmt}</td>
                         </tr>
@@ -6786,7 +6829,7 @@ https://www.instagram.com/p/YYYYY/"
                 const res = await fetch('/api/talking-points', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ comentarios: _comentariosAtual, politico })
+                    body: JSON.stringify({ comentarios: _comentariosAtual, politico, adversarios })
                 });
                 const data = await res.json();
                 renderEstrategia(data);
@@ -6840,6 +6883,53 @@ https://www.instagram.com/p/YYYYY/"
             }
         }
 
+        async function reclassificarHistorico() {
+            const politico = (document.getElementById('radar-cliente').value || '').trim();
+            if (!politico) {
+                alert('Informe o nome do político-cliente antes de reclassificar.');
+                document.getElementById('radar-cliente').focus();
+                return;
+            }
+            const estim = (typeof _comentariosCompletos !== 'undefined' && _comentariosCompletos.length)
+                ? _comentariosCompletos.length
+                : 500;
+            const custo = (estim * 0.002).toFixed(2);
+            const advStr = adversarios && adversarios.length ? adversarios.join(', ') : '(nenhum adversário cadastrado)';
+            const ok = confirm(
+                `Reclassificar até ${estim} comentários já salvos no banco usando o NOVO classificador relativo.\n\n` +
+                `Político: ${politico}\nAdversários: ${advStr}\n` +
+                `Custo estimado: ~US$ ${custo} em OpenAI.\n\nContinuar?`
+            );
+            if (!ok) return;
+
+            const btn = document.getElementById('btn-reclassificar');
+            const originalHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="ri-loader-4-line"></i> Reclassificando…';
+            try {
+                const r = await fetch('/api/radar/reclassificar-historico', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ politico, adversarios, limite: 500 })
+                });
+                const data = await r.json();
+                if (!r.ok) throw new Error(data.error || 'Falha ao reclassificar');
+                alert(
+                    `✅ Reclassificação concluída:\n\n` +
+                    `${data.atualizados} de ${data.total_lido} comentários atualizados\n` +
+                    `${data.erros || 0} erros\n` +
+                    `Custo: US$ ${data.custo_estimado_usd}\n\n` +
+                    `Recarregando a tabela…`
+                );
+                if (typeof _carregarCacheDisco === 'function') await _carregarCacheDisco();
+            } catch (e) {
+                alert(`❌ Erro: ${e.message}`);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+            }
+        }
+
         async function gerarBriefingIA(forceRefresh = false) {
             const politico  = (document.getElementById('radar-cliente').value || '').trim();
             const instagram = (document.getElementById('radar-instagram').value || '').trim().replace(/^@/, '');
@@ -6868,7 +6958,7 @@ https://www.instagram.com/p/YYYYY/"
                 const r = await fetch('/api/radar/briefing', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ politico, instagram, periodo, force_refresh: forceRefresh })
+                    body: JSON.stringify({ politico, instagram, periodo, adversarios, force_refresh: forceRefresh })
                 });
                 const data = await r.json();
                 if (!r.ok) throw new Error(data.error || data.detalhe || 'Falha ao gerar briefing');
@@ -6926,6 +7016,29 @@ https://www.instagram.com/p/YYYYY/"
                 ? `<span style="font-size:0.72rem;color:#94a3b8">⏱ em cache (${Math.round((data.cache_age_s||0)/60)} min) · <a href="#" onclick="gerarBriefingIA(true);return false" style="color:#a78bfa">regerar</a></span>`
                 : `<span style="font-size:0.72rem;color:#22c55e">✓ gerado agora</span>`;
 
+            // Card de infiltração adversária (só aparece se nivel >= medio OU se houver pct relevante)
+            const inf = data.infiltracao_adversario || {};
+            const infNivel = (inf.nivel || 'baixo').toLowerCase();
+            const pctInf = meta.pct_infiltracao || 0;
+            const infColors = { baixo: '#94a3b8', medio: '#f59e0b', alto: '#ef4444' };
+            const infCor = infColors[infNivel] || '#94a3b8';
+            let infiltracaoBlock = '';
+            if (infNivel === 'medio' || infNivel === 'alto' || pctInf >= 10) {
+                const advTop = meta.adversarios_citados || {};
+                const advList = Object.entries(advTop).sort((a, b) => b[1] - a[1]).slice(0, 3)
+                    .map(([n, c]) => `${escapeHtml(n)} (${c})`).join(', ') || '—';
+                infiltracaoBlock = `
+                    <div style="background:rgba(239,68,68,.08);border:1px solid ${infCor};border-left:4px solid ${infCor};padding:12px 14px;border-radius:8px;margin-bottom:18px">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:8px">
+                            <strong style="color:${infCor};font-size:0.92rem"><i class="ri-alert-line"></i> Infiltração de Adversários · ${pctInf}%</strong>
+                            <span style="font-size:0.7rem;color:${infCor};font-weight:700;text-transform:uppercase;letter-spacing:0.06em">${infNivel}</span>
+                        </div>
+                        <div style="font-size:0.84rem;color:#e5e7eb;line-height:1.5;margin-bottom:6px">${escapeHtml(inf.descricao || `${pctInf}% dos comentários no perfil promovem adversários.`)}</div>
+                        <div style="font-size:0.78rem;color:#94a3b8;margin-bottom:8px"><strong>Mais citados:</strong> ${advList}</div>
+                        ${inf.recomendacao ? `<div style="background:rgba(15,23,42,.5);padding:8px 10px;border-radius:4px;font-size:0.82rem;color:#e5e7eb"><strong style="color:${infCor}">Ação:</strong> ${escapeHtml(inf.recomendacao)}</div>` : ''}
+                    </div>`;
+            }
+
             card.innerHTML = `
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px">
                     <div style="display:flex;align-items:center;gap:10px">
@@ -6937,9 +7050,10 @@ https://www.instagram.com/p/YYYYY/"
                 <div style="background:rgba(26,58,107,.18);border-left:3px solid #1a3a6b;padding:14px 16px;border-radius:6px;margin-bottom:18px;line-height:1.6;color:#e5e7eb;font-size:0.92rem">
                     ${escapeHtml(data.panorama || 'Sem panorama disponível.')}
                 </div>
+                ${infiltracaoBlock}
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-size:0.82rem;color:#94a3b8">
                     <strong style="color:#cbd5e1">Temas Quentes</strong>
-                    <span>📰 ${meta.total_noticias||0} notícias · 💬 ${meta.total_comentarios||0} comentários</span>
+                    <span>📰 ${meta.total_noticias||0} notícias · 💬 ${meta.total_comentarios||0} comentários · 🟠 ${meta.comentarios_pro_adversario||0} pró-adv</span>
                 </div>
                 ${temas || '<div style="color:#94a3b8;padding:14px;text-align:center;background:rgba(15,23,42,.5);border-radius:8px">Nenhum tema relevante detectado.</div>'}
             `;
@@ -7997,13 +8111,18 @@ https://www.instagram.com/p/YYYYY/"
         // ====== RADAR DE COMENTARIOS: ANALISE POR URL ======
         let _coletaResults = [];
 
-        // URL counter on textarea input
+        // URL counter on textarea input + carregar adversarios persistidos
         document.addEventListener('DOMContentLoaded', () => {
             const ta = document.getElementById('coleta-urls');
             if (ta) ta.addEventListener('input', () => {
                 const urls = ta.value.split('\n').filter(u => u.trim().includes('instagram.com'));
                 document.getElementById('coleta-url-count').textContent = urls.length + ' URLs do Instagram detectadas';
             });
+            // Restaurar adversários salvos no localStorage
+            if (typeof _carregarAdversarios === 'function') {
+                _carregarAdversarios();
+                renderAdversariosTags();
+            }
         });
 
         let _isColetandoDados = false;
@@ -8036,7 +8155,7 @@ https://www.instagram.com/p/YYYYY/"
                 const res = await fetch('/api/coletar-dados', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ urls, contexto })
+                    body: JSON.stringify({ urls, contexto, adversarios })
                 });
                 const data = await res.json();
 

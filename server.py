@@ -1353,32 +1353,68 @@ def _apify_run(actor_slug, payload, timeout=150):
     return items_resp.json()
 
 
-def _classificar_chunk(textos, politico):
-    """Classifica um chunk de até 30 comentários em 1 chamada OpenAI."""
-    default = {"sentimento": "Neutro", "categoria": "Propostas & Projetos"}
+_ALINHAMENTOS_VALIDOS = {
+    "pro_candidato", "anti_candidato", "pro_adversario", "anti_adversario",
+    "neutro", "spam", "off_topic"
+}
+
+
+def _classificar_chunk(textos, politico, adversarios=None):
+    """
+    Classifica um chunk de até 30 comentários em 1 chamada OpenAI.
+    Quando `adversarios` é informado, o sentimento é RELATIVO ao candidato:
+    apoio explícito a um adversário vira "Negativo" mesmo se o tom for entusiasmado.
+    """
+    default = {
+        "sentimento": "Neutro",
+        "categoria": "Propostas & Projetos",
+        "alinhamento": "neutro",
+        "adversario_mencionado": None,
+        "nivel_hostilidade": 0,
+        "sentimento_absoluto": "Neutro",
+    }
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key or not textos:
-        return [default] * len(textos)
+        return [default.copy() for _ in textos]
+
+    advs = [a.strip() for a in (adversarios or []) if a and a.strip()]
+    advs_block = (
+        f"Adversários do candidato (apoio a estes = NEGATIVO para o cliente; crítica a estes = POSITIVO para o cliente): "
+        f"{', '.join(advs)}"
+        if advs else
+        "Nenhum adversário informado — classifique apenas pelo tom em relação ao candidato."
+    )
+
     try:
         from openai import OpenAI
         client = OpenAI(api_key=api_key)
         items_text = "\n".join([f"{i+1}. \"{t[:300]}\"" for i, t in enumerate(textos)])
+        prompt = (
+            f"Você é analista político da campanha de {politico}.\n"
+            f"{advs_block}\n\n"
+            "Para cada comentário num post de {politico}, classifique RELATIVO ao apoio/oposição ao candidato.\n"
+            "Responda SOMENTE com JSON array compacto (um objeto por comentário, mesma ordem):\n"
+            '[{"sentimento":"Positivo|Negativo|Neutro",'
+            '"sentimento_absoluto":"Positivo|Negativo|Neutro",'
+            '"alinhamento":"pro_candidato|anti_candidato|pro_adversario|anti_adversario|neutro|spam|off_topic",'
+            '"categoria":"...",'
+            '"adversario_mencionado":"<nome ou null>",'
+            '"nivel_hostilidade":0}]\n\n'
+            "REGRAS:\n"
+            "- sentimento = RELATIVO: Positivo se (pro_candidato OU anti_adversario); Negativo se (anti_candidato OU pro_adversario); Neutro caso contrário.\n"
+            "- sentimento_absoluto = tom do texto isolado, sem contexto político.\n"
+            "- nivel_hostilidade: 0 (neutro), 1 (crítica branda), 2 (crítica forte), 3 (insulto/agressão).\n"
+            "- adversario_mencionado: nome canônico do adversário citado (case-insensitive, sem acento se houver dúvida) ou null.\n"
+            "- Comentário entusiasmado promovendo adversário = pro_adversario / Negativo (não Positivo).\n"
+            "- Categorias: Propostas & Projetos | Infraestrutura & Obras | Saúde & Educação | Segurança Pública | Transporte & Mobilidade | Meio Ambiente | Desenvolvimento Econômico | Assistência Social\n\n"
+            f"Exemplo (candidato={politico}, adversários={advs or ['Flávio Bolsonaro']}):\n"
+            '"FLAVIO BOLSONARO PRESIDENTE!!!" → {"sentimento":"Negativo","sentimento_absoluto":"Positivo","alinhamento":"pro_adversario","categoria":"Propostas & Projetos","adversario_mencionado":"Flávio Bolsonaro","nivel_hostilidade":1}\n\n'
+            f"Comentários:\n{items_text}"
+        )
         resp = client.chat.completions.create(
             model="gpt-4o-mini",
-            messages=[{
-                "role": "user",
-                "content": (
-                    f"Classifique cada comentário sobre {politico}. "
-                    "Responda SOMENTE com JSON array compacto (sem espaços extras), "
-                    "um objeto por linha, na mesma ordem dos comentários:\n"
-                    '[{"sentimento":"Positivo|Negativo|Neutro","categoria":"..."}]\n'
-                    "Categorias: Propostas & Projetos | Infraestrutura & Obras | "
-                    "Saúde & Educação | Segurança Pública | Transporte & Mobilidade | "
-                    "Meio Ambiente | Desenvolvimento Econômico | Assistência Social\n\n"
-                    f"Comentários:\n{items_text}"
-                )
-            }],
-            max_tokens=len(textos) * 40 + 200,
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=len(textos) * 80 + 300,
             temperature=0
         )
         raw = resp.choices[0].message.content.strip()
@@ -1392,22 +1428,43 @@ def _classificar_chunk(textos, politico):
         results = []
         for item in parsed:
             sentimento = item.get("sentimento", "Neutro")
+            sentimento_abs = item.get("sentimento_absoluto", sentimento)
+            alinhamento = (item.get("alinhamento") or "neutro").lower()
             categoria = item.get("categoria", "Propostas & Projetos")
+            adv = item.get("adversario_mencionado")
+            if isinstance(adv, str) and adv.strip().lower() in ("null", "none", ""):
+                adv = None
+            try:
+                nivel = int(item.get("nivel_hostilidade", 0))
+                nivel = max(0, min(3, nivel))
+            except (TypeError, ValueError):
+                nivel = 0
             if sentimento not in ("Positivo", "Negativo", "Neutro"):
                 sentimento = "Neutro"
-            results.append({"sentimento": sentimento, "categoria": categoria})
+            if sentimento_abs not in ("Positivo", "Negativo", "Neutro"):
+                sentimento_abs = sentimento
+            if alinhamento not in _ALINHAMENTOS_VALIDOS:
+                alinhamento = "neutro"
+            results.append({
+                "sentimento": sentimento,
+                "categoria": categoria,
+                "alinhamento": alinhamento,
+                "adversario_mencionado": adv,
+                "nivel_hostilidade": nivel,
+                "sentimento_absoluto": sentimento_abs,
+            })
         while len(results) < len(textos):
-            results.append(default)
+            results.append(default.copy())
         return results[:len(textos)]
     except Exception as e:
         print(f"❌ Batch classify error: {e}")
-        return [default] * len(textos)
+        return [default.copy() for _ in textos]
 
 
-def _classificar_batch(textos, politico, chunk_size=30):
+def _classificar_batch(textos, politico, chunk_size=30, adversarios=None):
     """
     Classifica comentários em batch, dividindo em chunks de 30 para não truncar tokens.
-    Retorna lista de dicts: [{sentimento, categoria}, ...]
+    Retorna lista de dicts: [{sentimento, categoria, alinhamento, adversario_mencionado, nivel_hostilidade, sentimento_absoluto}, ...]
     """
     if not textos:
         return []
@@ -1415,22 +1472,24 @@ def _classificar_batch(textos, politico, chunk_size=30):
     for i in range(0, len(textos), chunk_size):
         chunk = textos[i:i + chunk_size]
         print(f"🤖 Classificando chunk {i//chunk_size + 1} ({len(chunk)} comentários)...")
-        results.extend(_classificar_chunk(chunk, politico))
+        results.extend(_classificar_chunk(chunk, politico, adversarios=adversarios))
     return results
 
 
-def fetch_instagram_comments(username, politico, n_posts=5, comments_per_post=200):
+def fetch_instagram_comments(username, politico, n_posts=5, comments_per_post=200, adversarios=None):
     """
     Fluxo dois passos via Apify:
       1. apify~instagram-scraper  → pega os N posts mais recentes do perfil
       2. apify~instagram-comment-scraper → pega TODOS os comentários de cada post
     Resultado cacheado por 1h para economizar crédito Apify.
+    Quando `adversarios` é informado, a classificação é feita relativa ao candidato.
     """
     if not APIFY_TOKEN:
         return None
 
     username_clean = username.lstrip("@").strip()
-    chave = f"ig2_{username_clean}_{n_posts}"
+    adv_key = "|".join(sorted((a or "").strip().lower() for a in (adversarios or []) if a)) or "noadv"
+    chave = f"ig2_{username_clean}_{n_posts}_{adv_key}"
     agora_ts = time_now()
 
     if chave in _instagram_cache:
@@ -1489,9 +1548,16 @@ def fetch_instagram_comments(username, politico, n_posts=5, comments_per_post=20
         indices_validos = [i for i, t in enumerate(textos) if len(t) >= 5]
         textos_validos = [textos[i] for i in indices_validos]
 
-        classificacoes = _classificar_batch(textos_validos, politico)
+        classificacoes = _classificar_batch(textos_validos, politico, adversarios=adversarios)
         cl_map = {indices_validos[i]: classificacoes[i] for i in range(len(indices_validos))}
-        default_cl = {"sentimento": "Neutro", "categoria": "Propostas & Projetos"}
+        default_cl = {
+            "sentimento": "Neutro",
+            "categoria": "Propostas & Projetos",
+            "alinhamento": "neutro",
+            "adversario_mencionado": None,
+            "nivel_hostilidade": 0,
+            "sentimento_absoluto": "Neutro",
+        }
 
         resultados = []
         for i, c in enumerate(raw_comments):
@@ -1512,8 +1578,12 @@ def fetch_instagram_comments(username, politico, n_posts=5, comments_per_post=20
                 "tipo": "cliente",
                 "usuario": c.get("ownerUsername", ""),
                 "trecho": texto[:300],
-                "sentimento": cl["sentimento"],
-                "categoria": cl["categoria"],
+                "sentimento": cl.get("sentimento", "Neutro"),
+                "categoria": cl.get("categoria", "Propostas & Projetos"),
+                "alinhamento": cl.get("alinhamento", "neutro"),
+                "adversario_mencionado": cl.get("adversario_mencionado"),
+                "nivel_hostilidade": cl.get("nivel_hostilidade", 0),
+                "sentimento_absoluto": cl.get("sentimento_absoluto", cl.get("sentimento", "Neutro")),
                 "post_url": c.get("postUrl") or "",
                 "data": data_c,
             })
@@ -1536,6 +1606,10 @@ def fetch_instagram_comments(username, politico, n_posts=5, comments_per_post=20
                         "texto": r.get("trecho", "")[:500],
                         "sentimento": r.get("sentimento", "Neutro"),
                         "categoria": r.get("categoria", "Geral"),
+                        "alinhamento": r.get("alinhamento", "neutro"),
+                        "adversario_mencionado": r.get("adversario_mencionado"),
+                        "nivel_hostilidade": r.get("nivel_hostilidade", 0),
+                        "sentimento_absoluto": r.get("sentimento_absoluto", r.get("sentimento", "Neutro")),
                         "post_url": r.get("post_url", ""),
                         "data_comentario": r.get("data"),
                         "origem": "radar"
@@ -1564,10 +1638,17 @@ def radar_comentarios():
     periodo  = request.args.get('periodo', '7d')
     politico = request.args.get('politico', '')
     username = request.args.get('username', '')
+    adversarios_raw = request.args.get('adversarios', '')
+    try:
+        adversarios = json.loads(adversarios_raw) if adversarios_raw else []
+        if not isinstance(adversarios, list):
+            adversarios = []
+    except Exception:
+        adversarios = [a.strip() for a in adversarios_raw.split(",") if a.strip()]
 
     # Dados reais do Instagram
     if APIFY_TOKEN and username:
-        real_data = fetch_instagram_comments(username, politico or username)
+        real_data = fetch_instagram_comments(username, politico or username, adversarios=adversarios)
         if real_data is not None:
             return jsonify(real_data)
 
@@ -1600,6 +1681,10 @@ def radar_comentarios_cache():
                         "trecho": r.get("texto", ""),
                         "sentimento": r.get("sentimento", "Neutro"),
                         "categoria": r.get("categoria", "Geral"),
+                        "alinhamento": r.get("alinhamento", "neutro"),
+                        "adversario_mencionado": r.get("adversario_mencionado"),
+                        "nivel_hostilidade": r.get("nivel_hostilidade", 0),
+                        "sentimento_absoluto": r.get("sentimento_absoluto", r.get("sentimento", "Neutro")),
                         "post_url": r.get("post_url", ""),
                         "data": r.get("data_comentario") or r.get("created_at", ""),
                     })
@@ -1648,6 +1733,9 @@ def coletar_dados():
     data = request.get_json(force=True) or {}
     urls = data.get("urls", [])
     contexto = data.get("contexto", "político")
+    adversarios = data.get("adversarios") or []
+    if not isinstance(adversarios, list):
+        adversarios = []
 
     if not urls:
         return jsonify({"error": "Nenhuma URL fornecida"}), 400
@@ -1689,9 +1777,9 @@ def coletar_dados():
                 "resumo": {"positivos": 0, "negativos": 0, "neutros": 0}
             })
 
-        # Passo 3: Classificar com IA
+        # Passo 3: Classificar com IA (relativo ao candidato, considerando adversários)
         textos = [(c.get("text") or "").strip() for c in filtrados]
-        classificacoes = _classificar_batch(textos, contexto)
+        classificacoes = _classificar_batch(textos, contexto, adversarios=adversarios)
 
         # Passo 4: Montar resultados
         resultados = []
@@ -1702,13 +1790,21 @@ def coletar_dados():
                 from datetime import timezone as tz
                 data_c = datetime.fromtimestamp(data_c, tz=tz.utc).isoformat()
 
-            cl = classificacoes[i] if i < len(classificacoes) else {"sentimento": "Neutro", "categoria": "Outro"}
+            cl = classificacoes[i] if i < len(classificacoes) else {
+                "sentimento": "Neutro", "categoria": "Outro",
+                "alinhamento": "neutro", "adversario_mencionado": None,
+                "nivel_hostilidade": 0, "sentimento_absoluto": "Neutro",
+            }
             resultados.append({
                 "id": i + 1,
                 "usuario": c.get("ownerUsername", ""),
                 "texto": texto[:400],
-                "sentimento": cl["sentimento"],
-                "categoria": cl["categoria"],
+                "sentimento": cl.get("sentimento", "Neutro"),
+                "categoria": cl.get("categoria", "Outro"),
+                "alinhamento": cl.get("alinhamento", "neutro"),
+                "adversario_mencionado": cl.get("adversario_mencionado"),
+                "nivel_hostilidade": cl.get("nivel_hostilidade", 0),
+                "sentimento_absoluto": cl.get("sentimento_absoluto", cl.get("sentimento", "Neutro")),
                 "post_url": c.get("postUrl") or "",
                 "data": data_c,
                 "likes": c.get("likesCount", 0),
@@ -1751,6 +1847,10 @@ def coletar_dados():
                         "texto": r.get("texto", "")[:500],
                         "sentimento": r.get("sentimento", "Neutro"),
                         "categoria": r.get("categoria", "Geral"),
+                        "alinhamento": r.get("alinhamento", "neutro"),
+                        "adversario_mencionado": r.get("adversario_mencionado"),
+                        "nivel_hostilidade": r.get("nivel_hostilidade", 0),
+                        "sentimento_absoluto": r.get("sentimento_absoluto", r.get("sentimento", "Neutro")),
                         "post_url": r.get("post_url", ""),
                         "likes": r.get("likes", 0),
                         "data_comentario": r.get("data"),
@@ -2032,6 +2132,9 @@ def talking_points():
     body        = request.get_json(silent=True) or {}
     comentarios = body.get("comentarios", [])
     politico    = body.get("politico", "o político")
+    adversarios = body.get("adversarios") or []
+    if not isinstance(adversarios, list):
+        adversarios = []
 
     if not comentarios:
         return jsonify({"error": "Sem comentários para analisar"}), 400
@@ -2041,6 +2144,7 @@ def talking_points():
     neg    = sum(1 for c in comentarios if c.get("sentimento") == "Negativo")
     neutro = total - pos - neg
 
+    pro_adv = sum(1 for c in comentarios if c.get("alinhamento") == "pro_adversario")
     cat_count = {}
     for c in comentarios:
         cat = c.get("categoria", "Outros")
@@ -2049,6 +2153,7 @@ def talking_points():
 
     neg_samples = [c["trecho"] for c in comentarios if c.get("sentimento") == "Negativo"][:8]
     pos_samples = [c["trecho"] for c in comentarios if c.get("sentimento") == "Positivo"][:5]
+    pro_adv_samples = [c["trecho"] for c in comentarios if c.get("alinhamento") == "pro_adversario"][:5]
 
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
@@ -2063,11 +2168,18 @@ def talking_points():
         cats_text  = "\n".join([f"- {cat}: {cnt} menções" for cat, cnt in top_cats])
         neg_text   = "\n".join([f'"{t[:200]}"' for t in neg_samples])
         pos_text   = "\n".join([f'"{t[:200]}"' for t in pos_samples])
+        adv_block = (
+            f"Adversários monitorados: {', '.join(adversarios)}\n"
+            f"Comentários promovendo adversários: {pro_adv} ({pro_adv * 100 // total if total else 0}%)"
+            if adversarios else "Sem adversários cadastrados."
+        )
+        pro_adv_text = "\n".join([f'"{t[:200]}"' for t in pro_adv_samples]) or "(nenhum)"
 
         prompt = f"""Você é um estrategista político sênior. Analise os dados de comentários do Instagram do político {politico}.
 
 MÉTRICAS:
 - Total: {total} comentários  |  Positivos: {pos} ({pct_pos}%)  |  Negativos: {neg} ({pct_neg}%)  |  Neutros: {neutro} ({pct_neutro}%)
+- {adv_block}
 
 Top categorias mencionadas:
 {cats_text}
@@ -2078,9 +2190,12 @@ Amostras de comentários negativos:
 Amostras de comentários positivos:
 {pos_text}
 
+Amostras de comentários promovendo adversários (infiltração no perfil do cliente):
+{pro_adv_text}
+
 Gere uma análise estratégica respondendo SOMENTE em JSON:
 {{
-  "situacao": "análise da situação atual em 2 frases objetivas",
+  "situacao": "análise da situação atual em 2 frases objetivas. Se houver infiltração de adversários (>10%), aponte como prioridade",
   "talking_points": ["ponto prioritário 1", "ponto prioritário 2", "ponto prioritário 3"],
   "oportunidade": "uma oportunidade de comunicação específica identificada nos dados"
 }}"""
@@ -2117,11 +2232,16 @@ def radar_briefing():
     instagram     = (body.get("instagram") or "").strip().lstrip("@")
     periodo       = body.get("periodo", "7d")
     force_refresh = bool(body.get("force_refresh"))
+    adversarios   = body.get("adversarios") or []
+    if not isinstance(adversarios, list):
+        adversarios = []
+    adversarios = [a.strip() for a in adversarios if a and a.strip()]
 
     if not politico:
         return jsonify({"error": "Nome do político é obrigatório"}), 400
 
-    cache_key = f"{politico.lower()}|{instagram.lower()}|{periodo}"
+    adv_key = "|".join(sorted(a.lower() for a in adversarios)) or "noadv"
+    cache_key = f"{politico.lower()}|{instagram.lower()}|{periodo}|{adv_key}"
     now = time_now()
     if not force_refresh:
         cached = _briefing_cache.get(cache_key)
@@ -2141,17 +2261,35 @@ def radar_briefing():
     comentarios = []
     if instagram and os.getenv("APIFY_TOKEN"):
         try:
-            comentarios = (fetch_instagram_comments(instagram, politico) or [])[:200]
+            comentarios = (fetch_instagram_comments(instagram, politico, adversarios=adversarios) or [])[:200]
         except Exception as e:
             print(f"[Briefing] Falha ao buscar comentários: {e}")
 
-    # 3) Estatísticas agregadas
+    # 3) Estatísticas agregadas (com alinhamento se disponível)
     n_total = len(noticias)
     n_pos   = sum(1 for n in noticias if n.get("sentimento") == "Positivo")
     n_neg   = sum(1 for n in noticias if n.get("sentimento") == "Negativo")
     c_total = len(comentarios)
     c_pos   = sum(1 for c in comentarios if c.get("sentimento") == "Positivo")
     c_neg   = sum(1 for c in comentarios if c.get("sentimento") == "Negativo")
+    c_pro_adv = sum(1 for c in comentarios if c.get("alinhamento") == "pro_adversario")
+    c_anti_adv = sum(1 for c in comentarios if c.get("alinhamento") == "anti_adversario")
+
+    # Contagem por adversário mencionado
+    adv_mention_count: dict = {}
+    for c in comentarios:
+        adv = c.get("adversario_mencionado")
+        if adv:
+            adv_mention_count[adv] = adv_mention_count.get(adv, 0) + 1
+
+    # Nível de infiltração adversária
+    pct_pro_adv = (c_pro_adv * 100 // c_total) if c_total else 0
+    if pct_pro_adv >= 25:
+        infiltracao_nivel = "alto"
+    elif pct_pro_adv >= 10:
+        infiltracao_nivel = "medio"
+    else:
+        infiltracao_nivel = "baixo"
 
     cat_count: dict = {}
     for c in comentarios:
@@ -2166,6 +2304,7 @@ def radar_briefing():
     ]
     coment_neg = [(c.get("trecho") or "")[:180] for c in comentarios if c.get("sentimento") == "Negativo"][:8]
     coment_pos = [(c.get("trecho") or "")[:180] for c in comentarios if c.get("sentimento") == "Positivo"][:5]
+    coment_pro_adv = [(c.get("trecho") or "")[:180] for c in comentarios if c.get("alinhamento") == "pro_adversario"][:5]
 
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
@@ -2181,16 +2320,27 @@ def radar_briefing():
     categorias_block = "\n".join(f"  - {cat}: {n}" for cat, n in top_cats) or "(sem dados)"
     criticas_block = "\n".join(f'  "{t}"' for t in coment_neg) or "(sem críticas registradas)"
     apoio_block = "\n".join(f'  "{t}"' for t in coment_pos) or "(sem apoio registrado)"
+    pro_adv_block = "\n".join(f'  "{t}"' for t in coment_pro_adv) or "(nenhum)"
+    adv_mention_block = "\n".join(f"  - {a}: {n} menções" for a, n in sorted(adv_mention_count.items(), key=lambda x: -x[1])[:5]) or "(nenhum adversário citado nos comentários)"
+    adversarios_str = ", ".join(adversarios) if adversarios else "nenhum cadastrado"
 
     prompt = f"""Você é um estrategista político sênior em Minas Gerais. Sua missão é dar ao político {politico} um briefing executivo cruzando IMPRENSA e REDES SOCIAIS.
+
+Adversários monitorados: {adversarios_str}
+Infiltração de adversários no perfil: {pct_pro_adv}% ({c_pro_adv}/{c_total}) — nível {infiltracao_nivel}
 
 ═══ IMPRENSA — últimas {n_total} notícias monitoradas ═══
 Positivas: {n_pos} | Negativas: {n_neg} | Neutras: {n_total - n_pos - n_neg}
 Manchetes recentes:
 {noticias_block}
 
-═══ REDES SOCIAIS — {c_total} comentários no Instagram ═══
+═══ REDES SOCIAIS — {c_total} comentários no Instagram (sentimento RELATIVO ao candidato) ═══
 Positivos: {c_pos} | Negativos: {c_neg} | Neutros: {c_total - c_pos - c_neg}
+Pro-adversário: {c_pro_adv} | Anti-adversário: {c_anti_adv}
+
+Adversários citados nos comentários:
+{adv_mention_block}
+
 Top categorias:
 {categorias_block}
 
@@ -2200,10 +2350,18 @@ Amostras de críticas:
 Amostras de apoio:
 {apoio_block}
 
+Amostras de infiltração adversária (comentários promovendo adversários no perfil do cliente):
+{pro_adv_block}
+
 Gere um briefing em JSON com esta estrutura EXATA:
 {{
-  "panorama": "3-4 frases descrevendo o momento atual do político, conectando o que sai na imprensa com a reação das redes. Se houver descompasso (ex: imprensa positiva mas redes hostis), aponte isso.",
+  "panorama": "3-4 frases descrevendo o momento atual do político, conectando o que sai na imprensa com a reação das redes. Se houver descompasso (imprensa positiva mas redes hostis) OU infiltração de adversários >10%, aponte como prioridade.",
   "temperatura": "fria|morna|aquecendo|quente",
+  "infiltracao_adversario": {{
+    "nivel": "baixo|medio|alto",
+    "descricao": "Uma frase explicando o nível de presença dos adversários nos comentários do cliente, citando os mais frequentes",
+    "recomendacao": "O que fazer estrategicamente sobre isso (responder, ignorar, mudar tom, etc) — 1-2 frases"
+  }},
   "temas_quentes": [
     {{
       "tema": "Nome curto do tema (ex: Saúde Pública)",
@@ -2222,6 +2380,7 @@ REGRAS:
 - Seja específico: cite dados ("X% dos comentários", "Y notícias negativas") quando relevante
 - NÃO invente fatos. Se faltar dado, escreva "dados insuficientes"
 - Foco em ação: cada "o_que_falar" deve ser algo que o político pode dizer amanhã
+- Se infiltração for alta/média, o panorama DEVE mencionar e infiltracao_adversario.recomendacao deve ser concreta
 - Retorne APENAS o JSON, sem markdown."""
 
     try:
@@ -2245,12 +2404,17 @@ REGRAS:
             "politico": politico,
             "instagram": instagram,
             "periodo": periodo,
+            "adversarios": adversarios,
             "total_noticias": n_total,
             "total_comentarios": c_total,
             "noticias_pos": n_pos,
             "noticias_neg": n_neg,
             "comentarios_pos": c_pos,
             "comentarios_neg": c_neg,
+            "comentarios_pro_adversario": c_pro_adv,
+            "comentarios_anti_adversario": c_anti_adv,
+            "pct_infiltracao": pct_pro_adv,
+            "adversarios_citados": adv_mention_count,
             "gerado_em": datetime.utcnow().isoformat() + "Z",
         }
         _briefing_cache[cache_key] = {"ts": now, "data": data}
@@ -2258,6 +2422,81 @@ REGRAS:
     except Exception as e:
         print(f"❌ Briefing IA error: {e}")
         return jsonify({"error": f"Falha ao gerar briefing: {e}"}), 500
+
+
+@app.route("/api/radar/reclassificar-historico", methods=["POST"])
+def radar_reclassificar_historico():
+    """
+    Re-roda o classificador nos comentários já salvos no Supabase usando o NOVO prompt
+    (relativo ao candidato, com adversários). Útil para corrigir comentários antigos
+    classificados com o prompt absoluto antigo (ex: 'FLAVIO BOLSONARO PRESIDENTE' marcado
+    como Positivo quando deveria ser Negativo para Pedro Rousseff).
+    """
+    body        = request.get_json(silent=True) or {}
+    politico    = (body.get("politico") or "").strip()
+    adversarios = body.get("adversarios") or []
+    limite      = int(body.get("limite", 500))
+    if not isinstance(adversarios, list):
+        adversarios = []
+    adversarios = [a.strip() for a in adversarios if a and a.strip()]
+
+    if not politico:
+        return jsonify({"error": "Nome do político é obrigatório"}), 400
+    if not supabase:
+        return jsonify({"error": "Supabase não configurado"}), 500
+
+    try:
+        resp = supabase.table("comentarios_politicos") \
+            .select("id, texto") \
+            .ilike("contexto", politico) \
+            .order("created_at", desc=True) \
+            .limit(limite) \
+            .execute()
+        registros = resp.data or []
+    except Exception as e:
+        print(f"❌ Reclassificar: erro ao buscar histórico: {e}")
+        return jsonify({"error": f"Erro Supabase: {e}"}), 500
+
+    if not registros:
+        return jsonify({
+            "atualizados": 0,
+            "total_lido": 0,
+            "mensagem": f"Nenhum comentário encontrado para {politico}",
+        })
+
+    textos = [(r.get("texto") or "").strip() for r in registros]
+    print(f"🔄 Reclassificando {len(textos)} comentários históricos de {politico}…")
+    classificacoes = _classificar_batch(textos, politico, adversarios=adversarios)
+
+    atualizados = 0
+    erros = 0
+    for r, cl in zip(registros, classificacoes):
+        try:
+            supabase_admin.table("comentarios_politicos").update({
+                "sentimento": cl.get("sentimento", "Neutro"),
+                "categoria": cl.get("categoria", "Propostas & Projetos"),
+                "alinhamento": cl.get("alinhamento", "neutro"),
+                "adversario_mencionado": cl.get("adversario_mencionado"),
+                "nivel_hostilidade": cl.get("nivel_hostilidade", 0),
+                "sentimento_absoluto": cl.get("sentimento_absoluto", cl.get("sentimento", "Neutro")),
+            }).eq("id", r["id"]).execute()
+            atualizados += 1
+        except Exception as e:
+            erros += 1
+            if erros <= 3:
+                print(f"⚠️ Falha ao atualizar id={r.get('id')}: {e}")
+
+    # Invalida cache do briefing para forçar regerar com dados atualizados
+    _briefing_cache.clear()
+
+    custo_estimado_usd = round(len(textos) * 0.002, 3)  # estimativa para GPT-4o-mini
+    return jsonify({
+        "atualizados": atualizados,
+        "total_lido": len(registros),
+        "erros": erros,
+        "custo_estimado_usd": custo_estimado_usd,
+        "ts": datetime.utcnow().isoformat() + "Z",
+    })
 
 
 # --- HELPER: GET ACTIVE FEEDBACK ---
