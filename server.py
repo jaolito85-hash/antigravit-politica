@@ -2104,6 +2104,162 @@ Gere uma análise estratégica respondendo SOMENTE em JSON:
         return jsonify({"error": str(e)}), 500
 
 
+# --- RADAR 360° — BRIEFING IA UNIFICADO (notícias + comentários) ---
+_briefing_cache: dict = {}
+_BRIEFING_TTL = 1800  # 30 minutos
+
+
+@app.route("/api/radar/briefing", methods=["POST"])
+def radar_briefing():
+    """Cruza notícias da imprensa + comentários do Instagram e gera briefing estratégico para o candidato."""
+    body          = request.get_json(silent=True) or {}
+    politico      = (body.get("politico")  or "").strip()
+    instagram     = (body.get("instagram") or "").strip().lstrip("@")
+    periodo       = body.get("periodo", "7d")
+    force_refresh = bool(body.get("force_refresh"))
+
+    if not politico:
+        return jsonify({"error": "Nome do político é obrigatório"}), 400
+
+    cache_key = f"{politico.lower()}|{instagram.lower()}|{periodo}"
+    now = time_now()
+    if not force_refresh:
+        cached = _briefing_cache.get(cache_key)
+        if cached and (now - cached["ts"]) < _BRIEFING_TTL:
+            payload = {**cached["data"], "cached": True, "cache_age_s": int(now - cached["ts"])}
+            return jsonify(payload)
+
+    # 1) Notícias — reusa função existente com cache de 30min
+    try:
+        noticias_full = _carregar_noticias(politico) or []
+    except Exception as e:
+        print(f"[Briefing] Falha ao carregar notícias: {e}")
+        noticias_full = []
+    noticias = noticias_full[:25]
+
+    # 2) Comentários Instagram — reusa scraper existente com cache de 1h
+    comentarios = []
+    if instagram and os.getenv("APIFY_TOKEN"):
+        try:
+            comentarios = (fetch_instagram_comments(instagram, politico) or [])[:200]
+        except Exception as e:
+            print(f"[Briefing] Falha ao buscar comentários: {e}")
+
+    # 3) Estatísticas agregadas
+    n_total = len(noticias)
+    n_pos   = sum(1 for n in noticias if n.get("sentimento") == "Positivo")
+    n_neg   = sum(1 for n in noticias if n.get("sentimento") == "Negativo")
+    c_total = len(comentarios)
+    c_pos   = sum(1 for c in comentarios if c.get("sentimento") == "Positivo")
+    c_neg   = sum(1 for c in comentarios if c.get("sentimento") == "Negativo")
+
+    cat_count: dict = {}
+    for c in comentarios:
+        cat = c.get("categoria", "Outros")
+        cat_count[cat] = cat_count.get(cat, 0) + 1
+    top_cats = sorted(cat_count.items(), key=lambda x: -x[1])[:6]
+
+    # 4) Amostras para o prompt
+    noticias_amostras = [
+        f"- [{(n.get('veiculo') or '?')}|{(n.get('sentimento') or '?')}] {(n.get('titulo') or '')[:160]}"
+        for n in noticias[:12]
+    ]
+    coment_neg = [(c.get("trecho") or "")[:180] for c in comentarios if c.get("sentimento") == "Negativo"][:8]
+    coment_pos = [(c.get("trecho") or "")[:180] for c in comentarios if c.get("sentimento") == "Positivo"][:5]
+
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        return jsonify({"error": "OpenAI não configurado"}), 500
+
+    if n_total == 0 and c_total == 0:
+        return jsonify({
+            "error": "Sem dados suficientes para briefing",
+            "detalhe": "Nenhuma notícia recente encontrada e nenhum comentário coletado do Instagram. Verifique o nome do político e o @ do Instagram."
+        }), 400
+
+    noticias_block = "\n".join(noticias_amostras) or "(sem cobertura recente)"
+    categorias_block = "\n".join(f"  - {cat}: {n}" for cat, n in top_cats) or "(sem dados)"
+    criticas_block = "\n".join(f'  "{t}"' for t in coment_neg) or "(sem críticas registradas)"
+    apoio_block = "\n".join(f'  "{t}"' for t in coment_pos) or "(sem apoio registrado)"
+
+    prompt = f"""Você é um estrategista político sênior em Minas Gerais. Sua missão é dar ao político {politico} um briefing executivo cruzando IMPRENSA e REDES SOCIAIS.
+
+═══ IMPRENSA — últimas {n_total} notícias monitoradas ═══
+Positivas: {n_pos} | Negativas: {n_neg} | Neutras: {n_total - n_pos - n_neg}
+Manchetes recentes:
+{noticias_block}
+
+═══ REDES SOCIAIS — {c_total} comentários no Instagram ═══
+Positivos: {c_pos} | Negativos: {c_neg} | Neutros: {c_total - c_pos - c_neg}
+Top categorias:
+{categorias_block}
+
+Amostras de críticas:
+{criticas_block}
+
+Amostras de apoio:
+{apoio_block}
+
+Gere um briefing em JSON com esta estrutura EXATA:
+{{
+  "panorama": "3-4 frases descrevendo o momento atual do político, conectando o que sai na imprensa com a reação das redes. Se houver descompasso (ex: imprensa positiva mas redes hostis), aponte isso.",
+  "temperatura": "fria|morna|aquecendo|quente",
+  "temas_quentes": [
+    {{
+      "tema": "Nome curto do tema (ex: Saúde Pública)",
+      "relevancia": "alta|media|baixa",
+      "sentimento_popular": "positivo|negativo|misto",
+      "evidencia_imprensa": "1 frase resumindo o que a imprensa está dizendo sobre este tema (ou 'sem cobertura')",
+      "evidencia_redes": "1 frase resumindo o que as redes estão dizendo (ou 'sem menções')",
+      "o_que_falar": "Argumento ou posicionamento estratégico concreto que o político deve usar — 1-2 frases",
+      "o_que_evitar": "O que NÃO dizer ou tom a evitar — 1 frase"
+    }}
+  ]
+}}
+
+REGRAS:
+- Liste de 3 a 6 temas quentes, ordenados por relevância
+- Seja específico: cite dados ("X% dos comentários", "Y notícias negativas") quando relevante
+- NÃO invente fatos. Se faltar dado, escreva "dados insuficientes"
+- Foco em ação: cada "o_que_falar" deve ser algo que o político pode dizer amanhã
+- Retorne APENAS o JSON, sem markdown."""
+
+    try:
+        from openai import OpenAI
+        client = OpenAI(api_key=api_key)
+        resp = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.4,
+            max_tokens=2000,
+        )
+        raw = resp.choices[0].message.content.strip()
+        if raw.startswith("```"):
+            parts = raw.split("```")
+            raw = parts[1] if len(parts) > 1 else raw
+            if raw.startswith("json"):
+                raw = raw[4:]
+            raw = raw.strip()
+        data = json.loads(raw)
+        data["meta"] = {
+            "politico": politico,
+            "instagram": instagram,
+            "periodo": periodo,
+            "total_noticias": n_total,
+            "total_comentarios": c_total,
+            "noticias_pos": n_pos,
+            "noticias_neg": n_neg,
+            "comentarios_pos": c_pos,
+            "comentarios_neg": c_neg,
+            "gerado_em": datetime.utcnow().isoformat() + "Z",
+        }
+        _briefing_cache[cache_key] = {"ts": now, "data": data}
+        return jsonify({**data, "cached": False})
+    except Exception as e:
+        print(f"❌ Briefing IA error: {e}")
+        return jsonify({"error": f"Falha ao gerar briefing: {e}"}), 500
+
+
 # --- HELPER: GET ACTIVE FEEDBACK ---
 def get_active_feedback(remote_jid):
     """Verifica se existe um chamado Aberto ou Em Andamento para este número"""
