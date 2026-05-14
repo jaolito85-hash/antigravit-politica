@@ -3935,13 +3935,14 @@ def api_operacao_local():
 
             enriquecidas.append(item)
 
-        # Ordenação tipo tabela de prioridade: URGENTE >24h sobe sempre,
-        # depois score do operador (decrescente), depois data (mais recente primeiro)
+        # Ordenação por importância política: score do operador manda primeiro
+        # (cabo eleitoral/prefeito > voluntário). Urgência >24h é desempate
+        # dentro da mesma faixa de score, e data é o critério final.
         def chave_ordenacao(a):
             data = _parse_data_feedback(a.get("criada_em"))
             return (
-                0 if a.get("urgente_sem_resposta") else 1,
                 -(a.get("operador_score") or 0),
+                0 if a.get("urgente_sem_resposta") else 1,
                 -(data.timestamp() if data else 0),
             )
         enriquecidas.sort(key=chave_ordenacao)
