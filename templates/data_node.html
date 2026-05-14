@@ -3451,11 +3451,11 @@
         <!-- Card de Configuração Unificado -->
         <div class="chart-box" style="margin-bottom:16px;background:linear-gradient(135deg,rgba(26,58,107,.18),rgba(15,23,42,.6));border:1px solid rgba(26,58,107,.4)">
             <div class="chart-header" style="margin-bottom:14px">
-                <i class="ri-user-search-line" style="color:#7ba4d4"></i> Monitorar Político-Cliente
+                <i class="ri-shield-star-line" style="color:#7ba4d4"></i> War Room
             </div>
             <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end">
                 <div style="flex:1;min-width:180px">
-                    <div style="font-size:0.78rem;color:#8b949e;margin-bottom:5px">Político Cliente</div>
+                    <div style="font-size:0.78rem;color:#8b949e;margin-bottom:5px">Candidato</div>
                     <input id="radar-cliente" type="text" placeholder="Ex: Pedro Rousseff" class="filter-input" style="width:100%">
                 </div>
                 <div>
@@ -3494,14 +3494,6 @@
                     style="background:#1a3a6b;opacity:0.5;cursor:not-allowed" disabled>
                     <i class="ri-lightbulb-line"></i> Gerar Estratégia (só comentários)
                 </button>
-                <button id="btn-reclassificar" onclick="reclassificarHistorico()" class="export-btn"
-                    style="background:transparent;border:1px solid #f97316;color:#f97316">
-                    <i class="ri-refresh-line"></i> Reclassificar histórico
-                </button>
-            </div>
-            <div style="font-size:11px;color:#64748b;margin-top:10px;line-height:1.5">
-                <i class="ri-information-line"></i> O <strong>Briefing IA</strong> cruza notícias da imprensa + comentários do Instagram e gera o roteiro do candidato (panorama + temas quentes com "o que falar" / "o que evitar"). Cache de 30 min.
-                <br><i class="ri-information-line"></i> <strong>Adversários</strong> ficam salvos no navegador e influenciam toda classificação: apoio explícito a um adversário (ex: "FULANO PRESIDENTE!") é contado como Negativo. Use <strong>Reclassificar histórico</strong> após cadastrar/alterar adversários para recalcular os comentários já salvos.
             </div>
         </div>
 
@@ -6880,53 +6872,6 @@ https://www.instagram.com/p/YYYYY/"
             if (tab === 'noticias' && !window._radarNoticiasLoaded) {
                 buscarNoticias();
                 window._radarNoticiasLoaded = true;
-            }
-        }
-
-        async function reclassificarHistorico() {
-            const politico = (document.getElementById('radar-cliente').value || '').trim();
-            if (!politico) {
-                alert('Informe o nome do político-cliente antes de reclassificar.');
-                document.getElementById('radar-cliente').focus();
-                return;
-            }
-            const estim = (typeof _comentariosCompletos !== 'undefined' && _comentariosCompletos.length)
-                ? _comentariosCompletos.length
-                : 500;
-            const custo = (estim * 0.002).toFixed(2);
-            const advStr = adversarios && adversarios.length ? adversarios.join(', ') : '(nenhum adversário cadastrado)';
-            const ok = confirm(
-                `Reclassificar até ${estim} comentários já salvos no banco usando o NOVO classificador relativo.\n\n` +
-                `Político: ${politico}\nAdversários: ${advStr}\n` +
-                `Custo estimado: ~US$ ${custo} em OpenAI.\n\nContinuar?`
-            );
-            if (!ok) return;
-
-            const btn = document.getElementById('btn-reclassificar');
-            const originalHtml = btn.innerHTML;
-            btn.disabled = true;
-            btn.innerHTML = '<i class="ri-loader-4-line"></i> Reclassificando…';
-            try {
-                const r = await fetch('/api/radar/reclassificar-historico', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ politico, adversarios, limite: 500 })
-                });
-                const data = await r.json();
-                if (!r.ok) throw new Error(data.error || 'Falha ao reclassificar');
-                alert(
-                    `✅ Reclassificação concluída:\n\n` +
-                    `${data.atualizados} de ${data.total_lido} comentários atualizados\n` +
-                    `${data.erros || 0} erros\n` +
-                    `Custo: US$ ${data.custo_estimado_usd}\n\n` +
-                    `Recarregando a tabela…`
-                );
-                if (typeof _carregarCacheDisco === 'function') await _carregarCacheDisco();
-            } catch (e) {
-                alert(`❌ Erro: ${e.message}`);
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = originalHtml;
             }
         }
 
