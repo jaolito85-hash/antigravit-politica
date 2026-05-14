@@ -2442,11 +2442,13 @@ def radar_reclassificar_historico():
 
     if not politico:
         return jsonify({"error": "Nome do político é obrigatório"}), 400
-    if not supabase:
-        return jsonify({"error": "Supabase não configurado"}), 500
+    if not supabase_admin:
+        return jsonify({"error": "Supabase service role não configurado"}), 500
 
     try:
-        resp = supabase.table("comentarios_politicos") \
+        # Usa supabase_admin (service role) para bypassar RLS na leitura — sem isso,
+        # o anon client retorna [] mesmo havendo registros.
+        resp = supabase_admin.table("comentarios_politicos") \
             .select("id, texto") \
             .ilike("contexto", politico) \
             .order("created_at", desc=True) \
