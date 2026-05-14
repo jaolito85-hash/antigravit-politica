@@ -1660,9 +1660,13 @@ def radar_comentarios():
 @app.route("/api/radar-comentarios/cache")
 def radar_comentarios_cache():
     """Retorna comentários salvos no Supabase SEM disparar Apify."""
-    if supabase:
+    # Usa supabase_admin (service role) para bypassar RLS — sem isso o anon
+    # retorna [] mesmo havendo registros, e cai no fallback de disco
+    # (que não reflete reclassificações feitas direto no banco).
+    client = supabase_admin or supabase
+    if client:
         try:
-            resp = supabase.table('comentarios_politicos') \
+            resp = client.table('comentarios_politicos') \
                 .select('*') \
                 .eq('origem', 'radar') \
                 .order('created_at', desc=True) \
