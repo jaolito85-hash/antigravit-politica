@@ -1358,6 +1358,45 @@ _ALINHAMENTOS_VALIDOS = {
     "neutro", "spam", "off_topic"
 }
 
+# Pre-filtro: textos sem conteudo politico (so emojis, risos, URL puro, ruido)
+# nao vao pra IA — economiza custo e evita classificacao errada por falta de contexto.
+_URL_RE = re.compile(r"^\s*https?://\S+\s*$", re.IGNORECASE)
+_RISOS_RE = re.compile(r"^[\sk!.,?😂🤣😅🤡🇧🇷👏🔥❤️🙏😍😎😘rsahe]+$", re.IGNORECASE)
+
+
+def _eh_off_topic(texto):
+    """Retorna True se o texto e claramente off_topic (sem conteudo politico classificavel)."""
+    if not texto:
+        return True
+    t = texto.strip()
+    if not t:
+        return True
+    if _URL_RE.match(t):
+        return True
+    # Texto reduzido a letras/digitos (sem emojis/pontuacao) tem menos de 4 chars
+    significativo = re.sub(r"[^a-zA-ZÀ-ſ0-9]", "", t)
+    if len(significativo) < 4:
+        return True
+    # Pattern de risos puros / emojis: "kkkk", "rsrs", "haha", "👏👏", etc
+    if _RISOS_RE.match(t):
+        return True
+    return False
+
+
+# Coerencia forcada: o alinhamento determina o sentimento RELATIVO ao candidato.
+# A IA as vezes erra retornando anti_adversario + Negativo (deveria ser Positivo
+# porque criticar adversario favorece o candidato). Aplicamos a regra no backend
+# para garantir consistencia mesmo quando a IA escorrega.
+_ALINHAMENTO_TO_SENTIMENTO = {
+    "pro_candidato":   "Positivo",
+    "anti_adversario": "Positivo",
+    "anti_candidato":  "Negativo",
+    "pro_adversario":  "Negativo",
+    "neutro":          "Neutro",
+    "spam":            "Neutro",
+    "off_topic":       "Neutro",
+}
+
 
 def _classificar_chunk(textos, politico, adversarios=None):
     """
@@ -1379,7 +1418,7 @@ def _classificar_chunk(textos, politico, adversarios=None):
 
     advs = [a.strip() for a in (adversarios or []) if a and a.strip()]
     advs_block = (
-        f"Adversários do candidato (apoio a estes = NEGATIVO para o cliente; crítica a estes = POSITIVO para o cliente): "
+        f"Adversários do candidato (apoio a eles = NEGATIVO para o cliente; crítica a eles = POSITIVO para o cliente): "
         f"{', '.join(advs)}"
         if advs else
         "Nenhum adversário informado — classifique apenas pelo tom em relação ao candidato."
@@ -1390,9 +1429,23 @@ def _classificar_chunk(textos, politico, adversarios=None):
         client = OpenAI(api_key=api_key)
         items_text = "\n".join([f"{i+1}. \"{t[:300]}\"" for i, t in enumerate(textos)])
         prompt = (
-            f"Você é analista político da campanha de {politico}.\n"
-            f"{advs_block}\n\n"
-            "Para cada comentário num post de {politico}, classifique RELATIVO ao apoio/oposição ao candidato.\n"
+            f"Você é analista político SÊNIOR da campanha de {politico} (Minas Gerais, eleições 2026).\n\n"
+            f"CONTEXTO POLÍTICO:\n"
+            f"- {politico} é da ESQUERDA (alinhado ao PT/Lula).\n"
+            f"- Adversários são da DIREITA (bolsonaristas): {', '.join(advs) if advs else 'Bolsonaro, Flávio Bolsonaro, Nikolas Ferreira'}.\n"
+            f"- Pistas pró-candidato: '#lula', 'Lula 13', 'PT', '#pracimadelesPF', emojis 🔥👏 em apoio.\n"
+            f"- Pistas pró-adversário: 'Bolsonaro 22', '🇧🇷22', '🇧🇷🇧🇷22', 'mito', 'capitão'.\n"
+            f"- Sátiras/zombarias contra Bolsonaro (ex: 'BOLSOMASTER', '#bolsomaster', 'FamiLícia') = anti_adversario (FAVOREM o candidato).\n"
+            f"- Referência a 'Dilma' ou 'tia' num post do {politico} pode ser ATAQUE indireto (Dilma é tia dele) = anti_candidato.\n\n"
+            f"REGRA DO ALVO (a mais importante): identifique A QUEM o comentário se dirige.\n"
+            f"- Pergunta retórica negativa ('Aprendeu a roubar?', 'Vai roubar também?') num post do {politico} = ataque AO {politico} = anti_candidato.\n"
+            f"- Acusação genérica ('vocês são ladrões', 'que hipócrita') num post do {politico} = ataque AO candidato/aliados = anti_candidato.\n"
+            f"- Crítica/zoeira a adversário ou família do adversário (ex: 'pai do Flávio preso', 'irmão do Vorcaro') = anti_adversario.\n"
+            f"- Apoio explícito ao adversário ('FLAVIO PRESIDENTE!', 'Bolsonaro 22') = pro_adversario.\n\n"
+            f"REGRA DE COERÊNCIA (sentimento DERIVADO do alinhamento):\n"
+            f"- pro_candidato ou anti_adversario → sentimento Positivo\n"
+            f"- anti_candidato ou pro_adversario → sentimento Negativo\n"
+            f"- neutro/spam/off_topic → sentimento Neutro\n\n"
             "Responda SOMENTE com JSON array compacto (um objeto por comentário, mesma ordem):\n"
             '[{"sentimento":"Positivo|Negativo|Neutro",'
             '"sentimento_absoluto":"Positivo|Negativo|Neutro",'
@@ -1400,16 +1453,21 @@ def _classificar_chunk(textos, politico, adversarios=None):
             '"categoria":"...",'
             '"adversario_mencionado":"<nome ou null>",'
             '"nivel_hostilidade":0}]\n\n'
-            "REGRAS:\n"
-            "- sentimento = RELATIVO: Positivo se (pro_candidato OU anti_adversario); Negativo se (anti_candidato OU pro_adversario); Neutro caso contrário.\n"
-            "- sentimento_absoluto = tom do texto isolado, sem contexto político.\n"
+            "Demais regras:\n"
+            "- sentimento_absoluto = tom do texto isolado, ignorando contexto político.\n"
             "- nivel_hostilidade: 0 (neutro), 1 (crítica branda), 2 (crítica forte), 3 (insulto/agressão).\n"
-            "- adversario_mencionado: nome canônico do adversário citado (case-insensitive, sem acento se houver dúvida) ou null.\n"
-            "- Comentário entusiasmado promovendo adversário = pro_adversario / Negativo (não Positivo).\n"
+            "- adversario_mencionado: nome canônico citado ou null.\n"
             "- Categorias: Propostas & Projetos | Infraestrutura & Obras | Saúde & Educação | Segurança Pública | Transporte & Mobilidade | Meio Ambiente | Desenvolvimento Econômico | Assistência Social\n\n"
-            f"Exemplo (candidato={politico}, adversários={advs or ['Flávio Bolsonaro']}):\n"
-            '"FLAVIO BOLSONARO PRESIDENTE!!!" → {"sentimento":"Negativo","sentimento_absoluto":"Positivo","alinhamento":"pro_adversario","categoria":"Propostas & Projetos","adversario_mencionado":"Flávio Bolsonaro","nivel_hostilidade":1}\n\n'
-            f"Comentários:\n{items_text}"
+            f"EXEMPLOS (candidato={politico}):\n"
+            '"FLAVIO BOLSONARO PRESIDENTE!" → {"sentimento":"Negativo","sentimento_absoluto":"Positivo","alinhamento":"pro_adversario","categoria":"Propostas & Projetos","adversario_mencionado":"Flávio Bolsonaro","nivel_hostilidade":1}\n'
+            '"Aprendeu a roubar?" → {"sentimento":"Negativo","sentimento_absoluto":"Negativo","alinhamento":"anti_candidato","categoria":"Propostas & Projetos","adversario_mencionado":null,"nivel_hostilidade":2}\n'
+            '"BOLSOMASTER, tudo em FamiLícia 🤡" → {"sentimento":"Positivo","sentimento_absoluto":"Negativo","alinhamento":"anti_adversario","categoria":"Propostas & Projetos","adversario_mencionado":"Bolsonaro","nivel_hostilidade":2}\n'
+            '"Pai do Flávio preso, irmão do Vorcaro… coitado" → {"sentimento":"Positivo","sentimento_absoluto":"Negativo","alinhamento":"anti_adversario","categoria":"Propostas & Projetos","adversario_mencionado":"Flávio Bolsonaro","nivel_hostilidade":2}\n'
+            '"Vai fazer igual a tia, não sabe nem 2+2" → {"sentimento":"Negativo","sentimento_absoluto":"Negativo","alinhamento":"anti_candidato","categoria":"Propostas & Projetos","adversario_mencionado":null,"nivel_hostilidade":2}\n'
+            '"#Lula2026 e #flaviobolsonaronacadeia" → {"sentimento":"Positivo","sentimento_absoluto":"Positivo","alinhamento":"pro_candidato","categoria":"Propostas & Projetos","adversario_mencionado":"Flávio Bolsonaro","nivel_hostilidade":1}\n'
+            '"A chapa tá esquentando 🔥🔥" → {"sentimento":"Positivo","sentimento_absoluto":"Positivo","alinhamento":"pro_candidato","categoria":"Propostas & Projetos","adversario_mencionado":null,"nivel_hostilidade":0}\n'
+            '"kkkkk" → {"sentimento":"Neutro","sentimento_absoluto":"Neutro","alinhamento":"off_topic","categoria":"Propostas & Projetos","adversario_mencionado":null,"nivel_hostilidade":0}\n\n'
+            f"Comentários a classificar:\n{items_text}"
         )
         resp = client.chat.completions.create(
             model="gpt-4o-mini",
@@ -1439,12 +1497,14 @@ def _classificar_chunk(textos, politico, adversarios=None):
                 nivel = max(0, min(3, nivel))
             except (TypeError, ValueError):
                 nivel = 0
-            if sentimento not in ("Positivo", "Negativo", "Neutro"):
-                sentimento = "Neutro"
             if sentimento_abs not in ("Positivo", "Negativo", "Neutro"):
-                sentimento_abs = sentimento
+                sentimento_abs = "Neutro"
             if alinhamento not in _ALINHAMENTOS_VALIDOS:
                 alinhamento = "neutro"
+            # Coerencia forcada: o sentimento RELATIVO e DERIVADO do alinhamento.
+            # Ignora o que a IA disse — se ela classificou anti_adversario, sentimento e
+            # SEMPRE Positivo (criticar adversario favorece o candidato).
+            sentimento = _ALINHAMENTO_TO_SENTIMENTO.get(alinhamento, "Neutro")
             results.append({
                 "sentimento": sentimento,
                 "categoria": categoria,
@@ -1461,19 +1521,48 @@ def _classificar_chunk(textos, politico, adversarios=None):
         return [default.copy() for _ in textos]
 
 
+_OFF_TOPIC_CLASSIFICACAO = {
+    "sentimento": "Neutro",
+    "categoria": "Propostas & Projetos",
+    "alinhamento": "off_topic",
+    "adversario_mencionado": None,
+    "nivel_hostilidade": 0,
+    "sentimento_absoluto": "Neutro",
+}
+
+
 def _classificar_batch(textos, politico, chunk_size=30, adversarios=None):
     """
     Classifica comentários em batch, dividindo em chunks de 30 para não truncar tokens.
-    Retorna lista de dicts: [{sentimento, categoria, alinhamento, adversario_mencionado, nivel_hostilidade, sentimento_absoluto}, ...]
+    Pre-filtra textos sem conteúdo político (URLs, risos, emojis puros) → off_topic
+    sem chamar IA, economizando custo OpenAI e evitando classificações erradas.
     """
     if not textos:
         return []
-    results = []
-    for i in range(0, len(textos), chunk_size):
-        chunk = textos[i:i + chunk_size]
+    # Pre-filtro: separa indices que precisam de IA vs off_topic ja garantido
+    classif_final = [None] * len(textos)
+    indices_para_ia = []
+    textos_para_ia = []
+    for idx, t in enumerate(textos):
+        if _eh_off_topic(t):
+            classif_final[idx] = _OFF_TOPIC_CLASSIFICACAO.copy()
+        else:
+            indices_para_ia.append(idx)
+            textos_para_ia.append(t)
+    if not textos_para_ia:
+        print(f"🧹 Todos os {len(textos)} comentários eram off_topic — sem chamada IA")
+        return classif_final
+    print(f"🧹 Pre-filtro: {len(textos) - len(textos_para_ia)} off_topic, {len(textos_para_ia)} vao pra IA")
+    # Roda IA apenas nos sobreviventes
+    ia_results = []
+    for i in range(0, len(textos_para_ia), chunk_size):
+        chunk = textos_para_ia[i:i + chunk_size]
         print(f"🤖 Classificando chunk {i//chunk_size + 1} ({len(chunk)} comentários)...")
-        results.extend(_classificar_chunk(chunk, politico, adversarios=adversarios))
-    return results
+        ia_results.extend(_classificar_chunk(chunk, politico, adversarios=adversarios))
+    # Coloca de volta nos indices originais
+    for ia_idx, original_idx in enumerate(indices_para_ia):
+        classif_final[original_idx] = ia_results[ia_idx] if ia_idx < len(ia_results) else _OFF_TOPIC_CLASSIFICACAO.copy()
+    return classif_final
 
 
 def fetch_instagram_comments(username, politico, n_posts=5, comments_per_post=200, adversarios=None):
