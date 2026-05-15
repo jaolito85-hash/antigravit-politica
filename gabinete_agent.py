@@ -64,6 +64,12 @@ Dar ao Deputado, via WhatsApp, inteligência política acionável sobre:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 O Deputado espera que você *FAÇA*, não só converse. Regras de ouro:
 
+• *"Manda whatsapp pro Eduardo…"* / *"Avisa o prefeito de X pelo zap…"* / *"Fala com o vereador…"*
+  → Use `enviar_mensagem_operador`. Só funciona com operadores cadastrados (prefeitos, vereadores, lideranças, voluntários do painel).
+  → Se nome for ambíguo, passe `cidade` para desambiguar. Se vier `multiplos_operadores`, peça ao Deputado pra escolher.
+  → Texto direto, em nome do gabinete (sem "Olá, sou o Marcos"). Não mande email + whatsapp pra mesma coisa.
+  → Se o erro for `operador_nao_encontrado`, NÃO chute número — informe ao Deputado e pergunte se quer cadastrar.
+
 • *"Manda email pro Pedro…"* / *"Avisa o secretário…"* / *"Encaminha por email…"*
   → SEMPRE chame `buscar_contato` AGORA, na rodada atual — NUNCA confie em emails citados no histórico da conversa (podem estar desatualizados).
   → Redija o corpo em tom formal, conciso, em 2º pessoa do singular ("prezado", "conforme alinhado").
@@ -296,6 +302,30 @@ TOOLS = [
                     "apenas_ativos": {"type": "boolean", "description": "Se true (padrão), filtra status='ativo'.", "default": True},
                     "limit": {"type": "integer", "description": "Máximo de operadores retornados (padrão 10, max 30).", "default": 10},
                 },
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "enviar_mensagem_operador",
+            "description": (
+                "Envia mensagem de WhatsApp para um operador de campo cadastrado em operadores_campo "
+                "(prefeitos, vereadores, lideranças, voluntários etc). "
+                "Use quando o Deputado disser 'manda whatsapp pro X', 'avisa o Y no zap', 'fala com o prefeito de Z'. "
+                "O destinatário PRECISA estar cadastrado no painel — bot não envia para número solto. "
+                "Sempre confirme antes ao Deputado o que vai enviar quando o pedido for ambíguo. "
+                "Mensagens enviadas ficam registradas em operacao_local_mensagens para auditoria."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "operador_id": {"type": "integer", "description": "ID do operador (preferencial se já obtido via buscar_operador_campo)."},
+                    "nome": {"type": "string", "description": "Nome (ou parte) do operador. Use se não tiver o ID. Ex.: 'Eduardo'."},
+                    "cidade": {"type": "string", "description": "Cidade-base para desambiguar quando o nome for comum. Ex.: 'Governador Valadares'."},
+                    "mensagem": {"type": "string", "description": "Texto da mensagem em português, tom institucional e direto. SEM cumprimentos como 'Olá Marcos aqui' — o destinatário recebe como se fosse do gabinete."},
+                },
+                "required": ["mensagem"],
             },
         },
     },
@@ -724,6 +754,104 @@ def _tool_buscar_operador_campo(args: dict) -> dict:
 
 
 # =============================================================================
+# Tool: enviar_mensagem_operador — WhatsApp via Evolution para operadores cadastrados
+# =============================================================================
+def _tool_enviar_mensagem_operador(args: dict, remote_jid: str) -> dict:
+    from server import supabase_admin, send_whatsapp_message, _jid_para_envio  # lazy
+
+    operador_id = args.get("operador_id")
+    nome = (args.get("nome") or "").strip()
+    cidade = (args.get("cidade") or "").strip()
+    mensagem = (args.get("mensagem") or "").strip()
+
+    if not mensagem:
+        return {"enviado": False, "erro": "mensagem_vazia"}
+    if not (operador_id or nome):
+        return {"enviado": False, "erro": "destinatario_nao_especificado"}
+    if not supabase_admin:
+        return {"enviado": False, "erro": "supabase_indisponivel"}
+
+    # Localiza o operador (guardrail: só envia pra quem está cadastrado)
+    try:
+        query = supabase_admin.table("operadores_campo").select(
+            "id, nome, telefone, jid, cidade_base, regiao, status, funcao_chave"
+        )
+        if operador_id:
+            query = query.eq("id", operador_id)
+        else:
+            query = query.ilike("nome", f"%{nome}%")
+            if cidade:
+                query = query.ilike("cidade_base", f"%{cidade}%")
+        res = query.limit(5).execute()
+        rows = res.data or []
+    except Exception as e:
+        return {"enviado": False, "erro": f"falha_consulta: {e}"}
+
+    if not rows:
+        return {
+            "enviado": False,
+            "erro": "operador_nao_encontrado",
+            "filtros": {"nome": nome, "cidade": cidade, "operador_id": operador_id},
+        }
+    if len(rows) > 1:
+        return {
+            "enviado": False,
+            "erro": "multiplos_operadores",
+            "mensagem": "Mais de um operador bate com esse filtro. Especifique a cidade ou use operador_id.",
+            "candidatos": [
+                {"id": r["id"], "nome": r["nome"], "cidade_base": r.get("cidade_base"), "funcao_chave": r.get("funcao_chave")}
+                for r in rows
+            ],
+        }
+
+    operador = rows[0]
+    if operador.get("status") != "ativo":
+        return {
+            "enviado": False,
+            "erro": "operador_inativo",
+            "operador_nome": operador.get("nome"),
+            "status": operador.get("status"),
+        }
+
+    destino_raw = operador.get("jid") or operador.get("telefone")
+    if not destino_raw:
+        return {"enviado": False, "erro": "operador_sem_telefone", "operador_nome": operador.get("nome")}
+
+    destino_jid = _jid_para_envio(destino_raw)
+    if "@" not in destino_jid:
+        destino_jid = f"{destino_jid}@s.whatsapp.net"
+
+    print(f"[gabinete] WhatsApp para operador: {operador.get('nome')} ({destino_jid[:6]}***) — '{mensagem[:50]}...'")
+
+    try:
+        send_whatsapp_message(destino_jid, mensagem)
+    except Exception as e:
+        return {"enviado": False, "erro": f"falha_envio: {e}"}
+
+    # Registra em operacao_local_mensagens para auditoria (soft-fail)
+    try:
+        supabase_admin.table("operacao_local_mensagens").insert({
+            "destinatario_jid": destino_jid,
+            "destinatario_nome": operador.get("nome"),
+            "cidade": operador.get("cidade_base"),
+            "direcao": "enviada",
+            "canal": "whatsapp",
+            "texto": mensagem,
+            "autor": "gabinete_digital",
+        }).execute()
+    except Exception as e:
+        print(f"[gabinete] Falha ao registrar mensagem em operacao_local_mensagens: {e}")
+
+    return {
+        "enviado": True,
+        "destinatario": operador.get("nome"),
+        "cidade": operador.get("cidade_base"),
+        "funcao": operador.get("funcao_chave"),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+# =============================================================================
 # Tool: enviar_email — SMTP com Gmail por padrão
 # =============================================================================
 def _tool_enviar_email(args: dict, remote_jid: str) -> dict:
@@ -891,6 +1019,8 @@ def _dispatch_tool(name: str, args: dict, remote_jid: str) -> Any:
             return _tool_buscar_operador_campo(args)
         if name == "enviar_email":
             return _tool_enviar_email(args, remote_jid)
+        if name == "enviar_mensagem_operador":
+            return _tool_enviar_mensagem_operador(args, remote_jid)
         if name == "criar_tarefa":
             return _tool_criar_tarefa(args, remote_jid)
         if name == "gerar_relatorio_pdf":
@@ -995,8 +1125,8 @@ def handle_gabinete(text: str, remote_jid: str) -> None:
         {"role": "user", "content": text},
     ]
 
-    # Loop de tool calling, no máximo 5 rodadas para não custar demais.
-    for rodada in range(5):
+    # Loop de tool calling, no máximo 8 rodadas para não custar demais.
+    for rodada in range(8):
         try:
             resp = client.chat.completions.create(
                 model=os.getenv("GABINETE_MODEL", "gpt-4o"),
