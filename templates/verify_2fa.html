@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Acesso — Política Node Data</title>
+  <title>Verificação 2FA — Política Node Data</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -24,29 +24,18 @@
       max-width: 380px;
       box-shadow: 0 24px 60px rgba(0,0,0,0.6);
     }
-    .logo {
+    .logo { text-align: center; margin-bottom: 24px; }
+    .logo svg { width: 48px; height: 48px; margin-bottom: 12px; }
+    .logo h1 { font-size: 1.3rem; font-weight: 700; color: #e2e8f0; letter-spacing: -0.02em; }
+    .logo p { font-size: 0.8rem; color: #64748b; margin-top: 4px; }
+    .desc {
+      font-size: 0.85rem;
+      color: #94a3b8;
       text-align: center;
-      margin-bottom: 32px;
+      margin-bottom: 22px;
+      line-height: 1.5;
     }
-    .logo svg {
-      width: 48px;
-      height: 48px;
-      margin-bottom: 12px;
-    }
-    .logo h1 {
-      font-size: 1.3rem;
-      font-weight: 700;
-      color: #e2e8f0;
-      letter-spacing: -0.02em;
-    }
-    .logo p {
-      font-size: 0.8rem;
-      color: #64748b;
-      margin-top: 4px;
-    }
-    .form-group {
-      margin-bottom: 18px;
-    }
+    .form-group { margin-bottom: 18px; }
     label {
       display: block;
       font-size: 0.78rem;
@@ -56,18 +45,21 @@
       text-transform: uppercase;
       letter-spacing: 0.05em;
     }
-    input {
+    input.code {
       width: 100%;
-      padding: 11px 14px;
+      padding: 14px;
       background: #1a1a2e;
       border: 1px solid rgba(99,102,241,0.2);
       border-radius: 8px;
       color: #e2e8f0;
-      font-size: 0.95rem;
+      font-size: 1.5rem;
+      text-align: center;
+      letter-spacing: 0.4em;
+      font-family: 'Consolas', 'Monaco', monospace;
       outline: none;
       transition: border-color 0.2s;
     }
-    input:focus {
+    input.code:focus {
       border-color: rgba(99,102,241,0.6);
       box-shadow: 0 0 0 3px rgba(99,102,241,0.1);
     }
@@ -101,6 +93,7 @@
       font-size: 0.72rem;
       color: #334155;
     }
+    .footer a { color: #6366f1; text-decoration: none; }
   </style>
 </head>
 <body>
@@ -111,28 +104,26 @@
         <path d="M14 32 L24 14 L34 32" stroke="#6366f1" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
         <path d="M17 26 H31" stroke="#6366f1" stroke-width="2" stroke-linecap="round"/>
       </svg>
-      <h1>Política Node Data</h1>
-      <p>Painel de Inteligência Eleitoral</p>
+      <h1>Verificação em 2 etapas</h1>
+      <p>Política Node Data</p>
     </div>
+
+    <p class="desc">Abra seu app autenticador (Google Authenticator, Authy, 1Password) e digite o código de 6 dígitos atual.</p>
 
     {% if error %}
     <div class="error">{{ error }}</div>
     {% endif %}
 
-    <form method="POST" action="/login">
+    <form method="POST" action="/verify-2fa">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
       <div class="form-group">
-        <label>Usuário</label>
-        <input type="text" name="username" autocomplete="username" autofocus required />
+        <label>Código de verificação</label>
+        <input class="code" type="text" name="code" inputmode="numeric" pattern="[0-9 ]*" maxlength="7" autocomplete="one-time-code" autofocus required />
       </div>
-      <div class="form-group">
-        <label>Senha</label>
-        <input type="password" name="password" autocomplete="current-password" required />
-      </div>
-      <button type="submit">Entrar</button>
+      <button type="submit">Verificar</button>
     </form>
 
-    <div class="footer">Acesso restrito · Nodedata &copy; 2024</div>
+    <div class="footer">Perdeu acesso ao autenticador? <a href="/logout">Voltar ao login</a></div>
   </div>
 </body>
 </html>

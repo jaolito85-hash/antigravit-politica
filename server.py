@@ -10,10 +10,14 @@ import hashlib
 import csv
 import re
 import unicodedata
-from io import StringIO
+from io import StringIO, BytesIO
 from flask import Flask, request, jsonify, render_template, send_from_directory, session, redirect, url_for
 from functools import wraps
 import feedparser
+import bcrypt
+import pyotp
+import qrcode
+import qrcode.image.svg
 from dotenv import load_dotenv
 from datetime import datetime, timedelta, timezone
 from collections import Counter, defaultdict
@@ -26,11 +30,44 @@ load_dotenv(os.path.join(BASE_DIR, '.env'))
 
 app = Flask(__name__, static_folder='static', static_url_path='/static')
 app.config['TEMPLATES_AUTO_RELOAD'] = True
-app.secret_key = os.getenv("SECRET_KEY", "politica-nodedata-secret-2024")
 
-# Credenciais de acesso
-APP_USERNAME = os.getenv("APP_USERNAME", "admin")
-APP_PASSWORD = os.getenv("APP_PASSWORD", "2702")
+# SECRET_KEY: lê do .env ou gera aleatória (sessões caem a cada restart se não setada).
+_secret_from_env = os.getenv("SECRET_KEY", "").strip()
+if _secret_from_env and _secret_from_env != "politica-nodedata-secret-2024":
+    app.secret_key = _secret_from_env
+else:
+    app.secret_key = secrets.token_hex(32)
+    print("⚠️ SECRET_KEY não configurada no .env — usando chave aleatória (sessões caem em restart).")
+
+# Hardening de cookie de sessão
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE='Lax',
+    SESSION_COOKIE_SECURE=os.getenv("SESSION_COOKIE_SECURE", "true").lower() == "true",
+    PERMANENT_SESSION_LIFETIME=timedelta(hours=8),
+    SESSION_REFRESH_EACH_REQUEST=True,
+)
+
+# Política de lockout: N tentativas falhas → conta travada por X minutos.
+LOGIN_MAX_ATTEMPTS = 5
+LOGIN_LOCKOUT_MINUTES = 15
+
+def _csrf_token():
+    """Devolve o CSRF token da sessão atual, criando se ainda não existe."""
+    token = session.get("csrf_token")
+    if not token:
+        token = secrets.token_urlsafe(32)
+        session["csrf_token"] = token
+    return token
+
+def _csrf_valid(submitted: str) -> bool:
+    expected = session.get("csrf_token")
+    if not expected or not submitted:
+        return False
+    return secrets.compare_digest(str(expected), str(submitted))
+
+# Disponibiliza csrf_token() nos templates Jinja
+app.jinja_env.globals['csrf_token'] = _csrf_token
 
 def login_required(f):
     @wraps(f)
@@ -44,7 +81,10 @@ def login_required(f):
 
 @app.before_request
 def require_login():
-    public_routes = {"login_page", "logout", "static", "service_worker", "manifest", "webhook"}
+    public_routes = {
+        "login_page", "verify_2fa", "setup_2fa", "logout",
+        "static", "service_worker", "manifest", "webhook",
+    }
     if request.endpoint in public_routes:
         return
     if not session.get("logged_in"):
@@ -1092,17 +1132,225 @@ MIN_MESSAGE_LENGTH = 3
 
 # --- ROUTES ---
 
+# =============================================================================
+# AUTENTICAÇÃO — bcrypt + lockout + TOTP (2FA) + CSRF
+# Usuários ficam em usuarios_painel (Supabase). Backend usa supabase_admin.
+# =============================================================================
+
+def _buscar_usuario(username: str):
+    """Busca um usuário pelo username (case-insensitive). Retorna dict ou None."""
+    if not supabase_admin or not username:
+        return None
+    try:
+        resp = (
+            supabase_admin.table("usuarios_painel")
+            .select("*")
+            .ilike("username", username.strip())
+            .limit(1)
+            .execute()
+        )
+        rows = getattr(resp, "data", None) or []
+        return rows[0] if rows else None
+    except Exception as e:
+        print(f"⚠️ Erro ao buscar usuário no Supabase: {e}")
+        return None
+
+def _atualizar_usuario(user_id: str, patch: dict) -> bool:
+    if not supabase_admin or not user_id or not patch:
+        return False
+    try:
+        supabase_admin.table("usuarios_painel").update(patch).eq("id", user_id).execute()
+        return True
+    except Exception as e:
+        print(f"⚠️ Erro ao atualizar usuário {user_id}: {e}")
+        return False
+
+def _usuario_travado(usuario: dict) -> bool:
+    locked_until = usuario.get("locked_until")
+    if not locked_until:
+        return False
+    try:
+        # Supabase devolve ISO string com timezone
+        dt = datetime.fromisoformat(locked_until.replace("Z", "+00:00"))
+        return dt > datetime.now(timezone.utc)
+    except Exception:
+        return False
+
+def _registrar_falha_login(usuario: dict):
+    """Incrementa failed_attempts e trava conta se atingir o limite."""
+    novo_contador = (usuario.get("failed_attempts") or 0) + 1
+    patch = {"failed_attempts": novo_contador}
+    if novo_contador >= LOGIN_MAX_ATTEMPTS:
+        bloqueio_ate = datetime.now(timezone.utc) + timedelta(minutes=LOGIN_LOCKOUT_MINUTES)
+        patch["locked_until"] = bloqueio_ate.isoformat()
+        patch["failed_attempts"] = 0
+    _atualizar_usuario(usuario["id"], patch)
+
+def _registrar_login_sucesso(user_id: str):
+    _atualizar_usuario(user_id, {
+        "failed_attempts": 0,
+        "locked_until": None,
+        "last_login_at": datetime.now(timezone.utc).isoformat(),
+    })
+
+def _verificar_senha(senha_em_claro: str, hash_armazenado: str) -> bool:
+    """Comparação constant-time via bcrypt."""
+    if not senha_em_claro or not hash_armazenado:
+        return False
+    try:
+        return bcrypt.checkpw(senha_em_claro.encode("utf-8"), hash_armazenado.encode("utf-8"))
+    except Exception:
+        return False
+
 @app.route("/login", methods=["GET", "POST"])
 def login_page():
     error = None
     if request.method == "POST":
+        if not _csrf_valid(request.form.get("csrf_token", "")):
+            error = "Sessão expirou. Recarregue a página e tente de novo."
+            return render_template("login.html", error=error), 400
+
         username = request.form.get("username", "").strip()
-        password = request.form.get("password", "").strip()
-        if username == APP_USERNAME and password == APP_PASSWORD:
-            session["logged_in"] = True
-            return redirect(url_for("index"))
-        error = "Usuário ou senha incorretos."
+        password = request.form.get("password", "")
+
+        usuario = _buscar_usuario(username)
+        # Sempre roda bcrypt mesmo se usuário não existe — evita timing oracle
+        senha_ok = False
+        if usuario:
+            if _usuario_travado(usuario):
+                error = f"Conta temporariamente bloqueada. Aguarde {LOGIN_LOCKOUT_MINUTES} minutos."
+                return render_template("login.html", error=error), 429
+            senha_ok = _verificar_senha(password, usuario.get("password_hash", ""))
+        else:
+            # Hash dummy para gastar tempo equivalente
+            bcrypt.checkpw(b"dummy", b"$2b$12$abcdefghijklmnopqrstuuMfYJg6xVUz5aB/V6r7fGNh3QAQk8lRm")
+
+        if not senha_ok:
+            if usuario:
+                _registrar_falha_login(usuario)
+            error = "Usuário ou senha incorretos."
+            return render_template("login.html", error=error), 401
+
+        # Senha OK — limpa estado anterior e marca pendência de 2FA
+        session.clear()
+        session.permanent = True
+        session["pending_user_id"] = usuario["id"]
+        session["pending_username"] = usuario["username"]
+        session["pending_role"] = usuario.get("role") or "operador"
+
+        if usuario.get("totp_enabled"):
+            return redirect(url_for("verify_2fa"))
+        # Primeiro acesso: força configurar 2FA antes de liberar o painel
+        session["must_setup_2fa"] = True
+        return redirect(url_for("setup_2fa"))
+
     return render_template("login.html", error=error)
+
+
+@app.route("/verify-2fa", methods=["GET", "POST"])
+def verify_2fa():
+    pending_id = session.get("pending_user_id")
+    if not pending_id:
+        return redirect(url_for("login_page"))
+
+    error = None
+    if request.method == "POST":
+        if not _csrf_valid(request.form.get("csrf_token", "")):
+            error = "Sessão expirou. Recarregue a página e tente de novo."
+            return render_template("verify_2fa.html", error=error), 400
+
+        codigo = (request.form.get("code", "") or "").strip().replace(" ", "")
+        usuario = _buscar_usuario(session.get("pending_username", ""))
+        if not usuario or not usuario.get("totp_secret"):
+            session.clear()
+            return redirect(url_for("login_page"))
+
+        if _usuario_travado(usuario):
+            error = f"Conta temporariamente bloqueada. Aguarde {LOGIN_LOCKOUT_MINUTES} minutos."
+            return render_template("verify_2fa.html", error=error), 429
+
+        totp = pyotp.TOTP(usuario["totp_secret"])
+        if codigo and totp.verify(codigo, valid_window=1):
+            _registrar_login_sucesso(usuario["id"])
+            user_id = usuario["id"]
+            username = usuario["username"]
+            role = usuario.get("role") or "operador"
+            session.clear()
+            session.permanent = True
+            session["logged_in"] = True
+            session["user_id"] = user_id
+            session["user"] = username
+            session["role"] = role
+            return redirect(url_for("index"))
+
+        _registrar_falha_login(usuario)
+        error = "Código inválido. Tente novamente."
+        return render_template("verify_2fa.html", error=error), 401
+
+    return render_template("verify_2fa.html", error=error)
+
+
+@app.route("/setup-2fa", methods=["GET", "POST"])
+def setup_2fa():
+    """Primeiro acesso ou reconfiguração: gera segredo TOTP e exige confirmação."""
+    pending_id = session.get("pending_user_id")
+    autorizado = pending_id and session.get("must_setup_2fa")
+    autorizado_por_login = session.get("logged_in")
+    if not (autorizado or autorizado_por_login):
+        return redirect(url_for("login_page"))
+
+    user_id = pending_id or session.get("user_id")
+    username = session.get("pending_username") or session.get("user")
+    if not user_id or not username:
+        session.clear()
+        return redirect(url_for("login_page"))
+
+    # Gera ou reaproveita segredo de uma tentativa anterior nesta sessão
+    secret = session.get("setup_2fa_secret")
+    if not secret:
+        secret = pyotp.random_base32()
+        session["setup_2fa_secret"] = secret
+
+    error = None
+    if request.method == "POST":
+        if not _csrf_valid(request.form.get("csrf_token", "")):
+            error = "Sessão expirou. Recarregue a página e tente de novo."
+        else:
+            codigo = (request.form.get("code", "") or "").strip().replace(" ", "")
+            totp = pyotp.TOTP(secret)
+            if codigo and totp.verify(codigo, valid_window=1):
+                _atualizar_usuario(user_id, {
+                    "totp_secret": secret,
+                    "totp_enabled": True,
+                })
+                _registrar_login_sucesso(user_id)
+                role = session.get("pending_role") or session.get("role") or "operador"
+                session.clear()
+                session.permanent = True
+                session["logged_in"] = True
+                session["user_id"] = user_id
+                session["user"] = username
+                session["role"] = role
+                return redirect(url_for("index"))
+            error = "Código inválido. Tente de novo."
+
+    # Gera QR code SVG do otpauth URI
+    issuer = "Politica Node Data"
+    otp_uri = pyotp.TOTP(secret).provisioning_uri(name=username, issuer_name=issuer)
+    factory = qrcode.image.svg.SvgPathImage
+    img = qrcode.make(otp_uri, image_factory=factory, box_size=10, border=2)
+    buf = BytesIO()
+    img.save(buf)
+    qr_svg = buf.getvalue().decode("utf-8")
+
+    return render_template(
+        "setup_2fa.html",
+        username=username,
+        secret=secret,
+        qr_svg=qr_svg,
+        error=error,
+    )
+
 
 @app.route("/logout")
 def logout():
