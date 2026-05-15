@@ -707,13 +707,19 @@ def transcrever_whisper_longo(audio_path: str) -> dict | None:
 
     for chunk_path, offset in chunks:
         try:
+            # Whisper aceita ogg/oga mas não opus (mesmo container). Renomeia o
+            # filename enviado pra API sem precisar reencodar o arquivo no disco.
             with open(chunk_path, "rb") as f:
-                resp = client.audio.transcriptions.create(
-                    model="whisper-1",
-                    file=f,
-                    response_format="verbose_json",
-                    timestamp_granularities=["segment"],
-                )
+                audio_bytes = f.read()
+            nome_para_api = os.path.basename(chunk_path)
+            if nome_para_api.lower().endswith(".opus"):
+                nome_para_api = nome_para_api[:-5] + ".ogg"
+            resp = client.audio.transcriptions.create(
+                model="whisper-1",
+                file=(nome_para_api, audio_bytes, "audio/ogg"),
+                response_format="verbose_json",
+                timestamp_granularities=["segment"],
+            )
         except Exception as e:
             print(f"❌ Whisper falhou em chunk {chunk_path}: {e}")
             # Limpa chunks parciais antes de sair
