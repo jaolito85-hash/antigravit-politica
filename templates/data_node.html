@@ -1291,44 +1291,6 @@
             border-color: rgba(148, 163, 184, 0.35);
         }
 
-        .op-potencial-box {
-            margin-top: 14px;
-            padding: 16px 18px;
-            border-radius: 12px;
-            background: linear-gradient(135deg, rgba(34, 197, 94, 0.12), rgba(34, 197, 94, 0.04));
-            border: 1.5px solid rgba(34, 197, 94, 0.45);
-            display: flex;
-            align-items: center;
-            gap: 14px;
-            box-shadow: 0 2px 16px rgba(34, 197, 94, 0.08);
-            transition: opacity .25s ease, transform .25s ease;
-        }
-        .op-potencial-box.hidden { display: none; }
-        .op-potencial-icon {
-            font-size: 1.8rem;
-            line-height: 1;
-        }
-        .op-potencial-text {
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
-            min-width: 0;
-        }
-        .op-potencial-nome {
-            color: #94a3b8;
-            font-size: 0.72rem;
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-            font-weight: 600;
-        }
-        .op-potencial-num {
-            color: #34d399;
-            font-size: 1.35rem;
-            font-weight: 800;
-            letter-spacing: -0.02em;
-            line-height: 1.15;
-        }
-
         .op-cta-btn {
             margin-top: 14px;
             width: 100%;
@@ -3504,7 +3466,7 @@
                 <div class="op-form-grid">
                     <div class="op-field">
                         <label>Nome do operador</label>
-                        <input id="op-nome" type="text" placeholder="Nome completo" oninput="recalcularScoreOperador()">
+                        <input id="op-nome" type="text" placeholder="Nome completo">
                     </div>
                     <div class="op-field">
                         <label>Telefone (DDD + número)</label>
@@ -3576,14 +3538,6 @@
                             <small>Exemplos:<br>• Prefeito 10★ em <strong>cidade de 2k votos</strong> → A=6,7, B=100 → <strong>score 63</strong> (alta).<br>• Prefeito 10★ em <strong>cidade de 30k votos</strong> → A=100, B=100 → <strong>score 100</strong> (máxima).<br>• Voluntário 5★ em cidade de 5k votos → A=2,5, B=15 → <strong>score 10</strong>.</small>
                         </div>
                     </details>
-                </div>
-
-                <div class="op-potencial-box hidden" id="op-potencial-box">
-                    <div class="op-potencial-icon">🎯</div>
-                    <div class="op-potencial-text">
-                        <span class="op-potencial-nome" id="op-potencial-nome">Esse operador tem potencial de</span>
-                        <span class="op-potencial-num" id="op-potencial-num">0 votos</span>
-                    </div>
                 </div>
 
                 <button class="op-cta-btn" onclick="salvarOperadorCampo()">Cadastrar número</button>
@@ -5405,14 +5359,6 @@ https://www.instagram.com/p/YYYYY/"
         const OP_PESO_VOLUME = 0.4;
         const OP_PESO_CONVERSAO = 0.6;
 
-        function calcularPotencialVotosJS(funcaoChave, influencia, votosCidade) {
-            const peso = OP_PESOS_FUNCAO[funcaoChave] || 3;
-            const infl = Math.max(1, Math.min(10, parseInt(influencia, 10) || 1));
-            const votos = Math.max(0, parseInt(votosCidade, 10) || 0);
-            const taxa = (infl / 10) * (peso / 10);
-            return Math.round(taxa * votos);
-        }
-
         function calcularScoreOperadorJS(funcaoChave, influencia, votosCidade) {
             const peso = OP_PESOS_FUNCAO[funcaoChave] || 3;
             const infl = Math.max(1, Math.min(10, parseInt(influencia, 10) || 1));
@@ -5439,8 +5385,6 @@ https://www.instagram.com/p/YYYYY/"
         function recalcularScoreOperador() {
             const funcao = document.getElementById('op-funcao-chave')?.value || '';
             const votos = document.getElementById('op-votos-cidade')?.value || 0;
-            const nome = (document.getElementById('op-nome')?.value || '').trim();
-            const potencial = calcularPotencialVotosJS(funcao, _opInfluencia, votos);
             const score = calcularScoreOperadorJS(funcao, _opInfluencia, votos);
             const faixa = faixaScoreOperadorJS(score);
 
@@ -5463,20 +5407,6 @@ https://www.instagram.com/p/YYYYY/"
             }
             const explain = document.getElementById('op-score-explain');
             if (explain) explain.textContent = faixa.explain;
-
-            // Card destaque: "FULANO TEM POTENCIAL DE X VOTOS"
-            const potencialBox = document.getElementById('op-potencial-box');
-            const potencialNome = document.getElementById('op-potencial-nome');
-            const potencialNum = document.getElementById('op-potencial-num');
-            if (potencialBox && potencialNome && potencialNum) {
-                if (potencial > 0 && (nome || funcao)) {
-                    potencialNome.textContent = (nome ? nome.toUpperCase() : 'ESSE OPERADOR') + ' tem potencial de';
-                    potencialNum.textContent = potencial.toLocaleString('pt-BR') + ' votos';
-                    potencialBox.classList.remove('hidden');
-                } else {
-                    potencialBox.classList.add('hidden');
-                }
-            }
         }
 
         async function loadOperacaoLocal() {
