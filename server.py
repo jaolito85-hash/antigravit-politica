@@ -4292,7 +4292,7 @@ def _ultima_mensagem_por_operador() -> dict:
     fontes: list[list[dict]] = []
     if supabase_admin:
         try:
-            res = supabase_admin.table("operacao_local_mensagens").select("operador_jid,enviada_em").execute()
+            res = supabase_admin.table("operacao_local_mensagens").select("destinatario_jid,enviada_em").execute()
             fontes.append(res.data or [])
         except Exception as e:
             print(f"[operacao] Supabase ultima_mensagem indisponivel: {e}")
@@ -4303,7 +4303,7 @@ def _ultima_mensagem_por_operador() -> dict:
 
     for fonte in fontes:
         for msg in fonte:
-            jid = (msg.get("operador_jid") or msg.get("jid") or "").strip()
+            jid = (msg.get("destinatario_jid") or msg.get("operador_jid") or msg.get("jid") or "").strip()
             if not jid:
                 continue
             data = _parse_data_feedback(msg.get("enviada_em") or msg.get("criada_em"))
