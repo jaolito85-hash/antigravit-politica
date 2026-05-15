@@ -3312,14 +3312,16 @@
                         <div class="op-score-formula-body">
                             <code>Taxa = (influência ÷ 10) × (peso_função ÷ 10)</code><br>
                             <code>Potencial = Taxa × votos_cidade</code><br>
-                            <code>Score = mín(100, Potencial ÷ 30.000 × 100)</code>
+                            <code>A (volume) = mín(100, Potencial ÷ 30.000 × 100)</code><br>
+                            <code>B (conversão) = Taxa × 100</code><br>
+                            <code>Score = 0,4 × A + 0,6 × B</code>
                             <ul>
                                 <li><strong>≥ 75 pts</strong> · máxima — resposta em 2h</li>
                                 <li><strong>50–74 pts</strong> · alta — resposta em 4h</li>
                                 <li><strong>25–49 pts</strong> · média — resposta em 8h</li>
                                 <li><strong>&lt; 25 pts</strong> · normal — resposta em 24h</li>
                             </ul>
-                            <small>Exemplo: prefeito (peso 10) + influência 10★ em cidade de 30k votos → potencial 30.000 → <strong>score 100</strong>.</small>
+                            <small>Exemplos:<br>• Prefeito 10★ em <strong>cidade de 2k votos</strong> → A=6,7, B=100 → <strong>score 63</strong> (alta).<br>• Prefeito 10★ em <strong>cidade de 30k votos</strong> → A=100, B=100 → <strong>score 100</strong> (máxima).<br>• Voluntário 5★ em cidade de 5k votos → A=2,5, B=15 → <strong>score 10</strong>.</small>
                         </div>
                     </details>
                 </div>
@@ -5049,7 +5051,10 @@ https://www.instagram.com/p/YYYYY/"
         }
 
         // Espelha o backend (server.py:TETO_VOTOS_NORMALIZACAO)
+        // Espelha o backend (server.py: TETO_VOTOS_NORMALIZACAO, PESO_VOLUME, PESO_CONVERSAO)
         const OP_TETO_VOTOS = 30000;
+        const OP_PESO_VOLUME = 0.4;
+        const OP_PESO_CONVERSAO = 0.6;
 
         function calcularPotencialVotosJS(funcaoChave, influencia, votosCidade) {
             const peso = OP_PESOS_FUNCAO[funcaoChave] || 3;
@@ -5060,9 +5065,14 @@ https://www.instagram.com/p/YYYYY/"
         }
 
         function calcularScoreOperadorJS(funcaoChave, influencia, votosCidade) {
-            const potencial = calcularPotencialVotosJS(funcaoChave, influencia, votosCidade);
-            if (OP_TETO_VOTOS <= 0) return 0;
-            const score = (potencial / OP_TETO_VOTOS) * 100;
+            const peso = OP_PESOS_FUNCAO[funcaoChave] || 3;
+            const infl = Math.max(1, Math.min(10, parseInt(influencia, 10) || 1));
+            const votos = Math.max(0, parseInt(votosCidade, 10) || 0);
+            const taxa = (infl / 10) * (peso / 10);
+            const potencial = taxa * votos;
+            const a = OP_TETO_VOTOS > 0 ? Math.min(100, (potencial / OP_TETO_VOTOS) * 100) : 0;
+            const b = taxa * 100;
+            const score = (OP_PESO_VOLUME * a) + (OP_PESO_CONVERSAO * b);
             return Math.round(Math.min(100, Math.max(0, score)) * 100) / 100;
         }
 

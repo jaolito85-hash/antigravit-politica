@@ -2967,17 +2967,25 @@ def _mascarar_telefone(valor: str) -> str:
 # ============================================================
 # Score de prioridade do operador (Operação Local)
 #
-# Modelo (validado com sócio Dudu):
-#   Taxa de conversão = (influencia / 10) × (peso_funcao / 10)   # 0..1
-#   Potencial em votos = Taxa × votos_cidade                       # absoluto
-#   Score (0..100)     = min(100, Potencial / TETO_VOTOS_NORMALIZACAO × 100)
+# Modelo de 2 componentes (volume + conversão), validado com sócio Dudu:
+#   Taxa = (influencia / 10) × (peso_funcao / 10)
+#   Potencial = Taxa × votos_cidade
+#   A (volume)    = min(100, Potencial / TETO_VOTOS_NORMALIZACAO × 100)
+#   B (conversão) = Taxa × 100
+#   Score (0..100) = PESO_VOLUME × A + PESO_CONVERSAO × B
 #
-# Exemplo: prefeito (peso 10) com 10★ em cidade de 30k votos →
-#   Taxa = 1.0, Potencial = 30.000 votos, Score = 100.
-# Exemplo: voluntário (peso 3) com 5★ em cidade de 5k votos →
-#   Taxa = 0.15, Potencial = 750 votos, Score = 2.5.
+# Pesos: 40% volume + 60% conversão. Quem domina a base ("é dono da
+# cidade") pontua bem mesmo em cidade pequena, mas volume continua
+# pesando pra impedir que voluntário se iguale a prefeito.
+#
+# Exemplos:
+#   Prefeito 10★ em cidade de 2k votos  → Taxa 1.00, A 6.66, B 100  → 63
+#   Prefeito 10★ em cidade de 30k votos → Taxa 1.00, A 100,  B 100  → 100
+#   Voluntário 5★ em cidade de 5k votos → Taxa 0.15, A 2.5,  B 15   → 10
 # ============================================================
 TETO_VOTOS_NORMALIZACAO = 30000
+PESO_VOLUME = 0.4
+PESO_CONVERSAO = 0.6
 
 PESOS_FUNCAO_OPERADOR = {
     "prefeito": 10,
@@ -3047,14 +3055,27 @@ def calcular_potencial_votos(funcao_chave: str, influencia, votos_cidade) -> int
 
 
 def calcular_score_operador(funcao_chave: str, influencia, votos_cidade) -> float:
-    """Score de prioridade normalizado em escala 0–100.
-    Score = min(100, potencial / TETO_VOTOS_NORMALIZACAO × 100)
-    Exemplo: prefeito (10★) em cidade de 30k votos → potencial 30.000 → score 100.
+    """Score 0-100 combinando volume absoluto (40%) e taxa de conversão (60%).
+    A = min(100, potencial / TETO_VOTOS_NORMALIZACAO × 100)
+    B = taxa × 100
+    Score = PESO_VOLUME × A + PESO_CONVERSAO × B
     """
-    potencial = calcular_potencial_votos(funcao_chave, influencia, votos_cidade)
-    if TETO_VOTOS_NORMALIZACAO <= 0:
-        return 0.0
-    score = (potencial / TETO_VOTOS_NORMALIZACAO) * 100
+    peso_funcao = PESOS_FUNCAO_OPERADOR.get(_normalizar_funcao_chave(funcao_chave), 3)
+    try:
+        infl = int(influencia or 0)
+    except (TypeError, ValueError):
+        infl = 0
+    infl = max(1, min(10, infl)) if infl else 1
+    try:
+        votos = max(0, int(votos_cidade or 0))
+    except (TypeError, ValueError):
+        votos = 0
+
+    taxa = (infl / 10.0) * (peso_funcao / 10.0)
+    potencial = taxa * votos
+    componente_volume = min(100.0, (potencial / TETO_VOTOS_NORMALIZACAO) * 100) if TETO_VOTOS_NORMALIZACAO > 0 else 0.0
+    componente_conversao = taxa * 100
+    score = (PESO_VOLUME * componente_volume) + (PESO_CONVERSAO * componente_conversao)
     return round(min(100.0, max(0.0, score)), 2)
 
 
