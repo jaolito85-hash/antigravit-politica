@@ -1990,7 +1990,7 @@ def logout():
 
 @app.route("/")
 def index():
-    return render_template("data_node.html")
+    return render_template("data_node.html", user_role=(session.get("role") or "").lower())
 
 
 @app.route("/api/events")
@@ -3567,6 +3567,7 @@ def api_videos_listar():
         candidato = (request.args.get("candidato") or "").strip()
         tipo = (request.args.get("tipo") or "").strip()
         status_f = (request.args.get("status") or "").strip()
+        periodo = (request.args.get("periodo") or "").strip().lower()
         limit = min(int(request.args.get("limit", 50)), 200)
 
         # Lista sem campos pesados (transcricao, segmentos) — performance.
@@ -3580,6 +3581,15 @@ def api_videos_listar():
             q = q.eq("tipo", tipo)
         if status_f:
             q = q.eq("status", status_f)
+        if periodo in ("hoje", "7d", "30d"):
+            agora = datetime.utcnow()
+            if periodo == "hoje":
+                inicio = agora.replace(hour=0, minute=0, second=0, microsecond=0)
+            elif periodo == "7d":
+                inicio = agora - timedelta(days=7)
+            else:
+                inicio = agora - timedelta(days=30)
+            q = q.gte("criado_em", inicio.isoformat())
         q = q.order("criado_em", desc=True).limit(limit)
         res = q.execute()
         return jsonify({"data": res.data or [], "total": len(res.data or [])})

@@ -2427,6 +2427,33 @@
             transform: translateY(-2px);
             border-color: rgba(212, 176, 98, 0.45);
         }
+        .vid-card-delete {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #fca5a5;
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.95rem;
+            z-index: 2;
+            transition: all 0.15s ease;
+            opacity: 0;
+        }
+        .vid-card:hover .vid-card-delete {
+            opacity: 1;
+        }
+        .vid-card-delete:hover {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: #ef4444;
+            color: #fff;
+        }
         .vid-progress {
             background: rgba(148, 163, 184, 0.15);
             height: 4px;
@@ -4337,6 +4364,12 @@ https://www.instagram.com/p/YYYYY/"
                 <option value="transcribing">Transcrevendo</option>
                 <option value="analyzing">Analisando</option>
                 <option value="error">Com erro</option>
+            </select>
+            <select id="vid-filtro-periodo" class="filter-select" onchange="carregarVideos()">
+                <option value="">Todo o período</option>
+                <option value="hoje">Hoje</option>
+                <option value="7d">Últimos 7 dias</option>
+                <option value="30d">Últimos 30 dias</option>
             </select>
             <span class="filter-count" id="vid-count">--</span>
         </div>
@@ -8851,14 +8884,18 @@ https://www.instagram.com/p/YYYYY/"
         const _videosPollers = {};
         let _videosCache = [];
         let _videoAtual = null;
+        const _videoUserRole = "{{ user_role|default('') }}";
+        const _videoPodeDeletar = _videoUserRole === 'admin' || _videoUserRole === 'coordenador';
 
         async function carregarVideos() {
             const grid = document.getElementById('vid-grid');
             const tipo = document.getElementById('vid-filtro-tipo')?.value || '';
             const status = document.getElementById('vid-filtro-status')?.value || '';
+            const periodo = document.getElementById('vid-filtro-periodo')?.value || '';
             const qs = new URLSearchParams();
             if (tipo) qs.set('tipo', tipo);
             if (status) qs.set('status', status);
+            if (periodo) qs.set('periodo', periodo);
             qs.set('limit', '100');
 
             try {
@@ -8903,9 +8940,13 @@ https://www.instagram.com/p/YYYYY/"
                     ? '<img src="' + escapeHtml(v.thumbnail_url) + '" loading="lazy" style="width:100%;height:140px;object-fit:cover;border-radius:8px 8px 0 0;background:#0b0b0b">'
                     : '<div style="width:100%;height:140px;background:linear-gradient(135deg,#1a1a1a,#0b0b0b);border-radius:8px 8px 0 0;display:flex;align-items:center;justify-content:center"><i class="ri-vidicon-line" style="font-size:2rem;color:#444"></i></div>';
                 const errInfo = v.status === 'error' && v.erro ? '<div style="color:#fca5a5;font-size:0.72rem;margin-top:4px">' + escapeHtml(v.erro) + '</div>' : '';
-                const clickable = v.status === 'done' ? 'onclick="abrirVideoModal(' + v.id + ')" style="cursor:pointer"' : '';
+                const clickable = v.status === 'done' ? 'onclick="abrirVideoModal(' + v.id + ')" style="cursor:pointer;position:relative"' : 'style="position:relative"';
+                const btnExcluir = _videoPodeDeletar
+                    ? '<button class="vid-card-delete" onclick="event.stopPropagation(); deletarVideo(' + v.id + ', this)" title="Excluir análise"><i class="ri-delete-bin-line"></i></button>'
+                    : '';
                 return '<div class="vid-card" ' + clickable + '>' +
                     thumb +
+                    btnExcluir +
                     '<div style="padding:12px">' +
                     '<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">' +
                     '<span style="background:' + tipoCor + '22;color:' + tipoCor + ';font-size:0.65rem;font-weight:700;padding:2px 8px;border-radius:20px;text-transform:uppercase">' + tipoLabel + '</span>' +
@@ -9195,6 +9236,20 @@ https://www.instagram.com/p/YYYYY/"
                 btn.innerHTML = '<i class="ri-check-line"></i>';
                 setTimeout(() => { btn.innerHTML = orig; }, 1500);
             });
+        }
+
+        async function deletarVideo(videoId, btn) {
+            if (!confirm('Excluir essa análise permanentemente? Esta ação não pode ser desfeita.')) return;
+            if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ri-loader-4-line"></i>'; }
+            try {
+                const res = await fetch('/api/videos/' + videoId, { method: 'DELETE' });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'falha');
+                await carregarVideos();
+            } catch (e) {
+                alert('Erro ao excluir: ' + e.message);
+                if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ri-delete-bin-line"></i>'; }
+            }
         }
 
         async function regerarRespostas(videoId) {
