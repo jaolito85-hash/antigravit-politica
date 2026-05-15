@@ -546,6 +546,346 @@ def transcribe_audio(audio_content):
         return None
 
 
+# =============================================================================
+# VÍDEOS & PODCASTS — análise estratégica longa (YouTube/Spotify/Apple Podcasts)
+# Pipeline: queued → downloading (yt-dlp) → transcribing (Whisper c/ chunking)
+#         → analyzing (5 prompts GPT-4o em paralelo) → done | error
+# =============================================================================
+
+VIDEOS_TMP_DIR = os.getenv("VIDEOS_TMP_DIR", "/tmp/nodedata_videos")
+VIDEOS_BUDGET_USD_MONTH = float(os.getenv("VIDEOS_BUDGET_USD_MONTH", "200") or "200")
+_VIDEOS_WHITELIST = (
+    "youtube.com", "youtu.be", "www.youtube.com", "m.youtube.com",
+    "open.spotify.com", "podcasts.apple.com",
+)
+
+try:
+    os.makedirs(VIDEOS_TMP_DIR, exist_ok=True)
+except Exception as _e:
+    print(f"⚠️ Não consegui criar VIDEOS_TMP_DIR={VIDEOS_TMP_DIR}: {_e}")
+
+
+def validar_url_video(url: str) -> tuple[bool, str]:
+    """Valida URL de vídeo/podcast: só https + host na whitelist (anti-SSRF)."""
+    if not url or not isinstance(url, str):
+        return False, "URL vazia"
+    url = url.strip()
+    if not url.startswith("https://"):
+        return False, "Apenas https:// é aceito"
+    try:
+        from urllib.parse import urlparse
+        parsed = urlparse(url)
+        host = (parsed.hostname or "").lower()
+    except Exception:
+        return False, "URL malformada"
+    if not host:
+        return False, "Host ausente"
+    # match exato OU subdomínio de algum host conhecido (libsyn/megaphone usam subdomínios)
+    if host in _VIDEOS_WHITELIST:
+        return True, ""
+    if host.endswith(".libsyn.com") or host.endswith(".megaphone.fm"):
+        return True, ""
+    return False, f"Host não permitido: {host}"
+
+
+def baixar_audio_youtube(url: str, video_id: int) -> dict | None:
+    """Baixa áudio com yt-dlp em opus mono 16kHz (~1MB/min). Retorna metadados + path local."""
+    try:
+        import yt_dlp
+    except ImportError:
+        print("❌ yt-dlp não instalado (pip install yt-dlp)")
+        return None
+
+    out_template = os.path.join(VIDEOS_TMP_DIR, f"video_{video_id}.%(ext)s")
+    ydl_opts = {
+        "format": "bestaudio/best",
+        "outtmpl": out_template,
+        "quiet": True,
+        "no_warnings": True,
+        "postprocessors": [{
+            "key": "FFmpegExtractAudio",
+            "preferredcodec": "opus",
+            "preferredquality": "32",
+        }],
+        "postprocessor_args": ["-ar", "16000", "-ac", "1"],
+        "noplaylist": True,
+        "socket_timeout": 30,
+    }
+    cookies_file = os.getenv("YT_DLP_COOKIES_FILE", "").strip()
+    if cookies_file and os.path.exists(cookies_file):
+        ydl_opts["cookiefile"] = cookies_file
+
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+    except Exception as e:
+        print(f"❌ yt-dlp falhou para {url}: {e}")
+        return None
+
+    audio_path = os.path.join(VIDEOS_TMP_DIR, f"video_{video_id}.opus")
+    if not os.path.exists(audio_path):
+        # yt-dlp pode escolher outra extensão se o pós-processor falhar
+        for ext in ("m4a", "mp3", "ogg", "webm"):
+            alt = os.path.join(VIDEOS_TMP_DIR, f"video_{video_id}.{ext}")
+            if os.path.exists(alt):
+                audio_path = alt
+                break
+        else:
+            print(f"❌ Arquivo de áudio não encontrado após download id={video_id}")
+            return None
+
+    return {
+        "path": audio_path,
+        "titulo": info.get("title") or "",
+        "canal": info.get("uploader") or info.get("channel") or "",
+        "thumbnail_url": info.get("thumbnail") or "",
+        "duracao_segundos": int(info.get("duration") or 0),
+    }
+
+
+def _chunk_audio(path: str, chunk_seconds: int = 600) -> list[tuple[str, float]]:
+    """Quebra áudio em blocos de N segundos via ffmpeg. Retorna [(path_chunk, offset_inicial), ...]."""
+    import subprocess
+    base = os.path.splitext(path)[0]
+    ext = os.path.splitext(path)[1] or ".opus"
+    pattern = f"{base}_chunk_%03d{ext}"
+
+    # ffprobe para duração
+    try:
+        probe = subprocess.run(
+            ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+             "-of", "default=noprint_wrappers=1:nokey=1", path],
+            capture_output=True, text=True, timeout=30,
+        )
+        duration = float(probe.stdout.strip() or "0")
+    except Exception as e:
+        print(f"⚠️ ffprobe falhou: {e}")
+        return [(path, 0.0)]
+
+    if duration <= chunk_seconds:
+        return [(path, 0.0)]
+
+    # Split sem re-encode (rápido, mantém qualidade)
+    try:
+        subprocess.run(
+            ["ffmpeg", "-y", "-i", path, "-f", "segment",
+             "-segment_time", str(chunk_seconds), "-c", "copy", pattern],
+            capture_output=True, timeout=300, check=True,
+        )
+    except Exception as e:
+        print(f"❌ ffmpeg chunk falhou: {e}")
+        return [(path, 0.0)]
+
+    chunks = []
+    i = 0
+    while True:
+        candidate = f"{base}_chunk_{i:03d}{ext}"
+        if not os.path.exists(candidate):
+            break
+        chunks.append((candidate, float(i * chunk_seconds)))
+        i += 1
+    return chunks if chunks else [(path, 0.0)]
+
+
+def transcrever_whisper_longo(audio_path: str) -> dict | None:
+    """Transcreve áudio longo com chunking automático. Retorna {texto, segmentos, idioma}."""
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        print("❌ OPENAI_API_KEY ausente")
+        return None
+    try:
+        from openai import OpenAI
+        client = OpenAI(api_key=api_key)
+    except Exception as e:
+        print(f"❌ OpenAI client falhou: {e}")
+        return None
+
+    chunks = _chunk_audio(audio_path, chunk_seconds=600)
+    texto_total = []
+    segmentos_total = []
+    idioma = "pt"
+
+    for chunk_path, offset in chunks:
+        try:
+            with open(chunk_path, "rb") as f:
+                resp = client.audio.transcriptions.create(
+                    model="whisper-1",
+                    file=f,
+                    response_format="verbose_json",
+                    timestamp_granularities=["segment"],
+                )
+        except Exception as e:
+            print(f"❌ Whisper falhou em chunk {chunk_path}: {e}")
+            # Limpa chunks parciais antes de sair
+            for cpath, _ in chunks:
+                if cpath != audio_path:
+                    try: os.remove(cpath)
+                    except: pass
+            return None
+
+        texto_chunk = getattr(resp, "text", "") or ""
+        if texto_chunk:
+            texto_total.append(texto_chunk)
+        idioma = getattr(resp, "language", "pt") or "pt"
+
+        for seg in (getattr(resp, "segments", None) or []):
+            # Normaliza para dict (SDK retorna objetos)
+            d = seg if isinstance(seg, dict) else {
+                "start": getattr(seg, "start", 0),
+                "end": getattr(seg, "end", 0),
+                "text": getattr(seg, "text", ""),
+            }
+            segmentos_total.append({
+                "start": float(d.get("start", 0)) + offset,
+                "end": float(d.get("end", 0)) + offset,
+                "text": (d.get("text") or "").strip(),
+            })
+
+        # Remove chunk após processar (libera disco)
+        if chunk_path != audio_path:
+            try: os.remove(chunk_path)
+            except: pass
+
+    return {
+        "texto": "\n".join(texto_total).strip(),
+        "segmentos": segmentos_total,
+        "idioma": idioma,
+    }
+
+
+def calcular_custo_processamento(duracao_segundos: int, tokens_in: int, tokens_out: int) -> dict:
+    """Calcula custo (Whisper $0.006/min + GPT-4o $2.50/$10.00 por 1M tokens)."""
+    minutos = max(0.0, duracao_segundos / 60.0)
+    whisper_usd = round(minutos * 0.006, 4)
+    gpt_in_usd = round((tokens_in / 1_000_000.0) * 2.50, 4)
+    gpt_out_usd = round((tokens_out / 1_000_000.0) * 10.00, 4)
+    total = round(whisper_usd + gpt_in_usd + gpt_out_usd, 4)
+    return {
+        "whisper_usd": whisper_usd,
+        "gpt_in_usd": gpt_in_usd,
+        "gpt_out_usd": gpt_out_usd,
+        "total_usd": total,
+        "total_brl": round(total * 5.0, 2),
+    }
+
+
+def _custo_mensal_videos_usd() -> float:
+    """Soma custo_usd das análises do mês corrente. Retorna 0 em erro."""
+    if not supabase_admin:
+        return 0.0
+    try:
+        inicio_mes = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0).isoformat()
+        resp = supabase_admin.table("videos_analises") \
+            .select("custo_usd") \
+            .gte("criado_em", inicio_mes) \
+            .execute()
+        total = 0.0
+        for row in (resp.data or []):
+            try:
+                total += float(row.get("custo_usd") or 0)
+            except (TypeError, ValueError):
+                continue
+        return total
+    except Exception as e:
+        print(f"[videos] Erro ao calcular custo mensal: {e}")
+        return 0.0
+
+
+def _videos_update_status(video_id: int, status: str, progresso: int = None, **extras):
+    """Helper para atualizar status do video no Supabase com try/except."""
+    if not supabase_admin:
+        return False
+    payload = {"status": status}
+    if progresso is not None:
+        payload["progresso"] = int(progresso)
+    for k, v in extras.items():
+        payload[k] = v
+    try:
+        supabase_admin.table("videos_analises").update(payload).eq("id", video_id).execute()
+        return True
+    except Exception as e:
+        print(f"[videos] update status falhou id={video_id}: {e}")
+        return False
+
+
+def _processar_video_pipeline(video_id: int, url: str):
+    """Thread background: download → transcrição → (análise IA virá no commit 2)."""
+    print(f"[videos] pipeline iniciado id={video_id} url={url[:80]}")
+    _videos_update_status(video_id, "downloading", progresso=5,
+                          iniciado_em=datetime.utcnow().isoformat())
+
+    meta = baixar_audio_youtube(url, video_id)
+    if not meta:
+        _videos_update_status(video_id, "error", erro="Falha no download do áudio",
+                              finalizado_em=datetime.utcnow().isoformat())
+        return
+
+    _videos_update_status(
+        video_id, "transcribing", progresso=30,
+        titulo=meta["titulo"][:500] if meta.get("titulo") else None,
+        canal=meta["canal"][:300] if meta.get("canal") else None,
+        thumbnail_url=meta["thumbnail_url"][:1000] if meta.get("thumbnail_url") else None,
+        duracao_segundos=meta["duracao_segundos"],
+    )
+
+    trans = transcrever_whisper_longo(meta["path"])
+    # Remove o arquivo de áudio principal após transcrição
+    try:
+        if os.path.exists(meta["path"]):
+            os.remove(meta["path"])
+    except Exception as e:
+        print(f"[videos] Falha ao remover áudio id={video_id}: {e}")
+
+    if not trans or not trans.get("texto"):
+        _videos_update_status(video_id, "error", erro="Falha na transcrição",
+                              finalizado_em=datetime.utcnow().isoformat())
+        return
+
+    _videos_update_status(
+        video_id, "analyzing", progresso=70,
+        transcricao=trans["texto"],
+        transcricao_segmentos=trans["segmentos"],
+        idioma=trans.get("idioma", "pt"),
+    )
+
+    # Análise IA será adicionada no commit 2 (5 prompts paralelos).
+    # Por ora, deixa registrado custo só de Whisper para validar pipeline.
+    custo = calcular_custo_processamento(meta["duracao_segundos"], 0, 0)
+    _videos_update_status(
+        video_id, "analyzing", progresso=80,
+        custo_usd=custo["total_usd"],
+        custo_breakdown=custo,
+    )
+    print(f"[videos] pipeline transcrição completa id={video_id} duracao={meta['duracao_segundos']}s")
+
+
+def _cleanup_videos_tmp():
+    """Daemon: remove arquivos em VIDEOS_TMP_DIR com mtime > 24h. Roda a cada 6h."""
+    import threading, time as _time
+    def loop():
+        while True:
+            try:
+                if os.path.isdir(VIDEOS_TMP_DIR):
+                    agora = _time.time()
+                    for nome in os.listdir(VIDEOS_TMP_DIR):
+                        caminho = os.path.join(VIDEOS_TMP_DIR, nome)
+                        try:
+                            if os.path.isfile(caminho) and (agora - os.path.getmtime(caminho)) > 24 * 3600:
+                                os.remove(caminho)
+                                print(f"[videos] cleanup removeu {nome}")
+                        except Exception:
+                            continue
+            except Exception as e:
+                print(f"[videos] cleanup loop erro: {e}")
+            _time.sleep(6 * 3600)
+    t = threading.Thread(target=loop, daemon=True, name="videos-cleanup")
+    t.start()
+    return t
+
+
+_cleanup_videos_tmp()
+
+
 # --- HELPER FUNCTIONS ---
 
 def load_json(filepath, default):
@@ -2839,6 +3179,165 @@ def radar_reclassificar_historico():
         "erros": erros,
         "custo_estimado_usd": custo_estimado_usd,
         "ts": datetime.utcnow().isoformat() + "Z",
+    })
+
+
+# =============================================================================
+# VÍDEOS & PODCASTS — rotas
+# =============================================================================
+
+@app.route("/api/videos/analisar", methods=["POST"])
+def api_videos_analisar():
+    """Enfileira análise de URL pública (YouTube/podcast). Retorna {id, status}."""
+    if not supabase_admin:
+        return jsonify({"error": "supabase_indisponivel"}), 503
+    body = request.get_json(silent=True) or {}
+    url = (body.get("url") or "").strip()
+    candidato = (body.get("candidato") or "").strip()
+    tipo = (body.get("tipo") or "").strip()
+    contexto_extra = (body.get("contexto_extra") or "").strip()[:2000] or None
+
+    ok, motivo = validar_url_video(url)
+    if not ok:
+        return jsonify({"error": f"URL inválida: {motivo}"}), 400
+    if not candidato:
+        return jsonify({"error": "candidato obrigatório"}), 400
+    if tipo not in ("adversario", "proprio"):
+        return jsonify({"error": "tipo deve ser 'adversario' ou 'proprio'"}), 400
+
+    # Dedup: se já existe análise para essa URL, retorna a existente
+    try:
+        existe = supabase_admin.table("videos_analises").select("id, status") \
+            .eq("url", url).limit(1).execute()
+        if existe.data:
+            existing = existe.data[0]
+            return jsonify({
+                "id": existing["id"], "status": existing["status"],
+                "duplicado": True,
+            }), 200
+    except Exception as e:
+        print(f"[videos] erro dedup: {e}")
+
+    # Cap mensal
+    if VIDEOS_BUDGET_USD_MONTH > 0:
+        gasto = _custo_mensal_videos_usd()
+        if gasto >= VIDEOS_BUDGET_USD_MONTH:
+            return jsonify({
+                "error": "Limite mensal atingido",
+                "gasto_usd": round(gasto, 2),
+                "limite_usd": VIDEOS_BUDGET_USD_MONTH,
+            }), 402
+
+    plataforma = "youtube"
+    if "spotify" in url:
+        plataforma = "podcast"
+    elif "podcasts.apple" in url:
+        plataforma = "podcast"
+    elif "libsyn" in url or "megaphone" in url:
+        plataforma = "podcast"
+
+    payload = {
+        "url": url,
+        "plataforma": plataforma,
+        "tipo": tipo,
+        "candidato": candidato[:200],
+        "contexto_extra": contexto_extra,
+        "status": "queued",
+        "progresso": 0,
+        "criado_por": session.get("user", "desconhecido")[:120],
+    }
+    try:
+        res = supabase_admin.table("videos_analises").insert(payload).execute()
+        criado = (res.data or [{}])[0]
+        video_id = criado.get("id")
+        if not video_id:
+            return jsonify({"error": "Falha ao criar registro"}), 500
+    except Exception as e:
+        print(f"[videos] erro insert: {e}")
+        return jsonify({"error": f"Erro Supabase: {e}"}), 500
+
+    import threading
+    threading.Thread(
+        target=_processar_video_pipeline,
+        args=(video_id, url),
+        daemon=True,
+        name=f"video-pipeline-{video_id}",
+    ).start()
+
+    return jsonify({"id": video_id, "status": "queued", "duplicado": False}), 201
+
+
+@app.route("/api/videos", methods=["GET"])
+def api_videos_listar():
+    """Lista análises. Filtros: candidato, tipo, status, limit."""
+    if not supabase_admin:
+        return jsonify({"data": [], "total": 0}), 200
+    try:
+        candidato = (request.args.get("candidato") or "").strip()
+        tipo = (request.args.get("tipo") or "").strip()
+        status_f = (request.args.get("status") or "").strip()
+        limit = min(int(request.args.get("limit", 50)), 200)
+
+        # Lista sem campos pesados (transcricao, segmentos) — performance.
+        cols = ("id, url, plataforma, tipo, candidato, titulo, canal, thumbnail_url, "
+                "duracao_segundos, status, progresso, erro, sentimento_geral, tags, "
+                "custo_usd, criado_em, finalizado_em")
+        q = supabase_admin.table("videos_analises").select(cols)
+        if candidato:
+            q = q.eq("candidato", candidato)
+        if tipo in ("adversario", "proprio"):
+            q = q.eq("tipo", tipo)
+        if status_f:
+            q = q.eq("status", status_f)
+        q = q.order("criado_em", desc=True).limit(limit)
+        res = q.execute()
+        return jsonify({"data": res.data or [], "total": len(res.data or [])})
+    except Exception as e:
+        print(f"[videos] listar erro: {e}")
+        return jsonify({"data": [], "total": 0, "error": str(e)}), 200
+
+
+@app.route("/api/videos/<int:video_id>", methods=["GET"])
+def api_videos_detalhe(video_id):
+    """Retorna detalhes completos da análise (inclui transcrição e JSONBs)."""
+    if not supabase_admin:
+        return jsonify({"error": "supabase_indisponivel"}), 503
+    try:
+        res = supabase_admin.table("videos_analises").select("*") \
+            .eq("id", video_id).limit(1).execute()
+        if not res.data:
+            return jsonify({"error": "não encontrado"}), 404
+        return jsonify({"data": res.data[0]})
+    except Exception as e:
+        print(f"[videos] detalhe erro: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/videos/<int:video_id>/status", methods=["GET"])
+def api_videos_status(video_id):
+    """Endpoint leve para polling — só status, progresso e erro."""
+    if not supabase_admin:
+        return jsonify({"error": "supabase_indisponivel"}), 503
+    try:
+        res = supabase_admin.table("videos_analises") \
+            .select("id, status, progresso, erro") \
+            .eq("id", video_id).limit(1).execute()
+        if not res.data:
+            return jsonify({"error": "não encontrado"}), 404
+        return jsonify(res.data[0])
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/videos/orcamento", methods=["GET"])
+def api_videos_orcamento():
+    """KPI: gasto mensal vs cap."""
+    gasto = _custo_mensal_videos_usd()
+    return jsonify({
+        "gasto_usd": round(gasto, 2),
+        "limite_usd": VIDEOS_BUDGET_USD_MONTH,
+        "disponivel_usd": round(max(0.0, VIDEOS_BUDGET_USD_MONTH - gasto), 2),
+        "esgotado": VIDEOS_BUDGET_USD_MONTH > 0 and gasto >= VIDEOS_BUDGET_USD_MONTH,
     })
 
 
