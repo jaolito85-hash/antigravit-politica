@@ -769,6 +769,254 @@ def calcular_custo_processamento(duracao_segundos: int, tokens_in: int, tokens_o
     }
 
 
+def _formatar_timeline(segmentos: list, max_chars: int = 30000) -> str:
+    """Monta uma timeline compacta com timestamps mm:ss → texto. Trunca se necessário."""
+    if not segmentos:
+        return ""
+    linhas = []
+    total_chars = 0
+    for seg in segmentos:
+        start = int(seg.get("start") or 0)
+        mm = start // 60
+        ss = start % 60
+        texto = (seg.get("text") or "").strip().replace("\n", " ")
+        linha = f"[{mm:02d}:{ss:02d}] {texto}"
+        if total_chars + len(linha) > max_chars:
+            linhas.append("[…truncado…]")
+            break
+        linhas.append(linha)
+        total_chars += len(linha) + 1
+    return "\n".join(linhas)
+
+
+def _papel_estrategico(tipo: str, candidato: str) -> str:
+    """Retorna a frase de papel que abre cada prompt, baseada no tipo (adversario|proprio)."""
+    if tipo == "adversario":
+        return (
+            f"Você é um estrategista político trabalhando CONTRA {candidato}. "
+            f"Sua missão é extrair munição utilizável em campanha: gaffes, contradições, "
+            f"declarações controversas, dados imprecisos. Seja preciso e direto."
+        )
+    return (
+        f"Você é um assessor sênior do candidato {candidato}. "
+        f"Sua missão é identificar riscos ANTES que virem crise: falas que podem ser "
+        f"recortadas fora de contexto, promessas arriscadas, contradições com o histórico. "
+        f"Tom protetivo e franco."
+    )
+
+
+def _chat_json(client, system: str, user: str, max_tokens: int = 1500) -> tuple[dict, int, int]:
+    """Wrapper para chat completion com response_format=json_object. Retorna (json, tokens_in, tokens_out)."""
+    resp = client.chat.completions.create(
+        model="gpt-4o",
+        temperature=0.2,
+        response_format={"type": "json_object"},
+        max_tokens=max_tokens,
+        messages=[
+            {"role": "system", "content": system},
+            {"role": "user", "content": user},
+        ],
+    )
+    raw = resp.choices[0].message.content or "{}"
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError:
+        parsed = {"raw": raw, "_parse_error": True}
+    usage = getattr(resp, "usage", None)
+    t_in = int(getattr(usage, "prompt_tokens", 0) or 0) if usage else 0
+    t_out = int(getattr(usage, "completion_tokens", 0) or 0) if usage else 0
+    return parsed, t_in, t_out
+
+
+# Prompts: cada função monta (system, user) — todas devolvem JSON estruturado.
+_REGRAS_COMUNS = (
+    "Regras estritas:\n"
+    "1. Cite trechos EXATOS entre aspas (não parafraseie quando citar).\n"
+    "2. Use timestamps no formato mm:ss extraídos da TIMELINE fornecida.\n"
+    "3. NUNCA invente — se não está na transcrição, descarte.\n"
+    "4. Resposta APENAS em JSON válido, sem markdown ou comentários."
+)
+
+
+def _prompt_resumo_executivo(tipo, candidato, ctx_extra, transcricao, timeline):
+    papel = _papel_estrategico(tipo, candidato)
+    system = (
+        f"{papel}\n\n{_REGRAS_COMUNS}\n\n"
+        "Retorne JSON com esta estrutura:\n"
+        '{"tese_central": "...", "bullets": ["...", ...10 items],'
+        ' "sentimento_geral": "positivo|negativo|neutro|misto",'
+        ' "tom_emocional": "calmo|exaltado|defensivo|conciliador|agressivo",'
+        ' "quotes_chave": [{"timestamp":"mm:ss","texto":"..."}]}'
+    )
+    user = (
+        f"Contexto extra do assessor: {ctx_extra or '(nenhum)'}\n\n"
+        f"TIMELINE:\n{timeline}\n\n"
+        f"Gere o resumo executivo conforme estrutura."
+    )
+    return system, user
+
+
+def _prompt_pontos_atencao(tipo, candidato, ctx_extra, transcricao, timeline):
+    papel = _papel_estrategico(tipo, candidato)
+    instrucao_tipo = ("Foco: encontre gaffes, ataques, posições polêmicas e dados imprecisos UTILIZÁVEIS contra o candidato."
+                      if tipo == "adversario" else
+                      "Foco: identifique falas que possam virar crise — recortes possíveis, promessas exageradas, posições inflamáveis.")
+    system = (
+        f"{papel}\n\n{instrucao_tipo}\n\n{_REGRAS_COMUNS}\n\n"
+        "Retorne JSON: "
+        '{"itens": [{"id": 1, "timestamp": "mm:ss", "citacao": "...", '
+        '"categoria": "ataque|gaffe|posicao_polemica|dado_impreciso", '
+        '"severidade": 1, "risco": "...", "tags": ["..."]}]}\n'
+        "Severidade: 1=baixa, 2=média, 3=alta. Liste 5 a 15 itens. Lista vazia se nada relevante."
+    )
+    user = f"Contexto: {ctx_extra or '(nenhum)'}\n\nTIMELINE:\n{timeline}"
+    return system, user
+
+
+def _prompt_promessas(tipo, candidato, ctx_extra, transcricao, timeline):
+    papel = _papel_estrategico(tipo, candidato)
+    system = (
+        f"{papel}\n\n"
+        "Extraia TODAS as promessas, compromissos e dados numéricos verificáveis.\n\n"
+        f"{_REGRAS_COMUNS}\n\n"
+        "Retorne JSON: "
+        '{"itens": [{"id": 1, "timestamp": "mm:ss", "texto": "citação exata", '
+        '"parafrase_curta": "...", "prazo": "ate_2027|sem_prazo|...", '
+        '"valor_numerico": "R$ 50mi|10%|null", "verificavel": true, '
+        '"fonte_a_checar": "TSE|IBGE|portal transparência|null"}]}\n'
+        "Lista vazia se não houver promessas/dados verificáveis."
+    )
+    user = f"Contexto: {ctx_extra or '(nenhum)'}\n\nTIMELINE:\n{timeline}"
+    return system, user
+
+
+def _prompt_contradicoes(tipo, candidato, ctx_extra, transcricao, timeline):
+    papel = _papel_estrategico(tipo, candidato)
+    system = (
+        f"{papel}\n\n"
+        "Identifique contradições INTERNAS no próprio vídeo (mesma fala se contradiz em momentos diferentes). "
+        "Nunca compare com falas externas. Se não houver contradição clara, retorne lista vazia — NÃO FORCE.\n\n"
+        f"{_REGRAS_COMUNS}\n\n"
+        "Retorne JSON: "
+        '{"itens": [{"id": 1, '
+        '"trecho_a": {"timestamp": "mm:ss", "citacao": "..."}, '
+        '"trecho_b": {"timestamp": "mm:ss", "citacao": "..."}, '
+        '"natureza": "factual|posicional|temporal|...", '
+        '"explorabilidade": "alta|media|baixa"}]}'
+    )
+    user = f"Contexto: {ctx_extra or '(nenhum)'}\n\nTIMELINE:\n{timeline}"
+    return system, user
+
+
+def _prompt_respostas_sugeridas(tipo, candidato, ctx_extra, transcricao, timeline, pontos_atencao):
+    if tipo == "adversario":
+        papel = (
+            f"Você é estrategista de campanha trabalhando CONTRA {candidato}. "
+            f"Gere ataques curtos, eficazes e factualmente ancorados nas falas do próprio candidato. "
+            f"Tom: ofensivo mas elegante; usa o que ELE disse contra ele."
+        )
+    else:
+        papel = (
+            f"Você é assessor sênior de {candidato}. Gere defesas e contextualizações para uso "
+            f"em entrevista ao vivo, redes sociais e contra-ataque. Tom: firme, conciliador quando possível, "
+            f"sempre protegendo a imagem do candidato."
+        )
+    system = (
+        f"{papel}\n\n{_REGRAS_COMUNS}\n\n"
+        "Para CADA ponto de atenção fornecido, gere uma resposta. Retorne JSON: "
+        '{"itens": [{"ponto_id": 1, "ponto_referencia_timestamp": "mm:ss", '
+        '"contra_argumento_curto": "frase para entrevista ao vivo, max 25 palavras", '
+        '"contra_argumento_longo": "max 80 palavras, com dados", '
+        '"tweet": "max 280 chars, com hashtag relevante", '
+        '"story_instagram": "texto curto para story, max 40 palavras", '
+        '"tom": "ofensivo|defensivo|conciliador|tecnico", '
+        '"alerta_uso": "null ou aviso (ex: \\"verificar dado antes de postar\\")"}]}'
+    )
+    pontos_resumo = json.dumps(pontos_atencao or [], ensure_ascii=False)[:8000]
+    user = (
+        f"Contexto: {ctx_extra or '(nenhum)'}\n\n"
+        f"PONTOS DE ATENÇÃO já mapeados:\n{pontos_resumo}\n\n"
+        f"TIMELINE (referência):\n{timeline}"
+    )
+    return system, user
+
+
+def analisar_transcricao_estrategica(transcricao: str, segmentos: list, candidato: str,
+                                     tipo: str, contexto_extra: str = "") -> dict:
+    """Roda os 5 prompts em paralelo. Retorna dict com análises + tokens consumidos."""
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        return {"_erro": "OPENAI_API_KEY ausente"}
+    try:
+        from openai import OpenAI
+        client = OpenAI(api_key=api_key)
+    except Exception as e:
+        return {"_erro": f"client openai: {e}"}
+
+    timeline = _formatar_timeline(segmentos, max_chars=30000)
+    # Truncamento defensivo do texto bruto (caso prompts precisem)
+    texto = (transcricao or "")[:50000]
+
+    # Etapa 1: rodar 4 prompts independentes em paralelo
+    prompts_etapa1 = [
+        ("resumo", _prompt_resumo_executivo),
+        ("pontos_atencao", _prompt_pontos_atencao),
+        ("promessas", _prompt_promessas),
+        ("contradicoes", _prompt_contradicoes),
+    ]
+    resultados = {}
+    tokens_in_total = 0
+    tokens_out_total = 0
+
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    def _executar(nome, builder):
+        system, user = builder(tipo, candidato, contexto_extra, texto, timeline)
+        try:
+            parsed, t_in, t_out = _chat_json(client, system, user, max_tokens=2000)
+            return nome, parsed, t_in, t_out, None
+        except Exception as e:
+            return nome, {}, 0, 0, str(e)
+
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        futures = [pool.submit(_executar, nome, builder) for nome, builder in prompts_etapa1]
+        for fut in as_completed(futures):
+            nome, parsed, t_in, t_out, err = fut.result()
+            if err:
+                print(f"[videos] prompt {nome} erro: {err}")
+                resultados[nome] = {}
+            else:
+                resultados[nome] = parsed
+            tokens_in_total += t_in
+            tokens_out_total += t_out
+
+    # Etapa 2: respostas_sugeridas depende dos pontos_atencao (sequencial após etapa 1)
+    pontos_lista = (resultados.get("pontos_atencao") or {}).get("itens") or []
+    if pontos_lista:
+        try:
+            system, user = _prompt_respostas_sugeridas(
+                tipo, candidato, contexto_extra, texto, timeline, pontos_lista[:15]
+            )
+            parsed_r, t_in, t_out = _chat_json(client, system, user, max_tokens=3000)
+            resultados["respostas_sugeridas"] = parsed_r
+            tokens_in_total += t_in
+            tokens_out_total += t_out
+        except Exception as e:
+            print(f"[videos] respostas_sugeridas erro: {e}")
+            resultados["respostas_sugeridas"] = {"itens": []}
+    else:
+        resultados["respostas_sugeridas"] = {"itens": []}
+
+    return {
+        "resumo": resultados.get("resumo") or {},
+        "pontos_atencao": (resultados.get("pontos_atencao") or {}).get("itens") or [],
+        "promessas": (resultados.get("promessas") or {}).get("itens") or [],
+        "contradicoes": (resultados.get("contradicoes") or {}).get("itens") or [],
+        "respostas_sugeridas": (resultados.get("respostas_sugeridas") or {}).get("itens") or [],
+        "tokens_in": tokens_in_total,
+        "tokens_out": tokens_out_total,
+    }
+
+
 def _custo_mensal_videos_usd() -> float:
     """Soma custo_usd das análises do mês corrente. Retorna 0 em erro."""
     if not supabase_admin:
@@ -848,15 +1096,52 @@ def _processar_video_pipeline(video_id: int, url: str):
         idioma=trans.get("idioma", "pt"),
     )
 
-    # Análise IA será adicionada no commit 2 (5 prompts paralelos).
-    # Por ora, deixa registrado custo só de Whisper para validar pipeline.
-    custo = calcular_custo_processamento(meta["duracao_segundos"], 0, 0)
+    # Busca candidato/tipo/contexto_extra do registro para alimentar prompts
+    try:
+        meta_db = supabase_admin.table("videos_analises") \
+            .select("candidato, tipo, contexto_extra") \
+            .eq("id", video_id).limit(1).execute()
+        registro = (meta_db.data or [{}])[0]
+    except Exception as e:
+        print(f"[videos] erro ao buscar metadados id={video_id}: {e}")
+        registro = {}
+
+    analise = analisar_transcricao_estrategica(
+        transcricao=trans["texto"],
+        segmentos=trans["segmentos"],
+        candidato=registro.get("candidato") or "Candidato",
+        tipo=registro.get("tipo") or "proprio",
+        contexto_extra=registro.get("contexto_extra") or "",
+    )
+
+    if analise.get("_erro"):
+        _videos_update_status(video_id, "error",
+                              erro=f"Falha na análise IA: {analise.get('_erro')}",
+                              finalizado_em=datetime.utcnow().isoformat())
+        return
+
+    tokens_in = int(analise.get("tokens_in") or 0)
+    tokens_out = int(analise.get("tokens_out") or 0)
+    custo = calcular_custo_processamento(meta["duracao_segundos"], tokens_in, tokens_out)
+
+    resumo = analise.get("resumo") or {}
+    sentimento = (resumo.get("sentimento_geral") or "").lower() or None
+
     _videos_update_status(
-        video_id, "analyzing", progresso=80,
+        video_id, "done", progresso=100,
+        resumo=resumo,
+        pontos_atencao=analise.get("pontos_atencao") or [],
+        promessas=analise.get("promessas") or [],
+        contradicoes=analise.get("contradicoes") or [],
+        respostas_sugeridas=analise.get("respostas_sugeridas") or [],
+        sentimento_geral=sentimento,
         custo_usd=custo["total_usd"],
         custo_breakdown=custo,
+        tokens_consumidos={"input": tokens_in, "output": tokens_out, "total": tokens_in + tokens_out},
+        finalizado_em=datetime.utcnow().isoformat(),
     )
-    print(f"[videos] pipeline transcrição completa id={video_id} duracao={meta['duracao_segundos']}s")
+    print(f"[videos] pipeline DONE id={video_id} duracao={meta['duracao_segundos']}s "
+          f"custo=${custo['total_usd']} tokens={tokens_in}+{tokens_out}")
 
 
 def _cleanup_videos_tmp():
@@ -3325,6 +3610,114 @@ def api_videos_status(video_id):
         if not res.data:
             return jsonify({"error": "não encontrado"}), 404
         return jsonify(res.data[0])
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/videos/<int:video_id>/regerar-respostas", methods=["POST"])
+def api_videos_regerar_respostas(video_id):
+    """Re-gera respostas_sugeridas sem retranscrever. Custo só de GPT-4o."""
+    if not supabase_admin:
+        return jsonify({"error": "supabase_indisponivel"}), 503
+    try:
+        res = supabase_admin.table("videos_analises") \
+            .select("transcricao, transcricao_segmentos, candidato, tipo, contexto_extra, "
+                    "pontos_atencao, custo_usd, custo_breakdown, duracao_segundos, tokens_consumidos") \
+            .eq("id", video_id).limit(1).execute()
+        if not res.data:
+            return jsonify({"error": "não encontrado"}), 404
+        v = res.data[0]
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    if not v.get("transcricao"):
+        return jsonify({"error": "transcrição não disponível"}), 400
+
+    pontos = v.get("pontos_atencao") or []
+    if not pontos:
+        return jsonify({"error": "sem pontos de atenção para gerar respostas"}), 400
+
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        return jsonify({"error": "OPENAI_API_KEY ausente"}), 503
+    try:
+        from openai import OpenAI
+        client = OpenAI(api_key=api_key)
+    except Exception as e:
+        return jsonify({"error": f"openai client: {e}"}), 500
+
+    timeline = _formatar_timeline(v.get("transcricao_segmentos") or [], max_chars=15000)
+    body = request.get_json(silent=True) or {}
+    ponto_ids = body.get("ponto_ids")
+    if ponto_ids:
+        ponto_ids_set = {int(x) for x in ponto_ids if str(x).isdigit()}
+        pontos_filtrados = [p for p in pontos if int(p.get("id", 0)) in ponto_ids_set]
+        if not pontos_filtrados:
+            pontos_filtrados = pontos[:15]
+    else:
+        pontos_filtrados = pontos[:15]
+
+    try:
+        system, user = _prompt_respostas_sugeridas(
+            v.get("tipo") or "proprio",
+            v.get("candidato") or "Candidato",
+            v.get("contexto_extra") or "",
+            v.get("transcricao") or "",
+            timeline,
+            pontos_filtrados,
+        )
+        parsed, t_in, t_out = _chat_json(client, system, user, max_tokens=3000)
+    except Exception as e:
+        return jsonify({"error": f"GPT-4o erro: {e}"}), 500
+
+    novas_respostas = parsed.get("itens") or []
+
+    # Atualiza custo acumulado
+    custo_adicional = calcular_custo_processamento(0, t_in, t_out)
+    custo_atual = float(v.get("custo_usd") or 0)
+    novo_custo_total = round(custo_atual + custo_adicional["total_usd"], 4)
+
+    breakdown_atual = v.get("custo_breakdown") or {}
+    breakdown_novo = {
+        "whisper_usd": float(breakdown_atual.get("whisper_usd") or 0),
+        "gpt_in_usd": round(float(breakdown_atual.get("gpt_in_usd") or 0) + custo_adicional["gpt_in_usd"], 4),
+        "gpt_out_usd": round(float(breakdown_atual.get("gpt_out_usd") or 0) + custo_adicional["gpt_out_usd"], 4),
+        "total_usd": novo_custo_total,
+        "total_brl": round(novo_custo_total * 5.0, 2),
+    }
+    tokens_atual = v.get("tokens_consumidos") or {}
+    tokens_novo = {
+        "input": int(tokens_atual.get("input") or 0) + t_in,
+        "output": int(tokens_atual.get("output") or 0) + t_out,
+        "total": int(tokens_atual.get("input") or 0) + int(tokens_atual.get("output") or 0) + t_in + t_out,
+    }
+
+    _videos_update_status(
+        video_id, "done",
+        respostas_sugeridas=novas_respostas,
+        custo_usd=novo_custo_total,
+        custo_breakdown=breakdown_novo,
+        tokens_consumidos=tokens_novo,
+    )
+    return jsonify({
+        "success": True,
+        "respostas": novas_respostas,
+        "tokens_consumidos": {"input": t_in, "output": t_out},
+        "custo_adicional_usd": custo_adicional["total_usd"],
+    })
+
+
+@app.route("/api/videos/<int:video_id>", methods=["DELETE"])
+def api_videos_deletar(video_id):
+    """Remove análise. Requer role admin/coordenador."""
+    if not supabase_admin:
+        return jsonify({"error": "supabase_indisponivel"}), 503
+    role = (session.get("role") or "").lower()
+    if role not in ("admin", "coordenador"):
+        return jsonify({"error": "sem permissão"}), 403
+    try:
+        supabase_admin.table("videos_analises").delete().eq("id", video_id).execute()
+        return jsonify({"success": True})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
