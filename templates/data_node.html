@@ -4319,7 +4319,6 @@ https://www.instagram.com/p/YYYYY/"
                 <button class="export-btn" onclick="submeterVideo()" id="vid-submit-btn">
                     <i class="ri-sparkling-2-line"></i> Analisar
                 </button>
-                <span id="vid-orcamento-info" style="font-size:0.78rem;color:var(--text-muted)">Custo estimado: R$ 3–6 por hora de vídeo</span>
             </div>
         </div>
 
@@ -8863,15 +8862,10 @@ https://www.instagram.com/p/YYYYY/"
             qs.set('limit', '100');
 
             try {
-                const [resVideos, resOrc] = await Promise.all([
-                    fetch('/api/videos?' + qs.toString()),
-                    fetch('/api/videos/orcamento'),
-                ]);
+                const resVideos = await fetch('/api/videos?' + qs.toString());
                 const dataV = await resVideos.json();
-                const dataO = await resOrc.json();
                 _videosCache = dataV.data || [];
                 document.getElementById('vid-count').textContent = _videosCache.length + ' vídeo(s)';
-                renderOrcamento(dataO);
                 renderVideos();
                 _videosCache.forEach(v => {
                     if (['queued','downloading','transcribing','analyzing'].includes(v.status)) {
@@ -8880,18 +8874,6 @@ https://www.instagram.com/p/YYYYY/"
                 });
             } catch (e) {
                 grid.innerHTML = '<p style="color:#ef4444;grid-column:1/-1">Erro ao carregar: ' + e.message + '</p>';
-            }
-        }
-
-        function renderOrcamento(orc) {
-            const span = document.getElementById('vid-orcamento-info');
-            if (!span || !orc) return;
-            if (orc.limite_usd > 0) {
-                const pct = Math.min(100, (orc.gasto_usd / orc.limite_usd) * 100);
-                const cor = orc.esgotado ? '#ef4444' : (pct > 80 ? '#f59e0b' : 'var(--text-muted)');
-                span.innerHTML = '<span style="color:' + cor + '">Gasto do mês: $' + orc.gasto_usd.toFixed(2) + ' / $' + orc.limite_usd.toFixed(0) + '</span> · Custo estimado: R$ 3–6 por hora de vídeo';
-            } else {
-                span.textContent = 'Custo estimado: R$ 3–6 por hora de vídeo';
             }
         }
 
@@ -8970,7 +8952,7 @@ https://www.instagram.com/p/YYYYY/"
                 const data = await res.json();
                 if (!res.ok) {
                     if (res.status === 402) {
-                        alert('Limite mensal atingido. Gasto: $' + (data.gasto_usd || 0) + ' / $' + (data.limite_usd || 0));
+                        alert('Limite mensal de análises atingido. Tente novamente no próximo mês.');
                     } else {
                         alert('Erro: ' + (data.error || res.status));
                     }
@@ -9049,12 +9031,10 @@ https://www.instagram.com/p/YYYYY/"
             document.getElementById('vid-modal-titulo').textContent = v.titulo || v.url;
             document.getElementById('vid-modal-thumb').src = v.thumbnail_url || '';
             const dur = v.duracao_segundos ? formatarDuracao(v.duracao_segundos) : '—';
-            const custo = v.custo_usd ? ('$' + Number(v.custo_usd).toFixed(2) + ' (R$ ' + (Number(v.custo_usd) * 5).toFixed(2) + ')') : '—';
             const tipoLabel = v.tipo === 'adversario' ? 'Adversário' : 'Próprio';
             document.getElementById('vid-modal-meta').innerHTML =
                 escapeHtml(v.canal || '—') + ' · ' + dur + ' · ' +
                 '<span style="color:' + (v.tipo === 'adversario' ? '#ef4444' : '#22c55e') + '">' + tipoLabel + '</span>' +
-                ' · custo: ' + custo +
                 ' · <a href="' + escapeHtml(v.url) + '" target="_blank" style="color:#d4b062"><i class="ri-external-link-line"></i> Abrir original</a>';
 
             renderPaneResumo(v);
