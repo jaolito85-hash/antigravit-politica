@@ -3798,8 +3798,27 @@ https://www.instagram.com/p/YYYYY/"
             </div>
         </div>
 
+        <div id="coleta-revisao" style="display:none;margin-bottom:18px" class="chart-box">
+            <div class="chart-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+                <span><i class="ri-edit-line" style="color:#3b82f6"></i> Revisar contexto dos posts</span>
+                <button onclick="cancelarRevisaoColeta()" style="background:transparent;border:1px solid rgba(255,255,255,0.15);color:#94a3b8;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:12px">
+                    <i class="ri-close-line"></i> Cancelar
+                </button>
+            </div>
+            <p style="color:#94a3b8;font-size:0.82rem;margin:6px 0 14px">
+                A IA usa o texto abaixo como referência pra classificar cada comentário. Se a caption original não for clara (ex: post irônico, denúncia, anúncio implícito), reescreva pra deixar explícito sobre o que é o post e qual o tom.
+            </p>
+            <div id="coleta-revisao-lista" style="display:flex;flex-direction:column;gap:14px"></div>
+            <div style="display:flex;justify-content:flex-end;margin-top:16px">
+                <button id="btn-coleta-confirmar" onclick="confirmarColeta()" class="export-btn"
+                    style="background:linear-gradient(135deg,#10b981,#059669);padding:10px 22px;font-size:13px;font-weight:700">
+                    <i class="ri-search-eye-line"></i> Coletar comentários
+                </button>
+            </div>
+        </div>
+
         <div id="coleta-loading" style="display:none;text-align:center;padding:28px;margin-bottom:18px" class="chart-box">
-            <div style="color:#10b981;font-weight:700;font-size:1rem"><i class="ri-loader-4-line"></i> Analisando comentários...</div>
+            <div style="color:#10b981;font-weight:700;font-size:1rem"><i class="ri-loader-4-line"></i> <span id="coleta-loading-msg">Analisando comentários...</span></div>
             <div style="color:#94a3b8;font-size:13px;margin-top:5px">Buscando via Apify, filtrando ruído e classificando com IA</div>
         </div>
 
@@ -8434,36 +8453,120 @@ https://www.instagram.com/p/YYYYY/"
         });
 
         let _isColetandoDados = false;
+        let _coletaUrlsPendentes = [];
 
-        async function iniciarColeta() {
-            if (_isColetandoDados) return; // Lock against double clicks
-
-            const urls = document.getElementById('coleta-urls').value
+        function _coletaUrlsAtuais() {
+            return document.getElementById('coleta-urls').value
                 .split('\n')
                 .map(u => u.trim())
                 .filter(u => u.includes('instagram.com') || u.includes('twitter.com') || u.includes('x.com'));
-            const contexto = document.getElementById('coleta-contexto').value.trim() || 'político';
+        }
 
+        // ETAPA 1: usuário clica "Analisar posts" → busca captions e abre painel de revisão
+        async function iniciarColeta() {
+            if (_isColetandoDados) return;
+            const urls = _coletaUrlsAtuais();
             if (!urls.length) {
                 alert('Cole pelo menos 1 URL válida do Instagram!');
                 return;
             }
 
-            document.getElementById('coleta-loading').style.display = 'block';
+            _coletaUrlsPendentes = urls;
             document.getElementById('coleta-results').style.display = 'none';
+            document.getElementById('coleta-revisao').style.display = 'none';
+            document.getElementById('coleta-loading').style.display = 'block';
+            document.getElementById('coleta-loading-msg').textContent = 'Buscando contexto dos posts...';
+
             const btn = document.getElementById('btn-coletar');
             btn.disabled = true;
-            btn.innerHTML = '<i class="ri-loader-4-line"></i> Processando...';
+            btn.innerHTML = '<i class="ri-loader-4-line"></i> Buscando contexto...';
             btn.style.opacity = '0.7';
             btn.style.cursor = 'not-allowed';
+            _isColetandoDados = true;
 
+            try {
+                const res = await fetch('/api/coletar-dados/captions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ urls })
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    alert('Erro ao buscar contexto: ' + (data.error || res.status));
+                    return;
+                }
+                renderRevisaoCaptions(urls, data.captions || {});
+                document.getElementById('coleta-loading').style.display = 'none';
+                document.getElementById('coleta-revisao').style.display = 'block';
+                document.getElementById('coleta-revisao').scrollIntoView({ behavior: 'smooth', block: 'start' });
+            } catch (e) {
+                alert('Erro ao conectar com servidor: ' + e.message);
+            } finally {
+                _isColetandoDados = false;
+                const btn2 = document.getElementById('btn-coletar');
+                btn2.disabled = false;
+                btn2.innerHTML = '<i class="ri-search-eye-line"></i> Analisar posts';
+                btn2.style.opacity = '1';
+                btn2.style.cursor = 'pointer';
+            }
+        }
+
+        function renderRevisaoCaptions(urls, captionsPorUrl) {
+            const lista = document.getElementById('coleta-revisao-lista');
+            lista.innerHTML = urls.map((url, idx) => {
+                const info = captionsPorUrl[url] || {};
+                const caption = (info.caption || '').replace(/"/g, '&quot;');
+                const erro = info.erro ? ` <span style="color:#f87171;font-size:11px">(${info.erro})</span>` : '';
+                const owner = info.owner ? ` · @${info.owner}` : '';
+                return `
+                    <div style="border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:12px;background:rgba(255,255,255,0.02)">
+                        <div style="font-size:11px;color:#64748b;margin-bottom:6px;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap">
+                            <a href="${escapeHtml(url)}" target="_blank" style="color:#94a3b8;text-decoration:none;word-break:break-all">${escapeHtml(url)}</a>
+                            <span>${escapeHtml(owner)}${erro}</span>
+                        </div>
+                        <textarea data-revisao-url="${escapeHtml(url)}" placeholder="Sobre o que é esse post? (ex: 'Vídeo denunciando corrupção do governo X', 'Anúncio da nova UPA em Y')"
+                            style="width:100%;min-height:64px;padding:10px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);color:#f1f5f9;border-radius:6px;font-size:0.85rem;font-family:inherit;resize:vertical">${escapeHtml(info.caption || '')}</textarea>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function cancelarRevisaoColeta() {
+            document.getElementById('coleta-revisao').style.display = 'none';
+            _coletaUrlsPendentes = [];
+        }
+
+        // ETAPA 2: usuário clica "Coletar comentários" → envia URLs + contextos editados
+        async function confirmarColeta() {
+            if (_isColetandoDados) return;
+            const urls = _coletaUrlsPendentes;
+            if (!urls.length) return;
+
+            const contexto = document.getElementById('coleta-contexto').value.trim() || 'político';
+            const contextos_post = {};
+            document.querySelectorAll('#coleta-revisao-lista textarea[data-revisao-url]').forEach(ta => {
+                const u = ta.getAttribute('data-revisao-url');
+                contextos_post[u] = ta.value.trim();
+            });
+
+            document.getElementById('coleta-revisao').style.display = 'none';
+            document.getElementById('coleta-loading').style.display = 'block';
+            document.getElementById('coleta-loading-msg').textContent = 'Analisando comentários...';
+            document.getElementById('coleta-results').style.display = 'none';
+
+            const btn = document.getElementById('btn-coleta-confirmar');
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="ri-loader-4-line"></i> Processando...';
+                btn.style.opacity = '0.7';
+            }
             _isColetandoDados = true;
 
             try {
                 const res = await fetch('/api/coletar-dados', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ urls, contexto, adversarios })
+                    body: JSON.stringify({ urls, contexto, adversarios, contextos_post })
                 });
                 const data = await res.json();
 
@@ -8476,17 +8579,17 @@ https://www.instagram.com/p/YYYYY/"
                 renderColetaResults(data);
                 enviarColetaParaRadar(_coletaResults, contexto);
                 document.getElementById('coleta-results').scrollIntoView({ behavior: 'smooth', block: 'start' });
-
             } catch (e) {
                 alert('Erro ao conectar com servidor: ' + e.message);
             } finally {
                 _isColetandoDados = false;
                 document.getElementById('coleta-loading').style.display = 'none';
-                const btn = document.getElementById('btn-coletar');
-                btn.disabled = false;
-                btn.innerHTML = '<i class="ri-search-eye-line"></i> Analisar posts';
-                btn.style.opacity = '1';
-                btn.style.cursor = 'pointer';
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="ri-search-eye-line"></i> Coletar comentários';
+                    btn.style.opacity = '1';
+                }
+                _coletaUrlsPendentes = [];
                 loadColetaHistory();
             }
         }

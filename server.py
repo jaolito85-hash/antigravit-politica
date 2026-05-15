@@ -2232,6 +2232,46 @@ def _apify_run(actor_slug, payload, timeout=150):
     return items_resp.json()
 
 
+def _buscar_captions_posts(post_urls: list) -> dict:
+    """Busca a caption original e metadados de uma lista de URLs de posts do Instagram.
+    Devolve {url: {caption, owner, posted_at, type}} ou {url: {erro}} por URL.
+    Usa apify~instagram-scraper com resultsType='details' (1 chamada cobre todas as URLs).
+    """
+    if not post_urls or not APIFY_TOKEN:
+        return {}
+    try:
+        resultados = _apify_run("apify~instagram-scraper", {
+            "directUrls": post_urls,
+            "resultsType": "details",
+            "resultsLimit": len(post_urls),
+            "addParentData": False,
+            "proxy": {"useApifyProxy": True},
+        })
+    except Exception as e:
+        print(f"⚠️ Apify captions falhou: {e}")
+        return {url: {"erro": str(e)} for url in post_urls}
+
+    por_url = {}
+    for item in resultados or []:
+        url = item.get("url") or (
+            f"https://www.instagram.com/p/{item['shortCode']}/"
+            if item.get("shortCode") else None
+        )
+        if not url:
+            continue
+        por_url[url] = {
+            "caption": (item.get("caption") or "").strip(),
+            "owner": item.get("ownerUsername") or item.get("ownerFullName") or "",
+            "posted_at": item.get("timestamp") or "",
+            "type": item.get("type") or "",
+        }
+    # URLs que não vieram (post privado, deletado, scraper falhou)
+    for url in post_urls:
+        if url not in por_url:
+            por_url[url] = {"caption": "", "erro": "post_nao_encontrado"}
+    return por_url
+
+
 _ALINHAMENTOS_VALIDOS = {
     "pro_candidato", "anti_candidato", "pro_adversario", "anti_adversario",
     "neutro", "spam", "off_topic"
@@ -2277,11 +2317,13 @@ _ALINHAMENTO_TO_SENTIMENTO = {
 }
 
 
-def _classificar_chunk(textos, politico, adversarios=None):
+def _classificar_chunk(textos, politico, adversarios=None, contexto_post=None):
     """
     Classifica um chunk de até 30 comentários em 1 chamada OpenAI.
     Quando `adversarios` é informado, o sentimento é RELATIVO ao candidato:
     apoio explícito a um adversário vira "Negativo" mesmo se o tom for entusiasmado.
+    Quando `contexto_post` é informado (caption do post original), entra no prompt
+    pra IA saber sobre o que é o post e classificar com referência clara.
     """
     default = {
         "sentimento": "Neutro",
@@ -2307,8 +2349,19 @@ def _classificar_chunk(textos, politico, adversarios=None):
         from openai import OpenAI
         client = OpenAI(api_key=api_key)
         items_text = "\n".join([f"{i+1}. \"{t[:300]}\"" for i, t in enumerate(textos)])
+        contexto_block = ""
+        if contexto_post and contexto_post.strip():
+            contexto_block = (
+                f"━━━ POST ORIGINAL (sobre o que esses comentários falam) ━━━\n"
+                f"{contexto_post.strip()[:800]}\n"
+                f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+                f"IMPORTANTE: leia o post original ACIMA antes de classificar. Os comentários se referem a ele.\n"
+                f"Exemplo: se o post denuncia o adversário, um comentário 'que vergonha' provavelmente apoia o candidato (vergonha do adversário).\n"
+                f"Se o post é uma proposta do candidato, 'finalmente!' provavelmente é apoio genuíno, não sarcasmo.\n\n"
+            )
         prompt = (
             f"Você é analista político SÊNIOR da campanha de {politico} (Minas Gerais, eleições 2026).\n\n"
+            f"{contexto_block}"
             f"CONTEXTO POLÍTICO:\n"
             f"- {politico} é da ESQUERDA (alinhado ao PT/Lula).\n"
             f"- Adversários são da DIREITA (bolsonaristas): {', '.join(advs) if advs else 'Bolsonaro, Flávio Bolsonaro, Nikolas Ferreira'}.\n"
@@ -2410,11 +2463,12 @@ _OFF_TOPIC_CLASSIFICACAO = {
 }
 
 
-def _classificar_batch(textos, politico, chunk_size=30, adversarios=None):
+def _classificar_batch(textos, politico, chunk_size=30, adversarios=None, contexto_post=None):
     """
     Classifica comentários em batch, dividindo em chunks de 30 para não truncar tokens.
     Pre-filtra textos sem conteúdo político (URLs, risos, emojis puros) → off_topic
     sem chamar IA, economizando custo OpenAI e evitando classificações erradas.
+    `contexto_post` (caption original) entra no prompt da IA pra dar referência ao alvo.
     """
     if not textos:
         return []
@@ -2437,7 +2491,7 @@ def _classificar_batch(textos, politico, chunk_size=30, adversarios=None):
     for i in range(0, len(textos_para_ia), chunk_size):
         chunk = textos_para_ia[i:i + chunk_size]
         print(f"🤖 Classificando chunk {i//chunk_size + 1} ({len(chunk)} comentários)...")
-        ia_results.extend(_classificar_chunk(chunk, politico, adversarios=adversarios))
+        ia_results.extend(_classificar_chunk(chunk, politico, adversarios=adversarios, contexto_post=contexto_post))
     # Coloca de volta nos indices originais
     for ia_idx, original_idx in enumerate(indices_para_ia):
         classif_final[original_idx] = ia_results[ia_idx] if ia_idx < len(ia_results) else _OFF_TOPIC_CLASSIFICACAO.copy()
@@ -2696,18 +2750,39 @@ def _filtrar_qualidade(comentarios):
     return resultado
 
 
+@app.route("/api/coletar-dados/captions", methods=["POST"])
+def coletar_dados_captions():
+    """Pré-busca captions dos posts pra UI mostrar e o operador editar antes da coleta."""
+    data = request.get_json(force=True) or {}
+    urls = [u.strip() for u in (data.get("urls") or []) if u and u.strip()]
+    if not urls:
+        return jsonify({"error": "Nenhuma URL fornecida"}), 400
+    if not APIFY_TOKEN:
+        return jsonify({"error": "APIFY_TOKEN não configurado"}), 500
+    captions = _buscar_captions_posts(urls)
+    return jsonify({"captions": captions})
+
+
 @app.route("/api/coletar-dados", methods=["POST"])
 def coletar_dados():
     """
     Recebe URLs de posts do Instagram → scraper Apify → filtra qualidade → IA classifica.
-    Body: { "urls": ["https://instagram.com/p/..."], "contexto": "Candidato A" }
+    Body: {
+      "urls": ["https://instagram.com/p/..."],
+      "contexto": "Candidato A",
+      "adversarios": [...],
+      "contextos_post": {url: "caption do post"}  # opcional; se vazio, busca via Apify
+    }
     """
     data = request.get_json(force=True) or {}
     urls = data.get("urls", [])
     contexto = data.get("contexto", "político")
     adversarios = data.get("adversarios") or []
+    contextos_post = data.get("contextos_post") or {}
     if not isinstance(adversarios, list):
         adversarios = []
+    if not isinstance(contextos_post, dict):
+        contextos_post = {}
 
     if not urls:
         return jsonify({"error": "Nenhuma URL fornecida"}), 400
@@ -2723,7 +2798,15 @@ def coletar_dados():
     try:
         print(f"📥 Coletar Dados: {len(post_urls)} URLs para analisar...")
 
-        # Passo 1: Buscar comentários via Apify
+        # Passo 1a: Garantir que temos contexto pra cada post (busca o que faltar)
+        urls_sem_contexto = [u for u in post_urls if not (contextos_post.get(u) or "").strip()]
+        if urls_sem_contexto:
+            print(f"📝 Buscando captions de {len(urls_sem_contexto)} posts (contexto faltando)...")
+            captions_buscadas = _buscar_captions_posts(urls_sem_contexto)
+            for u, info in captions_buscadas.items():
+                contextos_post[u] = info.get("caption") or ""
+
+        # Passo 1b: Buscar comentários via Apify
         raw_comments = _apify_run("apify~instagram-comment-scraper", {
             "directUrls": post_urls,
             "resultsLimit": 150,
@@ -2749,9 +2832,27 @@ def coletar_dados():
                 "resumo": {"positivos": 0, "negativos": 0, "neutros": 0}
             })
 
-        # Passo 3: Classificar com IA (relativo ao candidato, considerando adversários)
-        textos = [(c.get("text") or "").strip() for c in filtrados]
-        classificacoes = _classificar_batch(textos, contexto, adversarios=adversarios)
+        # Passo 3: Classificar AGRUPANDO POR POST (cada grupo com seu contexto)
+        # Isso aumenta precisão porque a IA vê a caption do post antes dos comentários dele.
+        comentarios_por_url: dict = {}
+        for idx, c in enumerate(filtrados):
+            url_post = c.get("postUrl") or post_urls[0]
+            comentarios_por_url.setdefault(url_post, []).append((idx, c))
+
+        classificacoes = [None] * len(filtrados)
+        for url_post, lista in comentarios_por_url.items():
+            indices_globais = [i for (i, _c) in lista]
+            textos_grupo = [(c.get("text") or "").strip() for (_i, c) in lista]
+            contexto_post_caption = (contextos_post.get(url_post) or "").strip()
+            print(f"🎯 Classificando {len(textos_grupo)} comentarios do post {url_post[:50]}... (contexto: {len(contexto_post_caption)} chars)")
+            cls_grupo = _classificar_batch(
+                textos_grupo,
+                contexto,
+                adversarios=adversarios,
+                contexto_post=contexto_post_caption,
+            )
+            for idx_global, cl in zip(indices_globais, cls_grupo):
+                classificacoes[idx_global] = cl
 
         # Passo 4: Montar resultados
         resultados = []
