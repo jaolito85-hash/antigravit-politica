@@ -1291,6 +1291,44 @@
             border-color: rgba(148, 163, 184, 0.35);
         }
 
+        .op-potencial-box {
+            margin-top: 14px;
+            padding: 16px 18px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, rgba(34, 197, 94, 0.12), rgba(34, 197, 94, 0.04));
+            border: 1.5px solid rgba(34, 197, 94, 0.45);
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            box-shadow: 0 2px 16px rgba(34, 197, 94, 0.08);
+            transition: opacity .25s ease, transform .25s ease;
+        }
+        .op-potencial-box.hidden { display: none; }
+        .op-potencial-icon {
+            font-size: 1.8rem;
+            line-height: 1;
+        }
+        .op-potencial-text {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            min-width: 0;
+        }
+        .op-potencial-nome {
+            color: #94a3b8;
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            font-weight: 600;
+        }
+        .op-potencial-num {
+            color: #34d399;
+            font-size: 1.35rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            line-height: 1.15;
+        }
+
         .op-cta-btn {
             margin-top: 14px;
             width: 100%;
@@ -3214,7 +3252,7 @@
                 <div class="op-form-grid">
                     <div class="op-field">
                         <label>Nome do operador</label>
-                        <input id="op-nome" type="text" placeholder="Nome completo">
+                        <input id="op-nome" type="text" placeholder="Nome completo" oninput="recalcularScoreOperador()">
                     </div>
                     <div class="op-field">
                         <label>Telefone (DDD + número)</label>
@@ -3272,16 +3310,26 @@
                     <details class="op-score-formula">
                         <summary>Como é calculado?</summary>
                         <div class="op-score-formula-body">
-                            <code>(influência × 10) + (peso_função × 10) + (votos_cidade ÷ 1000)</code>
+                            <code>Taxa = (influência ÷ 10) × (peso_função ÷ 10)</code><br>
+                            <code>Potencial = Taxa × votos_cidade</code><br>
+                            <code>Score = mín(100, Potencial ÷ 30.000 × 100)</code>
                             <ul>
-                                <li><strong>≥ 100 pts</strong> · máxima — resposta em 2h</li>
-                                <li><strong>60–99 pts</strong> · alta — resposta em 4h</li>
-                                <li><strong>30–59 pts</strong> · média — resposta em 8h</li>
-                                <li><strong>&lt; 30 pts</strong> · normal — resposta em 24h</li>
+                                <li><strong>≥ 75 pts</strong> · máxima — resposta em 2h</li>
+                                <li><strong>50–74 pts</strong> · alta — resposta em 4h</li>
+                                <li><strong>25–49 pts</strong> · média — resposta em 8h</li>
+                                <li><strong>&lt; 25 pts</strong> · normal — resposta em 24h</li>
                             </ul>
-                            <small>Exemplo: prefeito (peso 10) + influência 8★ + 5k votos = 80 + 100 + 5 = <strong>185 pts</strong>.</small>
+                            <small>Exemplo: prefeito (peso 10) + influência 10★ em cidade de 30k votos → potencial 30.000 → <strong>score 100</strong>.</small>
                         </div>
                     </details>
+                </div>
+
+                <div class="op-potencial-box hidden" id="op-potencial-box">
+                    <div class="op-potencial-icon">🎯</div>
+                    <div class="op-potencial-text">
+                        <span class="op-potencial-nome" id="op-potencial-nome">Esse operador tem potencial de</span>
+                        <span class="op-potencial-num" id="op-potencial-num">0 votos</span>
+                    </div>
                 </div>
 
                 <button class="op-cta-btn" onclick="salvarOperadorCampo()">Cadastrar número</button>
@@ -5000,20 +5048,30 @@ https://www.instagram.com/p/YYYYY/"
             recalcularScoreOperador();
         }
 
-        function calcularScoreOperadorJS(funcaoChave, influencia, votosCidade) {
+        // Espelha o backend (server.py:TETO_VOTOS_NORMALIZACAO)
+        const OP_TETO_VOTOS = 30000;
+
+        function calcularPotencialVotosJS(funcaoChave, influencia, votosCidade) {
             const peso = OP_PESOS_FUNCAO[funcaoChave] || 3;
             const infl = Math.max(1, Math.min(10, parseInt(influencia, 10) || 1));
             const votos = Math.max(0, parseInt(votosCidade, 10) || 0);
-            // score = (influência × 10) + (peso_funcao × 10) + (votos_cidade ÷ 1000)
-            return Math.round(((infl * 10) + (peso * 10) + (votos / 1000)) * 100) / 100;
+            const taxa = (infl / 10) * (peso / 10);
+            return Math.round(taxa * votos);
+        }
+
+        function calcularScoreOperadorJS(funcaoChave, influencia, votosCidade) {
+            const potencial = calcularPotencialVotosJS(funcaoChave, influencia, votosCidade);
+            if (OP_TETO_VOTOS <= 0) return 0;
+            const score = (potencial / OP_TETO_VOTOS) * 100;
+            return Math.round(Math.min(100, Math.max(0, score)) * 100) / 100;
         }
 
         function faixaScoreOperadorJS(score) {
-            if (score >= 100) return { nivel: 'maxima', label: 'Prioridade máxima', sla: 2,
+            if (score >= 75) return { nivel: 'maxima', label: 'Prioridade máxima', sla: 2,
                 explain: 'Resposta obrigatória em até 2h. Chamados desse operador sobem ao topo da fila.' };
-            if (score >= 60) return { nivel: 'alta', label: 'Prioridade alta', sla: 4,
+            if (score >= 50) return { nivel: 'alta', label: 'Prioridade alta', sla: 4,
                 explain: 'Resposta em até 4h. Chamados ficam acima da fila padrão.' };
-            if (score >= 30) return { nivel: 'media', label: 'Prioridade média', sla: 8,
+            if (score >= 25) return { nivel: 'media', label: 'Prioridade média', sla: 8,
                 explain: 'Resposta em até 8h. Fica próximo do topo, mas atrás dos prioritários.' };
             return { nivel: 'normal', label: 'prioridade normal', sla: 24,
                 explain: 'Fila padrão. Nenhuma mensagem fica sem resposta por mais de 24h.' };
@@ -5022,6 +5080,8 @@ https://www.instagram.com/p/YYYYY/"
         function recalcularScoreOperador() {
             const funcao = document.getElementById('op-funcao-chave')?.value || '';
             const votos = document.getElementById('op-votos-cidade')?.value || 0;
+            const nome = (document.getElementById('op-nome')?.value || '').trim();
+            const potencial = calcularPotencialVotosJS(funcao, _opInfluencia, votos);
             const score = calcularScoreOperadorJS(funcao, _opInfluencia, votos);
             const faixa = faixaScoreOperadorJS(score);
 
@@ -5044,6 +5104,20 @@ https://www.instagram.com/p/YYYYY/"
             }
             const explain = document.getElementById('op-score-explain');
             if (explain) explain.textContent = faixa.explain;
+
+            // Card destaque: "FULANO TEM POTENCIAL DE X VOTOS"
+            const potencialBox = document.getElementById('op-potencial-box');
+            const potencialNome = document.getElementById('op-potencial-nome');
+            const potencialNum = document.getElementById('op-potencial-num');
+            if (potencialBox && potencialNome && potencialNum) {
+                if (potencial > 0 && (nome || funcao)) {
+                    potencialNome.textContent = (nome ? nome.toUpperCase() : 'ESSE OPERADOR') + ' tem potencial de';
+                    potencialNum.textContent = potencial.toLocaleString('pt-BR') + ' votos';
+                    potencialBox.classList.remove('hidden');
+                } else {
+                    potencialBox.classList.add('hidden');
+                }
+            }
         }
 
         async function loadOperacaoLocal() {

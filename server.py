@@ -2966,9 +2966,19 @@ def _mascarar_telefone(valor: str) -> str:
 
 # ============================================================
 # Score de prioridade do operador (Operação Local)
-# Fórmula: (influencia × 10) + (peso_funcao × 5) + (votos_cidade ÷ 1000)
-# Documentada no painel "Como o score funciona" do dashboard.
+#
+# Modelo (validado com sócio Dudu):
+#   Taxa de conversão = (influencia / 10) × (peso_funcao / 10)   # 0..1
+#   Potencial em votos = Taxa × votos_cidade                       # absoluto
+#   Score (0..100)     = min(100, Potencial / TETO_VOTOS_NORMALIZACAO × 100)
+#
+# Exemplo: prefeito (peso 10) com 10★ em cidade de 30k votos →
+#   Taxa = 1.0, Potencial = 30.000 votos, Score = 100.
+# Exemplo: voluntário (peso 3) com 5★ em cidade de 5k votos →
+#   Taxa = 0.15, Potencial = 750 votos, Score = 2.5.
 # ============================================================
+TETO_VOTOS_NORMALIZACAO = 30000
+
 PESOS_FUNCAO_OPERADOR = {
     "prefeito": 10,
     "vice-prefeito": 9,
@@ -2991,11 +3001,11 @@ FUNCOES_OPERADOR_LABEL = {
     "voluntario": "Voluntário",
 }
 
-# SLA por faixa de score (em horas) — usado no badge URGENTE
+# SLA por faixa de score (escala 0–100) — usado no badge URGENTE
 FAIXAS_SCORE_OPERADOR = [
-    {"min": 100, "nivel": "maxima", "label": "Prioridade máxima", "sla_horas": 2},
-    {"min": 60, "nivel": "alta", "label": "Prioridade alta", "sla_horas": 4},
-    {"min": 30, "nivel": "media", "label": "Prioridade média", "sla_horas": 8},
+    {"min": 75, "nivel": "maxima", "label": "Prioridade máxima", "sla_horas": 2},
+    {"min": 50, "nivel": "alta", "label": "Prioridade alta", "sla_horas": 4},
+    {"min": 25, "nivel": "media", "label": "Prioridade média", "sla_horas": 8},
     {"min": 0, "nivel": "normal", "label": "Prioridade normal", "sla_horas": 24},
 ]
 
@@ -3018,10 +3028,9 @@ def _normalizar_funcao_chave(valor) -> str:
     return "voluntario"
 
 
-def calcular_score_operador(funcao_chave: str, influencia, votos_cidade) -> float:
-    """Score de prioridade do operador. Fórmula auditável:
-    score = (influencia × 10) + (peso_funcao × 10) + (votos_cidade ÷ 1000)
-    Exemplo: prefeito (peso 10) + 8★ + cidade 5k votos = 80 + 100 + 5 = 185 pts.
+def calcular_potencial_votos(funcao_chave: str, influencia, votos_cidade) -> int:
+    """Potencial de votos absoluto que o operador pode entregar nessa cidade.
+    Modelo: Taxa = (influencia/10) × (peso_funcao/10), Potencial = Taxa × votos_cidade.
     """
     peso_funcao = PESOS_FUNCAO_OPERADOR.get(_normalizar_funcao_chave(funcao_chave), 3)
     try:
@@ -3033,7 +3042,20 @@ def calcular_score_operador(funcao_chave: str, influencia, votos_cidade) -> floa
         votos = max(0, int(votos_cidade or 0))
     except (TypeError, ValueError):
         votos = 0
-    return round((infl * 10) + (peso_funcao * 10) + (votos / 1000), 2)
+    taxa = (infl / 10.0) * (peso_funcao / 10.0)
+    return int(round(taxa * votos))
+
+
+def calcular_score_operador(funcao_chave: str, influencia, votos_cidade) -> float:
+    """Score de prioridade normalizado em escala 0–100.
+    Score = min(100, potencial / TETO_VOTOS_NORMALIZACAO × 100)
+    Exemplo: prefeito (10★) em cidade de 30k votos → potencial 30.000 → score 100.
+    """
+    potencial = calcular_potencial_votos(funcao_chave, influencia, votos_cidade)
+    if TETO_VOTOS_NORMALIZACAO <= 0:
+        return 0.0
+    score = (potencial / TETO_VOTOS_NORMALIZACAO) * 100
+    return round(min(100.0, max(0.0, score)), 2)
 
 
 def faixa_score_operador(score) -> dict:
