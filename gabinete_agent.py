@@ -53,7 +53,7 @@ Dar ao Deputado, via WhatsApp, inteligência política acionável sobre:
 🛠️ COMO VOCÊ OPERA
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 1. *Sempre consulte as ferramentas antes de responder.* NUNCA invente números, cidades, sentimentos ou tópicos. Se não houver dado, diga: "_Ainda não tenho esse dado no dashboard, Deputado._"
-2. Escolha a ferramenta mais específica possível. Ex.: se ele pergunta sobre Teófilo Otoni, filtre por cidade, não traga o estado inteiro.
+2. Escolha a ferramenta mais específica possível. Ex.: se ele pergunta sobre Teófilo Otoni, filtre por cidade, não traga o estado inteiro. Para perguntas sobre 'liderança', 'prefeito', 'vereador' ou 'operador' de uma cidade/região, use `buscar_operador_campo` — NÃO `buscar_contato` (essa é só para a agenda institucional do gabinete).
 3. Ao citar dados, *sempre informe a fonte e o período*. Ex.: "_(132 comentários no Instagram, últimos 7 dias)_".
 4. Se o pedido pede profundidade ou ele disser "me manda relatório / documento / PDF", chame `gerar_relatorio_pdf` e envie como anexo.
 5. Se detectar algo urgente (sentimento crítico, pico negativo, crise em cidade-chave), *alerte proativamente no topo da resposta* com 🚨.
@@ -260,7 +260,8 @@ TOOLS = [
             "description": (
                 "Busca um contato na agenda do gabinete (nome, email, papel). "
                 "Use SEMPRE antes de enviar email, para pegar o endereço oficial. "
-                "Aceita nome completo ou parcial (case-insensitive)."
+                "Aceita nome completo ou parcial (case-insensitive). "
+                "NÃO use para encontrar prefeitos/vereadores/lideranças locais — para isso use buscar_operador_campo."
             ),
             "parameters": {
                 "type": "object",
@@ -268,6 +269,33 @@ TOOLS = [
                     "nome": {"type": "string", "description": "Nome (ou parte) do contato. Ex.: 'Pedro' encontra 'Pedro Machado'."},
                 },
                 "required": ["nome"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "buscar_operador_campo",
+            "description": (
+                "Busca operadores de campo cadastrados no painel: prefeitos, vereadores, secretários, "
+                "lideranças comunitárias, cabos eleitorais, voluntários, influenciadores. "
+                "Use sempre que o Deputado perguntar 'quem é a liderança em X', 'qual o prefeito de X', "
+                "'temos alguém em X cidade/região', 'me liste os operadores em X'. "
+                "Aceita combinação de filtros — todos opcionais. Sem filtros, retorna os operadores de maior score."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "nome": {"type": "string", "description": "Nome ou parte do nome do operador. Ex.: 'Eduardo'."},
+                    "cidade": {"type": "string", "description": "Cidade-base do operador. Ex.: 'Governador Valadares'."},
+                    "regiao": {"type": "string", "description": "Região do operador. Ex.: 'Vale do Rio Doce'."},
+                    "funcao_chave": {
+                        "type": "string",
+                        "description": "Função no município. Valores aceitos: 'prefeito', 'vice-prefeito', 'vereador', 'secretario', 'lideranca-comunitaria', 'cabo-eleitoral', 'influenciador', 'voluntario'.",
+                    },
+                    "apenas_ativos": {"type": "boolean", "description": "Se true (padrão), filtra status='ativo'.", "default": True},
+                    "limit": {"type": "integer", "description": "Máximo de operadores retornados (padrão 10, max 30).", "default": 10},
+                },
             },
         },
     },
@@ -633,21 +661,66 @@ def _tool_buscar_contato(args: dict) -> dict:
         )
         rows = res.data or []
         if not rows:
-            # MODO DEMO: contato não encontrado vira fallback com email do Deputado.
-            # Permite que o fluxo "manda email pro X" funcione mesmo sem cadastro prévio.
-            return {
-                "encontrado": True,
-                "contato": {
-                    "nome": nome,
-                    "email": "jaolito85@gmail.com",
-                    "papel": "Contato (modo demo)",
-                },
-            }
+            return {"encontrado": False, "nome_buscado": nome}
         if len(rows) == 1:
             return {"encontrado": True, "contato": rows[0]}
         return {"encontrado": True, "multiplos": True, "contatos": rows}
     except Exception as e:
         return {"encontrado": False, "erro": f"falha_consulta: {e}"}
+
+
+# =============================================================================
+# Tool: buscar_operador_campo — lookup em operadores_campo (prefeitos, vereadores, etc)
+# =============================================================================
+def _tool_buscar_operador_campo(args: dict) -> dict:
+    from server import supabase_admin  # lazy
+
+    if not supabase_admin:
+        return {"encontrado": False, "erro": "supabase_indisponivel"}
+
+    nome = (args.get("nome") or "").strip()
+    cidade = (args.get("cidade") or "").strip()
+    regiao = (args.get("regiao") or "").strip()
+    funcao_chave = (args.get("funcao_chave") or "").strip().lower()
+    apenas_ativos = args.get("apenas_ativos")
+    apenas_ativos = True if apenas_ativos is None else bool(apenas_ativos)
+    limit = max(1, min(int(args.get("limit") or 10), 30))
+
+    try:
+        query = (
+            supabase_admin.table("operadores_campo")
+            .select(
+                "id, nome, telefone, funcao, funcao_chave, cidade_base, regiao, "
+                "status, especificacao, influencia, votos_cidade, score, notas"
+            )
+            .order("score", desc=True)
+        )
+        if apenas_ativos:
+            query = query.eq("status", "ativo")
+        if nome:
+            query = query.ilike("nome", f"%{nome}%")
+        if cidade:
+            query = query.ilike("cidade_base", f"%{cidade}%")
+        if regiao:
+            query = query.ilike("regiao", f"%{regiao}%")
+        if funcao_chave:
+            query = query.eq("funcao_chave", funcao_chave)
+        res = query.limit(limit).execute()
+        rows = res.data or []
+    except Exception as e:
+        return {"encontrado": False, "erro": f"falha_consulta: {e}"}
+
+    if not rows:
+        return {
+            "encontrado": False,
+            "filtros": {"nome": nome, "cidade": cidade, "regiao": regiao, "funcao_chave": funcao_chave},
+        }
+
+    return {
+        "encontrado": True,
+        "total": len(rows),
+        "operadores": rows,
+    }
 
 
 # =============================================================================
@@ -814,6 +887,8 @@ def _dispatch_tool(name: str, args: dict, remote_jid: str) -> Any:
             return _tool_listar_cidades_mg(args)
         if name == "buscar_contato":
             return _tool_buscar_contato(args)
+        if name == "buscar_operador_campo":
+            return _tool_buscar_operador_campo(args)
         if name == "enviar_email":
             return _tool_enviar_email(args, remote_jid)
         if name == "criar_tarefa":
