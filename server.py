@@ -614,9 +614,27 @@ def baixar_audio_youtube(url: str, video_id: int) -> dict | None:
         "noplaylist": True,
         "socket_timeout": 30,
     }
-    cookies_file = os.getenv("YT_DLP_COOKIES_FILE", "").strip()
-    if cookies_file and os.path.exists(cookies_file):
-        ydl_opts["cookiefile"] = cookies_file
+    # Cookies do YouTube — necessário porque o IP do servidor (datacenter)
+    # é bloqueado pelo anti-bot. Aceita duas formas:
+    #   1) YT_DLP_COOKIES_CONTENT: conteúdo Netscape do cookies.txt direto
+    #      em env var (mais simples no Coolify, não precisa de volume).
+    #   2) YT_DLP_COOKIES_FILE: caminho para o arquivo já montado no disco.
+    cookies_content = os.getenv("YT_DLP_COOKIES_CONTENT", "").strip()
+    cookies_path_env = os.getenv("YT_DLP_COOKIES_FILE", "").strip()
+    if cookies_content:
+        cookies_runtime_path = os.path.join(VIDEOS_TMP_DIR, "yt_cookies.txt")
+        try:
+            with open(cookies_runtime_path, "w", encoding="utf-8") as _fh:
+                _fh.write(cookies_content)
+            ydl_opts["cookiefile"] = cookies_runtime_path
+            print(f"[videos] usando cookies do YT_DLP_COOKIES_CONTENT ({len(cookies_content)} chars)")
+        except Exception as _e:
+            print(f"[videos] falha ao gravar cookies do env: {_e}")
+    elif cookies_path_env and os.path.exists(cookies_path_env):
+        ydl_opts["cookiefile"] = cookies_path_env
+        print(f"[videos] usando cookies de {cookies_path_env}")
+    else:
+        print("[videos] sem cookies configurados — YouTube pode bloquear (anti-bot)")
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
