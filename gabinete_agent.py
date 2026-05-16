@@ -17,8 +17,18 @@ from __future__ import annotations
 import io
 import json
 import os
+import re
 from datetime import datetime, timedelta, timezone
 from typing import Any
+
+_VIDEO_URL_RE = re.compile(
+    r"https?://(?:www\.|m\.)?"
+    r"(?:youtube\.com/watch\?[^\s]*v=[\w\-]+|youtu\.be/[\w\-]+|"
+    r"open\.spotify\.com/[\w/\-]+|podcasts\.apple\.com/[\w/\-]+|"
+    r"[\w\-]+\.libsyn\.com/[\w/\-]+|[\w\-]+\.megaphone\.fm/[\w/\-]+)"
+    r"[^\s]*",
+    re.IGNORECASE,
+)
 
 # Diretório base para ler JSONs estáticos (cidades_mg, votos_*).
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -2157,6 +2167,24 @@ def handle_gabinete(text: str, remote_jid: str) -> None:
         *history,
         {"role": "user", "content": text},
     ]
+
+    # Pré-dispara `analisar_video_url` quando o Deputado cola uma URL de
+    # vídeo/podcast. gpt-4o tende a alucinar "tá rodando" sem chamar a tool;
+    # disparando antes garantimos que o pipeline foi enfileirado de fato.
+    urls_video = _VIDEO_URL_RE.findall(text)
+    if urls_video:
+        url_video = urls_video[0]
+        pre_result = _tool_analisar_video_url({"url": url_video}, remote_jid)
+        messages.append({
+            "role": "system",
+            "content": (
+                "Análise de vídeo já foi enfileirada automaticamente pelo backend "
+                f"para esta URL ({url_video}). Resultado da chamada: "
+                f"{json.dumps(pre_result, ensure_ascii=False, default=str)}. "
+                "NÃO chame `analisar_video_url` novamente nesta rodada. Responda "
+                "curto ao Deputado conforme o `ok`/`erro` do resultado."
+            ),
+        })
 
     # Loop de tool calling, no máximo 8 rodadas para não custar demais.
     for rodada in range(8):
