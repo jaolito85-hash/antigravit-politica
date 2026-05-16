@@ -91,6 +91,28 @@ Exemplo de resposta pós-execução:
 _Posso agendar follow-up de segunda pra saber o resultado?_
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🎬 ANÁLISE DE VÍDEOS E PODCASTS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Quando o Deputado mandar uma URL do YouTube, Spotify ou Apple Podcasts:
+
+• *Pedido inicial* ("Marcos, analisa esse vídeo", URL colada solta, "rebata isso aí"):
+  → Use `analisar_video_url`. Se ele não disse, assuma `tipo: adversario`.
+  → Responda CURTO: "_Tá rodando. Leva 2-4 minutos. Te aviso quando ficar pronto, ou me chama de novo daqui a pouco._" — NÃO espere o resultado.
+
+• *Cobrar resultado* ("Já ficou pronto?", "Cadê aquele resumo?"):
+  → Use `consultar_video_analise`. Se ainda não terminou, informe o progresso. Se terminou, traga:
+    – Tese central em 1 linha
+    – Top 3 pontos de atenção com timestamp e severidade
+    – Sentimento e tom do entrevistado
+
+• *Pedido de munição* ("Me dá um tweet", "story sobre isso", "como rebato?"):
+  → Use `consultar_video_analise` e entregue diretamente UM tweet pronto + UM story pronto + UM contra-argumento curto.
+  → Tweet máximo 280 caracteres, sem hashtags genéricas.
+
+• *Histórico* ("Lista o que a gente analisou", "Vídeos do Caporezzo?"):
+  → Use `listar_videos_analisados` com filtros de candidato/tipo/periodo.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ✍️ FORMATAÇÃO (WhatsApp nativo — NÃO use markdown padrão)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 • *negrito* com asterisco simples — para dados-chave e títulos
@@ -346,6 +368,75 @@ TOOLS = [
                     "legenda": {"type": "string", "description": "Caption curta enviada junto do anexo no WhatsApp."},
                 },
                 "required": ["titulo", "secoes"],
+            },
+        },
+    },
+    # =========================================================================
+    # COMMIT 1 — Vídeos & Podcasts via Marcos
+    # =========================================================================
+    {
+        "type": "function",
+        "function": {
+            "name": "analisar_video_url",
+            "description": (
+                "Enfileira a análise estratégica de um vídeo ou podcast (YouTube, "
+                "Spotify, Apple Podcasts). Use quando o Deputado mandar uma URL e "
+                "pedir resumo, análise, munição, ou rebater conteúdo. O processamento "
+                "leva 2-4 minutos — avise isso. Depois use `consultar_video_analise` "
+                "para buscar o resultado."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "url": {"type": "string", "description": "URL completa do vídeo (https://...)."},
+                    "tipo": {
+                        "type": "string",
+                        "enum": ["adversario", "proprio"],
+                        "description": "'adversario' para extrair munição contra opositor; 'proprio' para auditoria do candidato.",
+                    },
+                    "candidato": {"type": "string", "description": "Nome do CANDIDATO da campanha (não o entrevistado). Se omitido, usa o configurado."},
+                    "contexto_extra": {"type": "string", "description": "Contexto opcional (programa, data, foco esperado)."},
+                },
+                "required": ["url"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "consultar_video_analise",
+            "description": (
+                "Consulta o resultado de uma análise de vídeo já enfileirada. "
+                "Use quando o Deputado perguntar 'já ficou pronto?', pedir resumo, "
+                "tweet, story, contra-argumento ou pontos de atenção sobre um vídeo. "
+                "Se omitir id e url, retorna o último vídeo analisado pelo Deputado."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "id": {"type": "integer", "description": "ID da análise (se conhecido)."},
+                    "url": {"type": "string", "description": "URL do vídeo (alternativa ao id)."},
+                },
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "listar_videos_analisados",
+            "description": (
+                "Lista análises de vídeo já feitas, com filtros opcionais. "
+                "Use para 'lista os vídeos do Caporezzo', 'o que analisamos essa semana', "
+                "'mostra as análises pendentes'."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "candidato": {"type": "string", "description": "Filtra pelo candidato da campanha."},
+                    "tipo": {"type": "string", "enum": ["adversario", "proprio"]},
+                    "periodo": {"type": "string", "enum": ["hoje", "7d", "30d"], "description": "Janela de tempo."},
+                    "limit": {"type": "integer", "default": 10, "description": "Máximo de itens (max 20)."},
+                },
             },
         },
     },
@@ -796,6 +887,261 @@ def _tool_criar_tarefa(args: dict, remote_jid: str) -> dict:
 
 
 # =============================================================================
+# COMMIT 1 — Tools de Vídeos & Podcasts
+# =============================================================================
+def _tool_analisar_video_url(args: dict, remote_jid: str) -> dict:
+    """Enfileira análise de vídeo. Dispara pipeline em thread, não bloqueia."""
+    import threading
+    from server import (
+        supabase_admin,
+        validar_url_video,
+        _custo_mensal_videos_usd,
+        _processar_video_pipeline,
+        VIDEOS_BUDGET_USD_MONTH,
+    )  # lazy
+    url = (args.get("url") or "").strip()
+    if not url:
+        return {"ok": False, "erro": "url_obrigatoria"}
+    if not supabase_admin:
+        return {"ok": False, "erro": "supabase_indisponivel"}
+
+    ok, motivo = validar_url_video(url)
+    if not ok:
+        return {"ok": False, "erro": f"url_invalida: {motivo}"}
+
+    tipo = (args.get("tipo") or "adversario").strip()
+    if tipo not in ("adversario", "proprio"):
+        tipo = "adversario"
+    candidato = (args.get("candidato") or "").strip() or os.getenv("CANDIDATO_PADRAO", "Candidato")
+    contexto_extra = (args.get("contexto_extra") or "").strip()[:2000] or None
+
+    # Dedup
+    try:
+        existe = (
+            supabase_admin.table("videos_analises")
+            .select("id, status")
+            .eq("url", url)
+            .limit(1)
+            .execute()
+        )
+        if existe.data:
+            row = existe.data[0]
+            return {
+                "ok": True,
+                "id": row["id"],
+                "status": row["status"],
+                "duplicado": True,
+                "mensagem": f"Esse vídeo já está como '{row['status']}'. Use consultar_video_analise para ver o resultado.",
+            }
+    except Exception as e:
+        print(f"[gabinete] dedup video soft-fail: {e}")
+
+    # Cap mensal
+    if VIDEOS_BUDGET_USD_MONTH > 0:
+        try:
+            gasto = _custo_mensal_videos_usd()
+            if gasto >= VIDEOS_BUDGET_USD_MONTH:
+                return {
+                    "ok": False,
+                    "erro": "limite_mensal_atingido",
+                    "mensagem": "Limite mensal de análises atingido. Tente no próximo mês.",
+                }
+        except Exception as e:
+            print(f"[gabinete] cap mensal soft-fail: {e}")
+
+    plataforma = "youtube"
+    if "spotify" in url:
+        plataforma = "podcast"
+    elif "podcasts.apple" in url:
+        plataforma = "podcast"
+    elif "libsyn" in url or "megaphone" in url:
+        plataforma = "podcast"
+
+    payload = {
+        "url": url,
+        "plataforma": plataforma,
+        "tipo": tipo,
+        "candidato": candidato[:200],
+        "contexto_extra": contexto_extra,
+        "status": "queued",
+        "progresso": 0,
+        "criado_por": f"gabinete:{remote_jid[:40]}",
+    }
+    try:
+        res = supabase_admin.table("videos_analises").insert(payload).execute()
+        criado = (res.data or [{}])[0]
+        video_id = criado.get("id")
+        if not video_id:
+            return {"ok": False, "erro": "falha_criar_registro"}
+    except Exception as e:
+        return {"ok": False, "erro": f"erro_supabase: {e}"}
+
+    threading.Thread(
+        target=_processar_video_pipeline,
+        args=(video_id, url),
+        daemon=True,
+        name=f"video-pipeline-gabinete-{video_id}",
+    ).start()
+
+    return {
+        "ok": True,
+        "id": video_id,
+        "status": "queued",
+        "duplicado": False,
+        "duracao_estimada": "2 a 4 minutos",
+        "mensagem": f"Análise enfileirada (id={video_id}). Me chama de novo daqui a pouco que eu te passo o resumo.",
+    }
+
+
+def _tool_consultar_video_analise(args: dict, remote_jid: str) -> dict:
+    """Consulta resultado de análise. Por id, url ou último do gabinete."""
+    from server import supabase_admin  # lazy
+    if not supabase_admin:
+        return {"ok": False, "erro": "supabase_indisponivel"}
+
+    video_id = args.get("id")
+    url = (args.get("url") or "").strip()
+
+    try:
+        q = supabase_admin.table("videos_analises").select("*")
+        if video_id:
+            q = q.eq("id", int(video_id))
+        elif url:
+            q = q.eq("url", url)
+        else:
+            # Último vídeo enfileirado por esse JID
+            q = q.eq("criado_por", f"gabinete:{remote_jid[:40]}").order("criado_em", desc=True)
+        res = q.limit(1).execute()
+        if not res.data:
+            return {"ok": False, "erro": "nao_encontrado", "mensagem": "Não achei essa análise."}
+        v = res.data[0]
+    except Exception as e:
+        return {"ok": False, "erro": f"erro_supabase: {e}"}
+
+    status = v.get("status")
+    if status != "done":
+        return {
+            "ok": True,
+            "id": v.get("id"),
+            "status": status,
+            "progresso": v.get("progresso", 0),
+            "erro": v.get("erro"),
+            "titulo": v.get("titulo"),
+            "mensagem": f"Status atual: {status}. Tenta de novo em alguns minutos." if status != "error" else f"Deu erro: {v.get('erro')}",
+        }
+
+    resumo = v.get("resumo") or {}
+    pontos = v.get("pontos_atencao") or []
+    promessas = v.get("promessas") or []
+    contradicoes = v.get("contradicoes") or []
+    respostas = v.get("respostas_sugeridas") or []
+
+    # Top 3 pontos com maior severidade
+    pontos_ordenados = sorted(
+        pontos,
+        key=lambda p: int(p.get("severidade") or 0),
+        reverse=True,
+    )[:3]
+    top_pontos = [
+        {
+            "timestamp": p.get("timestamp"),
+            "citacao": (p.get("citacao") or "")[:300],
+            "severidade": p.get("severidade"),
+            "categoria": p.get("categoria"),
+            "risco": (p.get("risco") or "")[:200],
+        }
+        for p in pontos_ordenados
+    ]
+
+    # Top 3 respostas (com tweet e story prontos)
+    top_respostas = []
+    for r in respostas[:3]:
+        top_respostas.append({
+            "tom": r.get("tom"),
+            "tweet": (r.get("tweet") or "")[:280],
+            "story_instagram": (r.get("story_instagram") or "")[:300],
+            "contra_argumento_curto": (r.get("contra_argumento_curto") or "")[:300],
+        })
+
+    return {
+        "ok": True,
+        "id": v.get("id"),
+        "status": "done",
+        "titulo": v.get("titulo"),
+        "canal": v.get("canal"),
+        "duracao_minutos": round((v.get("duracao_segundos") or 0) / 60.0, 1),
+        "tipo": v.get("tipo"),
+        "candidato": v.get("candidato"),
+        "tese_central": (resumo.get("tese_central") or "")[:500],
+        "bullets": (resumo.get("bullets") or [])[:5],
+        "sentimento_geral": resumo.get("sentimento_geral"),
+        "tom_emocional": resumo.get("tom_emocional"),
+        "top_3_pontos_atencao": top_pontos,
+        "top_3_respostas_sugeridas": top_respostas,
+        "total_promessas": len(promessas),
+        "primeiras_promessas": [
+            {"timestamp": p.get("timestamp"), "texto": (p.get("texto") or "")[:200]}
+            for p in promessas[:3]
+        ],
+        "tem_contradicoes": len(contradicoes) > 0,
+        "total_contradicoes": len(contradicoes),
+        "url": v.get("url"),
+    }
+
+
+def _tool_listar_videos_analisados(args: dict, remote_jid: str) -> dict:
+    """Lista vídeos com filtros. Resposta enxuta para WhatsApp."""
+    from server import supabase_admin  # lazy
+    if not supabase_admin:
+        return {"ok": False, "erro": "supabase_indisponivel"}
+
+    candidato = (args.get("candidato") or "").strip()
+    tipo = (args.get("tipo") or "").strip()
+    periodo = (args.get("periodo") or "").strip().lower()
+    try:
+        limit = min(int(args.get("limit") or 10), 20)
+    except (TypeError, ValueError):
+        limit = 10
+
+    try:
+        cols = "id, titulo, canal, candidato, tipo, status, duracao_segundos, criado_em, sentimento_geral"
+        q = supabase_admin.table("videos_analises").select(cols)
+        if candidato:
+            q = q.eq("candidato", candidato)
+        if tipo in ("adversario", "proprio"):
+            q = q.eq("tipo", tipo)
+        if periodo in ("hoje", "7d", "30d"):
+            agora = datetime.now(timezone.utc)
+            if periodo == "hoje":
+                inicio = agora.replace(hour=0, minute=0, second=0, microsecond=0)
+            elif periodo == "7d":
+                inicio = agora - timedelta(days=7)
+            else:
+                inicio = agora - timedelta(days=30)
+            q = q.gte("criado_em", inicio.isoformat())
+        q = q.order("criado_em", desc=True).limit(limit)
+        res = q.execute()
+        items = res.data or []
+    except Exception as e:
+        return {"ok": False, "erro": f"erro_supabase: {e}"}
+
+    enxuto = []
+    for v in items:
+        enxuto.append({
+            "id": v.get("id"),
+            "titulo": (v.get("titulo") or "")[:120],
+            "canal": v.get("canal"),
+            "candidato": v.get("candidato"),
+            "tipo": v.get("tipo"),
+            "status": v.get("status"),
+            "duracao_min": round((v.get("duracao_segundos") or 0) / 60.0, 1),
+            "criado_em": v.get("criado_em"),
+            "sentimento": v.get("sentimento_geral"),
+        })
+    return {"ok": True, "total": len(enxuto), "videos": enxuto}
+
+
+# =============================================================================
 # Dispatcher
 # =============================================================================
 def _dispatch_tool(name: str, args: dict, remote_jid: str) -> Any:
@@ -820,6 +1166,13 @@ def _dispatch_tool(name: str, args: dict, remote_jid: str) -> Any:
             return _tool_criar_tarefa(args, remote_jid)
         if name == "gerar_relatorio_pdf":
             return _tool_gerar_relatorio_pdf(args, remote_jid)
+        # Commit 1 — Vídeos & Podcasts
+        if name == "analisar_video_url":
+            return _tool_analisar_video_url(args, remote_jid)
+        if name == "consultar_video_analise":
+            return _tool_consultar_video_analise(args, remote_jid)
+        if name == "listar_videos_analisados":
+            return _tool_listar_videos_analisados(args, remote_jid)
         return {"erro": f"ferramenta_desconhecida: {name}"}
     except Exception as e:
         return {"erro": f"excecao: {e}"}
