@@ -138,6 +138,27 @@ Quando o Deputado mandar uma URL do YouTube, Spotify ou Apple Podcasts:
   → Use `dados_cidade`. Mostre população, PIB per capita, IDHM, prefeito atual.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📡 OPERAÇÃO DE CAMPO (cabos eleitorais, lideranças)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• *"Quem é o cara mais importante em X?", "operador top em Y", "com quem falar em Z?"*:
+  → Use `operador_prioritario_cidade`. Apresente os top 3 com função, score e
+    telefone mascarado.
+
+• *"Manda pro Carlos da Itaúna...", "diz pro José que...", "avisa o vereador X..."*:
+  → ATENÇÃO CRÍTICA: ANTES de invocar `enviar_mensagem_operador`, peça
+    confirmação ao Deputado mostrando:
+       1) Quem é o destinatário identificado (nome, função, cidade)
+       2) O texto exato que será enviado
+    Aguarde resposta "confirma", "manda", "pode mandar" ou similar.
+    SÓ ENTÃO chame a ferramenta. Se houver ambiguidade no nome, peça que
+    ele escolha qual operador antes de continuar.
+
+• *"O que tá rolando em X cidade?", "panorama de Y", "como tá o sentimento em Z"*:
+  → Use `pesquisar_cidade`. Traz o último resumo Radar dessa cidade (mídia +
+    redes + temas). Se a pesquisa estiver muito antiga (>30 dias), avise que
+    o Radar pode ser atualizado pela aba do painel.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ✍️ FORMATAÇÃO (WhatsApp nativo — NÃO use markdown padrão)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 • *negrito* com asterisco simples — para dados-chave e títulos
@@ -601,6 +622,76 @@ TOOLS = [
                 "type": "object",
                 "properties": {
                     "cidade": {"type": "string", "description": "Nome da cidade (estado MG por padrão)."},
+                },
+                "required": ["cidade"],
+            },
+        },
+    },
+    # =========================================================================
+    # COMMIT 3 — Operação Local via WhatsApp
+    # =========================================================================
+    {
+        "type": "function",
+        "function": {
+            "name": "operador_prioritario_cidade",
+            "description": (
+                "Lista operadores de campo (cabos, vereadores, lideranças) de uma "
+                "cidade, ordenados por score de prioridade. Use para 'quem é o cara "
+                "mais importante em X?', 'operador top de Y', 'com quem falar em Z?'."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "cidade": {"type": "string", "description": "Nome da cidade."},
+                    "funcao": {
+                        "type": "string",
+                        "description": "Filtra por função (opcional): prefeito, vereador, lideranca-comunitaria, cabo-eleitoral, influenciador, voluntario.",
+                    },
+                    "limit": {"type": "integer", "default": 3, "description": "Máximo de operadores (max 10)."},
+                },
+                "required": ["cidade"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "enviar_mensagem_operador",
+            "description": (
+                "Envia mensagem direta via WhatsApp para um operador de campo e "
+                "registra no histórico da Operação Local. Use quando o Deputado "
+                "disser 'manda pro Carlos da Itaúna', 'diz pro José que vou amanhã'. "
+                "ATENÇÃO: SEMPRE peça confirmação ao Deputado antes de invocar esta "
+                "ferramenta — mostre o destinatário identificado e o texto exato "
+                "que será enviado, e só dispare após receber 'confirma' ou similar."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "operador_id": {"type": "integer", "description": "ID do operador (se conhecido). Opcional."},
+                    "operador_nome": {"type": "string", "description": "Nome do operador (parcial ou completo). Pelo menos um entre id e nome é obrigatório."},
+                    "cidade": {"type": "string", "description": "Cidade do operador (ajuda a desambiguar nomes comuns)."},
+                    "texto": {"type": "string", "description": "Texto exato que será enviado por WhatsApp. Já redigido."},
+                },
+                "required": ["texto"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "pesquisar_cidade",
+            "description": (
+                "Consulta a última pesquisa Radar da cidade (mídia + redes sociais + "
+                "Voz do Povo). Mostra resumo executivo, temas top, sentimento, "
+                "oportunidades políticas. Use para 'o que tá rolando em X?', "
+                "'panorama atual de Y', 'como tá o sentimento em Z?'. "
+                "Se não houver pesquisa recente, oriente o Deputado a usar a aba Radar."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "cidade": {"type": "string", "description": "Nome da cidade."},
                 },
                 "required": ["cidade"],
             },
@@ -1653,6 +1744,269 @@ def _tool_dados_cidade(args: dict, remote_jid: str) -> dict:
 
 
 # =============================================================================
+# COMMIT 3 — Tools de Operação Local via WhatsApp
+# =============================================================================
+def _tool_operador_prioritario_cidade(args: dict, remote_jid: str) -> dict:
+    """Lista operadores top de uma cidade por score."""
+    from server import listar_operadores_campo, _normalizar_telefone_jid  # lazy
+    cidade = (args.get("cidade") or "").strip()
+    if not cidade:
+        return {"ok": False, "erro": "cidade_obrigatoria"}
+
+    funcao_filtro = (args.get("funcao") or "").strip().lower()
+    try:
+        limit = min(int(args.get("limit") or 3), 10)
+    except (TypeError, ValueError):
+        limit = 3
+
+    try:
+        todos = listar_operadores_campo(incluir_demo=False) or []
+    except Exception as e:
+        return {"ok": False, "erro": f"falha_listar: {e}"}
+
+    cidade_lower = cidade.lower()
+    candidatos = []
+    for op in todos:
+        op_cidade = (op.get("cidade") or "").lower()
+        if not op_cidade or cidade_lower not in op_cidade:
+            continue
+        if funcao_filtro:
+            op_funcao = (op.get("funcao_chave") or op.get("funcao") or "").lower()
+            if funcao_filtro not in op_funcao:
+                continue
+        candidatos.append(op)
+
+    if not candidatos:
+        return {
+            "ok": True,
+            "cidade": cidade,
+            "total": 0,
+            "mensagem": f"Não encontrei operador cadastrado em {cidade}.",
+            "operadores": [],
+        }
+
+    candidatos.sort(key=lambda o: int(o.get("score") or 0), reverse=True)
+    enxuto = []
+    for op in candidatos[:limit]:
+        tel = op.get("telefone") or op.get("jid") or ""
+        digitos = _normalizar_telefone_jid(tel)
+        if len(digitos) >= 6:
+            tel_masc = f"{digitos[:4]}***{digitos[-2:]}"
+        else:
+            tel_masc = "***"
+        enxuto.append({
+            "id": op.get("id"),
+            "nome": op.get("nome"),
+            "funcao": op.get("funcao_label") or op.get("funcao"),
+            "cidade": op.get("cidade"),
+            "score": int(op.get("score") or 0),
+            "nivel_prioridade": op.get("nivel_prioridade") or op.get("nivel"),
+            "telefone_mascarado": tel_masc,
+            "influencia": op.get("influencia"),
+        })
+    return {
+        "ok": True,
+        "cidade": cidade,
+        "total_encontrados": len(candidatos),
+        "operadores": enxuto,
+    }
+
+
+def _tool_enviar_mensagem_operador(args: dict, remote_jid: str) -> dict:
+    """Envia mensagem direta ao operador via WhatsApp. Requer confirmação prévia
+    do Deputado (system prompt instrui o modelo a confirmar antes de invocar)."""
+    from server import (
+        listar_operadores_campo,
+        send_whatsapp_message,
+        salvar_mensagem_operacao,
+        _jid_para_envio,
+        _normalizar_telefone_jid,
+        _mascarar_telefone,
+    )  # lazy
+
+    operador_id = args.get("operador_id")
+    operador_nome = (args.get("operador_nome") or "").strip()
+    cidade_filtro = (args.get("cidade") or "").strip()
+    texto = (args.get("texto") or "").strip()
+
+    if not texto:
+        return {"ok": False, "erro": "texto_obrigatorio"}
+    if not operador_id and not operador_nome:
+        return {"ok": False, "erro": "identificacao_operador_obrigatoria",
+                "mensagem": "Preciso de id ou nome do operador para identificar o destinatário."}
+
+    try:
+        todos = listar_operadores_campo(incluir_demo=False) or []
+    except Exception as e:
+        return {"ok": False, "erro": f"falha_listar: {e}"}
+
+    # Identificação
+    if operador_id:
+        try:
+            op_id_int = int(operador_id)
+        except (TypeError, ValueError):
+            return {"ok": False, "erro": "operador_id_invalido"}
+        candidatos = [op for op in todos if int(op.get("id") or 0) == op_id_int]
+    else:
+        nome_lower = operador_nome.lower()
+        candidatos = [op for op in todos if nome_lower in (op.get("nome") or "").lower()]
+        if cidade_filtro:
+            cidade_lower = cidade_filtro.lower()
+            candidatos = [op for op in candidatos if cidade_lower in (op.get("cidade") or "").lower()]
+
+    if not candidatos:
+        return {
+            "ok": False,
+            "erro": "operador_nao_encontrado",
+            "mensagem": f"Não achei operador com esses dados.",
+        }
+    if len(candidatos) > 1:
+        opcoes = [
+            {"id": op.get("id"), "nome": op.get("nome"), "cidade": op.get("cidade"), "funcao": op.get("funcao_label")}
+            for op in candidatos[:5]
+        ]
+        return {
+            "ok": False,
+            "erro": "operador_ambiguo",
+            "mensagem": f"Encontrei {len(candidatos)} operadores com esse nome. Qual deles?",
+            "opcoes": opcoes,
+        }
+
+    op = candidatos[0]
+    telefone_op = op.get("telefone") or op.get("jid") or ""
+    jid_envio = _jid_para_envio(telefone_op)
+    if not jid_envio or len(_normalizar_telefone_jid(jid_envio)) < 10:
+        return {"ok": False, "erro": "telefone_invalido"}
+
+    # Envio real
+    try:
+        send_whatsapp_message(jid_envio, texto)
+    except Exception as e:
+        return {"ok": False, "erro": f"falha_envio_whatsapp: {e}"}
+
+    # Registro na operação local
+    try:
+        salvar_mensagem_operacao({
+            "destinatario_jid": jid_envio,
+            "destinatario_nome": op.get("nome") or "",
+            "cidade": op.get("cidade") or "",
+            "direcao": "enviada",
+            "canal": "whatsapp",
+            "texto": texto,
+            "autor": f"gabinete:{remote_jid[:40]}",
+            "enviada_em": datetime.utcnow().isoformat(),
+        })
+    except Exception as e:
+        print(f"[gabinete] envio ok mas log falhou: {e}")
+
+    return {
+        "ok": True,
+        "enviado_para": op.get("nome"),
+        "cidade": op.get("cidade"),
+        "telefone_mascarado": _mascarar_telefone(telefone_op),
+        "texto_enviado": texto[:200],
+        "ts": datetime.utcnow().isoformat(),
+    }
+
+
+def _tool_pesquisar_cidade(args: dict, remote_jid: str) -> dict:
+    """Consulta a última pesquisa do Radar MG de uma cidade (sem disparar nova
+    coleta — apenas lê o que já está cacheado na base)."""
+    from server import supabase_admin, get_feedbacks  # lazy
+    cidade = (args.get("cidade") or "").strip()
+    if not cidade:
+        return {"ok": False, "erro": "cidade_obrigatoria"}
+    if not supabase_admin:
+        return {"ok": False, "erro": "supabase_indisponivel"}
+
+    # Última pesquisa concluída para essa cidade
+    try:
+        resp = (
+            supabase_admin.table("radar_cidades_pesquisas")
+            .select("id, cidade, resumo_ia, sentimento_predominante, total_posts, created_at, periodo_dias")
+            .ilike("cidade", cidade)
+            .eq("status", "concluido")
+            .order("created_at", desc=True)
+            .limit(1)
+            .execute()
+        )
+        rows = resp.data or []
+    except Exception as e:
+        return {"ok": False, "erro": f"falha_supabase: {e}"}
+
+    if not rows:
+        return {
+            "ok": False,
+            "erro": "sem_pesquisa",
+            "mensagem": (
+                f"Ainda não há pesquisa do Radar MG para {cidade}. "
+                "Sugira ao Deputado acessar a aba Radar do painel para disparar uma coleta nova."
+            ),
+        }
+
+    pesquisa = rows[0]
+    pesq_id = pesquisa.get("id")
+
+    # Temas top dessa pesquisa
+    temas_top = []
+    try:
+        temas_resp = (
+            supabase_admin.table("radar_cidades_temas")
+            .select("tema, categoria, mencoes, sentimento_predominante")
+            .eq("pesquisa_id", pesq_id)
+            .order("mencoes", desc=True)
+            .limit(5)
+            .execute()
+        )
+        temas_top = temas_resp.data or []
+    except Exception as e:
+        print(f"[gabinete] temas radar soft-fail: {e}")
+
+    # Contagem rápida de feedbacks WhatsApp dessa cidade
+    total_feedbacks_locais = 0
+    try:
+        feedbacks = get_feedbacks() or []
+        cidade_lower = cidade.lower()
+        total_feedbacks_locais = sum(
+            1 for f in feedbacks if (f.get("city") or "").lower() == cidade_lower
+        )
+    except Exception as e:
+        print(f"[gabinete] feedback count soft-fail: {e}")
+
+    # Idade da pesquisa
+    idade_dias = None
+    created_at = pesquisa.get("created_at")
+    if created_at:
+        try:
+            dt = datetime.fromisoformat(str(created_at).replace("Z", "+00:00"))
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            idade_dias = (datetime.now(timezone.utc) - dt).days
+        except Exception:
+            pass
+
+    return {
+        "ok": True,
+        "cidade": pesquisa.get("cidade") or cidade,
+        "resumo_radar": (pesquisa.get("resumo_ia") or "")[:1500],
+        "sentimento_predominante": pesquisa.get("sentimento_predominante"),
+        "total_posts_radar": pesquisa.get("total_posts") or 0,
+        "periodo_pesquisa_dias": pesquisa.get("periodo_dias"),
+        "idade_pesquisa_dias": idade_dias,
+        "temas_top": [
+            {
+                "tema": t.get("tema"),
+                "categoria": t.get("categoria"),
+                "mencoes": t.get("mencoes"),
+                "sentimento": t.get("sentimento_predominante"),
+            }
+            for t in temas_top
+        ],
+        "total_feedbacks_voz_povo": total_feedbacks_locais,
+    }
+
+
+# =============================================================================
 # Dispatcher
 # =============================================================================
 def _dispatch_tool(name: str, args: dict, remote_jid: str) -> Any:
@@ -1697,6 +2051,13 @@ def _dispatch_tool(name: str, args: dict, remote_jid: str) -> Any:
             return _tool_pitch_estrategico_cidade(args, remote_jid)
         if name == "dados_cidade":
             return _tool_dados_cidade(args, remote_jid)
+        # Commit 3 — Operação Local
+        if name == "operador_prioritario_cidade":
+            return _tool_operador_prioritario_cidade(args, remote_jid)
+        if name == "enviar_mensagem_operador":
+            return _tool_enviar_mensagem_operador(args, remote_jid)
+        if name == "pesquisar_cidade":
+            return _tool_pesquisar_cidade(args, remote_jid)
         return {"erro": f"ferramenta_desconhecida: {name}"}
     except Exception as e:
         return {"erro": f"excecao: {e}"}
