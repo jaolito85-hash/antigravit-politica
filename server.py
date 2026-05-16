@@ -3196,21 +3196,23 @@ _briefing_cache: dict = {}
 _BRIEFING_TTL = 1800  # 30 minutos
 
 
-@app.route("/api/radar/briefing", methods=["POST"])
-def radar_briefing():
-    """Cruza notícias da imprensa + comentários do Instagram e gera briefing estratégico para o candidato."""
-    body          = request.get_json(silent=True) or {}
-    politico      = (body.get("politico")  or "").strip()
-    instagram     = (body.get("instagram") or "").strip().lstrip("@")
-    periodo       = body.get("periodo", "7d")
-    force_refresh = bool(body.get("force_refresh"))
-    adversarios   = body.get("adversarios") or []
+def _radar_briefing_internal(
+    politico: str,
+    instagram: str = "",
+    periodo: str = "7d",
+    adversarios: list | None = None,
+    force_refresh: bool = False,
+) -> dict:
+    """Versão pura (sem Flask) do briefing para uso interno (Marcos etc.).
+    Levanta ValueError em erros conhecidos. Sempre retorna dict completo do briefing."""
+    politico = (politico or "").strip()
+    instagram = (instagram or "").strip().lstrip("@")
     if not isinstance(adversarios, list):
         adversarios = []
-    adversarios = [a.strip() for a in adversarios if a and a.strip()]
+    adversarios = [a.strip() for a in (adversarios or []) if a and a.strip()]
 
     if not politico:
-        return jsonify({"error": "Nome do político é obrigatório"}), 400
+        raise ValueError("politico_obrigatorio")
 
     adv_key = "|".join(sorted(a.lower() for a in adversarios)) or "noadv"
     cache_key = f"{politico.lower()}|{instagram.lower()}|{periodo}|{adv_key}"
@@ -3218,8 +3220,7 @@ def radar_briefing():
     if not force_refresh:
         cached = _briefing_cache.get(cache_key)
         if cached and (now - cached["ts"]) < _BRIEFING_TTL:
-            payload = {**cached["data"], "cached": True, "cache_age_s": int(now - cached["ts"])}
-            return jsonify(payload)
+            return {**cached["data"], "cached": True, "cache_age_s": int(now - cached["ts"])}
 
     # 1) Notícias — reusa função existente com cache de 30min
     try:
@@ -3280,13 +3281,10 @@ def radar_briefing():
 
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
-        return jsonify({"error": "OpenAI não configurado"}), 500
+        raise ValueError("openai_nao_configurado")
 
     if n_total == 0 and c_total == 0:
-        return jsonify({
-            "error": "Sem dados suficientes para briefing",
-            "detalhe": "Nenhuma notícia recente encontrada e nenhum comentário coletado do Instagram. Verifique o nome do político e o @ do Instagram."
-        }), 400
+        raise ValueError("dados_insuficientes")
 
     noticias_block = "\n".join(noticias_amostras) or "(sem cobertura recente)"
     categorias_block = "\n".join(f"  - {cat}: {n}" for cat, n in top_cats) or "(sem dados)"
@@ -3390,9 +3388,41 @@ REGRAS:
             "gerado_em": datetime.utcnow().isoformat() + "Z",
         }
         _briefing_cache[cache_key] = {"ts": now, "data": data}
-        return jsonify({**data, "cached": False})
+        return {**data, "cached": False}
+    except json.JSONDecodeError as e:
+        print(f"❌ Briefing IA parse error: {e}")
+        raise ValueError(f"falha_json: {e}")
     except Exception as e:
         print(f"❌ Briefing IA error: {e}")
+        raise
+
+
+@app.route("/api/radar/briefing", methods=["POST"])
+def radar_briefing():
+    """Cruza notícias da imprensa + comentários do Instagram e gera briefing estratégico para o candidato."""
+    body = request.get_json(silent=True) or {}
+    try:
+        result = _radar_briefing_internal(
+            politico=body.get("politico", ""),
+            instagram=body.get("instagram", ""),
+            periodo=body.get("periodo", "7d"),
+            adversarios=body.get("adversarios") or [],
+            force_refresh=bool(body.get("force_refresh")),
+        )
+        return jsonify(result)
+    except ValueError as ve:
+        msg = str(ve)
+        if msg == "politico_obrigatorio":
+            return jsonify({"error": "Nome do político é obrigatório"}), 400
+        if msg == "openai_nao_configurado":
+            return jsonify({"error": "OpenAI não configurado"}), 500
+        if msg == "dados_insuficientes":
+            return jsonify({
+                "error": "Sem dados suficientes para briefing",
+                "detalhe": "Nenhuma notícia recente encontrada e nenhum comentário coletado do Instagram. Verifique o nome do político e o @ do Instagram."
+            }), 400
+        return jsonify({"error": f"Falha ao gerar briefing: {ve}"}), 500
+    except Exception as e:
         return jsonify({"error": f"Falha ao gerar briefing: {e}"}), 500
 
 
@@ -5641,209 +5671,214 @@ def _coletar_operacao_prioridades():
     }
 
 
+def _prioridades_semana_internal(limit: int = 30) -> dict:
+    """Versão pura (sem Flask) do ranking de prioridades para uso interno (Marcos etc.)."""
+    limite = max(5, min(int(limit) if limit else 30, 100))
+
+    cidades_meta = _carregar_cidades_estaticas()
+    votos_por_cidade = _carregar_votos_eleitorais()
+    radar_por_cidade = _coletar_radar_prioridades()
+    operacao_por_cidade = _coletar_operacao_prioridades()
+
+    nomes_para_busca = {
+        chave: dados.get('cidade', chave)
+        for chave, dados in {**cidades_meta, **votos_por_cidade}.items()
+    }
+    aliases = sorted(nomes_para_busca.items(), key=lambda x: len(x[0]), reverse=True)
+
+    feedbacks_por_cidade = defaultdict(lambda: {
+        'total': 0,
+        'negativos': 0,
+        'urgentes': 0,
+        'abertos': 0,
+        'topicos': Counter(),
+        'ultima_interacao': None,
+    })
+
+    for fb in get_feedbacks():
+        chave, cidade_nome = _inferir_cidade_feedback(fb, aliases)
+        if not chave:
+            continue
+
+        grupo = feedbacks_por_cidade[chave]
+        grupo['total'] += 1
+
+        sentimento = _normalizar_texto(fb.get('sentiment') or fb.get('urgency') or '')
+        urgencia = _normalizar_texto(fb.get('urgency') or '')
+        status = _normalizar_texto(fb.get('status') or 'aberto')
+        if 'negativo' in sentimento or 'critico' in urgencia or 'alta' in urgencia:
+            grupo['negativos'] += 1
+        if 'critico' in urgencia or 'urgente' in urgencia or 'alta' in urgencia:
+            grupo['urgentes'] += 1
+        if status != 'resolvido':
+            grupo['abertos'] += 1
+
+        topico = fb.get('topic') or fb.get('category') or 'Demanda cidadã'
+        grupo['topicos'][topico] += 1
+
+        data_fb = _parse_data_feedback(fb.get('created_at') or fb.get('timestamp'))
+        if data_fb and (not grupo['ultima_interacao'] or data_fb > grupo['ultima_interacao']):
+            grupo['ultima_interacao'] = data_fb
+
+        if chave not in nomes_para_busca and cidade_nome:
+            nomes_para_busca[chave] = cidade_nome
+
+    chaves_candidatas = set(votos_por_cidade) | set(feedbacks_por_cidade) | set(radar_por_cidade) | set(operacao_por_cidade)
+    max_base = max([
+        (v.get('votos_candidato_a', 0) + v.get('votos_candidato_b', 0))
+        for v in votos_por_cidade.values()
+    ] or [1])
+    max_gap = max([
+        max((v.get('votos_candidato_a', 0) - v.get('votos_candidato_b', 0)), 0)
+        for v in votos_por_cidade.values()
+    ] or [1])
+
+    prioridades = []
+    agora = datetime.utcnow()
+    for chave in chaves_candidatas:
+        votos = votos_por_cidade.get(chave, {})
+        fb = feedbacks_por_cidade.get(chave, {})
+        radar = radar_por_cidade.get(chave, {})
+        operacao = operacao_por_cidade.get(chave, {})
+        meta = cidades_meta.get(chave, {})
+
+        votos_candidato_a = int(votos.get('votos_candidato_a') or 0)
+        votos_candidato_b = int(votos.get('votos_candidato_b') or 0)
+        base_aliada = votos_candidato_a + votos_candidato_b
+        gap_conversao = max(votos_candidato_a - votos_candidato_b, 0)
+
+        base_score = 0 if not max_base else 30 * ((base_aliada / max_base) ** 0.55)
+        gap_score = 0 if not max_gap else 30 * ((gap_conversao / max_gap) ** 0.55)
+
+        total_fb = int(fb.get('total') or 0)
+        negativos = int(fb.get('negativos') or 0)
+        urgentes = int(fb.get('urgentes') or 0)
+        abertos = int(fb.get('abertos') or 0)
+        total_operacao = int(operacao.get('total') or 0)
+        atencao_operacao = int(operacao.get('atencao') or 0)
+        pressao_score = min(22, total_fb * 2.5 + negativos * 3 + urgentes * 4 + abertos * 2 + total_operacao * 3 + atencao_operacao * 4)
+
+        recencia_score = 0
+        ultima_interacao = fb.get('ultima_interacao')
+        ultima_operacao = operacao.get('ultima_interacao')
+        if ultima_operacao and (not ultima_interacao or ultima_operacao > ultima_interacao):
+            ultima_interacao = ultima_operacao
+        if ultima_interacao:
+            dias = max((agora - ultima_interacao).days, 0)
+            if dias <= 7:
+                recencia_score = 8
+            elif dias <= 30:
+                recencia_score = 5
+            elif dias <= 90:
+                recencia_score = 2
+
+        radar_sent = _normalizar_texto(radar.get('sentimento') or '')
+        radar_score = 0
+        if radar:
+            radar_score += min(4, int(radar.get('total_posts') or 0) / 5)
+            if 'negativo' in radar_sent:
+                radar_score += 6
+            elif 'positivo' in radar_sent:
+                radar_score += 2
+            else:
+                radar_score += 4
+
+        score = int(round(min(100, base_score + gap_score + pressao_score + recencia_score + radar_score)))
+        nivel = 'alta' if score >= 60 else 'media' if score >= 40 else 'monitorar'
+
+        top_temas = [t for t, _ in fb.get('topicos', Counter()).most_common(3)]
+        if operacao.get('topicos'):
+            temas_operacao = [t for t, _ in operacao.get('topicos').most_common(3)]
+            top_temas = list(dict.fromkeys(temas_operacao + top_temas))[:3]
+        if not top_temas and radar.get('temas'):
+            top_temas = [t.get('tema') for t in sorted(
+                radar.get('temas', []),
+                key=lambda x: x.get('mencoes', 0),
+                reverse=True
+            )[:3] if t.get('tema')]
+
+        motivos = []
+        if gap_conversao > 0:
+            motivos.append(f"{gap_conversao:,}".replace(',', '.') + " votos potenciais")
+        if base_aliada > 0:
+            motivos.append(f"{base_aliada:,}".replace(',', '.') + " votos de base mapeada")
+        if urgentes or negativos:
+            motivos.append(f"{urgentes} urgência(s) e {negativos} sinal(is) negativo(s)")
+        elif total_fb:
+            motivos.append(f"{total_fb} feedback(s) cidadão(s)")
+        if total_operacao:
+            motivos.append(f"{total_operacao} movimento(s) de campo")
+        if radar:
+            motivos.append("Radar local recente com sentimento " + (radar.get('sentimento') or 'neutro'))
+        if not motivos:
+            motivos.append("Cidade em monitoramento por dados eleitorais")
+
+        if urgentes or negativos or atencao_operacao or 'negativo' in radar_sent:
+            acao = "Entrar com resposta local: ligar para liderança, preparar fala curta e criar tarefa de acompanhamento."
+        elif gap_conversao >= 1000:
+            acao = "Marcar agenda de mobilização: visita com lideranças locais e pauta ligada aos temas quentes."
+        elif radar:
+            acao = "Usar o radar local para transformar os temas recentes em roteiro de visita ou vídeo curto."
+        else:
+            acao = "Acompanhar e reforçar presença digital antes de deslocamento presencial."
+
+        prioridades.append({
+            'cidade': meta.get('cidade') or votos.get('cidade') or radar.get('cidade') or operacao.get('cidade') or nomes_para_busca.get(chave, chave.title()),
+            'regiao': meta.get('regiao') or votos.get('regiao_eleitoral') or '',
+            'polo': votos.get('polo') or '',
+            'score': score,
+            'nivel': nivel,
+            'votos_candidato_a': votos_candidato_a,
+            'votos_candidato_b': votos_candidato_b,
+            'base_aliada': base_aliada,
+            'gap_conversao': gap_conversao,
+            'feedbacks': total_fb,
+            'negativos': negativos,
+            'urgentes': urgentes,
+            'abertos': abertos,
+            'movimentos_campo': total_operacao,
+            'pontos_atencao_campo': atencao_operacao,
+            'ultima_interacao': ultima_interacao.isoformat() if ultima_interacao else None,
+            'top_temas': top_temas,
+            'radar': {
+                'sentimento': radar.get('sentimento'),
+                'total_posts': radar.get('total_posts') or 0,
+                'resumo': radar.get('resumo') or '',
+                'created_at': radar.get('created_at'),
+            } if radar else None,
+            'motivos': motivos[:4],
+            'acao_recomendada': acao,
+        })
+
+    prioridades.sort(key=lambda item: item['score'], reverse=True)
+    top_prioridades = prioridades[:limite]
+
+    return {
+        'generated_at': agora.isoformat(),
+        'kpis': {
+            'total_cidades': len(prioridades),
+            'alta_prioridade': sum(1 for p in prioridades if p['nivel'] == 'alta'),
+            'media_prioridade': sum(1 for p in prioridades if p['nivel'] == 'media'),
+            'cidades_com_pressao': sum(1 for p in prioridades if p['feedbacks'] > 0 or p['radar'] or p.get('movimentos_campo', 0) > 0),
+            'gap_top10': sum(p['gap_conversao'] for p in prioridades[:10]),
+        },
+        'metodologia': {
+            'base_eleitoral': 30,
+            'gap_conversao': 30,
+            'pressao_cidada': 22,
+            'recencia': 8,
+            'radar_mg': 10,
+        },
+        'prioridades': top_prioridades,
+    }
+
+
 @app.route('/api/prioridades-semana')
 def api_prioridades_semana():
     """Ranking de cidades prioritarias para a atuacao semanal do deputado."""
     try:
         limite = request.args.get('limit', 30, type=int)
-        limite = max(5, min(limite or 30, 100))
-
-        cidades_meta = _carregar_cidades_estaticas()
-        votos_por_cidade = _carregar_votos_eleitorais()
-        radar_por_cidade = _coletar_radar_prioridades()
-        operacao_por_cidade = _coletar_operacao_prioridades()
-
-        nomes_para_busca = {
-            chave: dados.get('cidade', chave)
-            for chave, dados in {**cidades_meta, **votos_por_cidade}.items()
-        }
-        aliases = sorted(nomes_para_busca.items(), key=lambda x: len(x[0]), reverse=True)
-
-        feedbacks_por_cidade = defaultdict(lambda: {
-            'total': 0,
-            'negativos': 0,
-            'urgentes': 0,
-            'abertos': 0,
-            'topicos': Counter(),
-            'ultima_interacao': None,
-        })
-
-        for fb in get_feedbacks():
-            chave, cidade_nome = _inferir_cidade_feedback(fb, aliases)
-            if not chave:
-                continue
-
-            grupo = feedbacks_por_cidade[chave]
-            grupo['total'] += 1
-
-            sentimento = _normalizar_texto(fb.get('sentiment') or fb.get('urgency') or '')
-            urgencia = _normalizar_texto(fb.get('urgency') or '')
-            status = _normalizar_texto(fb.get('status') or 'aberto')
-            if 'negativo' in sentimento or 'critico' in urgencia or 'alta' in urgencia:
-                grupo['negativos'] += 1
-            if 'critico' in urgencia or 'urgente' in urgencia or 'alta' in urgencia:
-                grupo['urgentes'] += 1
-            if status != 'resolvido':
-                grupo['abertos'] += 1
-
-            topico = fb.get('topic') or fb.get('category') or 'Demanda cidadã'
-            grupo['topicos'][topico] += 1
-
-            data_fb = _parse_data_feedback(fb.get('created_at') or fb.get('timestamp'))
-            if data_fb and (not grupo['ultima_interacao'] or data_fb > grupo['ultima_interacao']):
-                grupo['ultima_interacao'] = data_fb
-
-            if chave not in nomes_para_busca and cidade_nome:
-                nomes_para_busca[chave] = cidade_nome
-
-        chaves_candidatas = set(votos_por_cidade) | set(feedbacks_por_cidade) | set(radar_por_cidade) | set(operacao_por_cidade)
-        max_base = max([
-            (v.get('votos_candidato_a', 0) + v.get('votos_candidato_b', 0))
-            for v in votos_por_cidade.values()
-        ] or [1])
-        max_gap = max([
-            max((v.get('votos_candidato_a', 0) - v.get('votos_candidato_b', 0)), 0)
-            for v in votos_por_cidade.values()
-        ] or [1])
-
-        prioridades = []
-        agora = datetime.utcnow()
-        for chave in chaves_candidatas:
-            votos = votos_por_cidade.get(chave, {})
-            fb = feedbacks_por_cidade.get(chave, {})
-            radar = radar_por_cidade.get(chave, {})
-            operacao = operacao_por_cidade.get(chave, {})
-            meta = cidades_meta.get(chave, {})
-
-            votos_candidato_a = int(votos.get('votos_candidato_a') or 0)
-            votos_candidato_b = int(votos.get('votos_candidato_b') or 0)
-            base_aliada = votos_candidato_a + votos_candidato_b
-            gap_conversao = max(votos_candidato_a - votos_candidato_b, 0)
-
-            base_score = 0 if not max_base else 30 * ((base_aliada / max_base) ** 0.55)
-            gap_score = 0 if not max_gap else 30 * ((gap_conversao / max_gap) ** 0.55)
-
-            total_fb = int(fb.get('total') or 0)
-            negativos = int(fb.get('negativos') or 0)
-            urgentes = int(fb.get('urgentes') or 0)
-            abertos = int(fb.get('abertos') or 0)
-            total_operacao = int(operacao.get('total') or 0)
-            atencao_operacao = int(operacao.get('atencao') or 0)
-            pressao_score = min(22, total_fb * 2.5 + negativos * 3 + urgentes * 4 + abertos * 2 + total_operacao * 3 + atencao_operacao * 4)
-
-            recencia_score = 0
-            ultima_interacao = fb.get('ultima_interacao')
-            ultima_operacao = operacao.get('ultima_interacao')
-            if ultima_operacao and (not ultima_interacao or ultima_operacao > ultima_interacao):
-                ultima_interacao = ultima_operacao
-            if ultima_interacao:
-                dias = max((agora - ultima_interacao).days, 0)
-                if dias <= 7:
-                    recencia_score = 8
-                elif dias <= 30:
-                    recencia_score = 5
-                elif dias <= 90:
-                    recencia_score = 2
-
-            radar_sent = _normalizar_texto(radar.get('sentimento') or '')
-            radar_score = 0
-            if radar:
-                radar_score += min(4, int(radar.get('total_posts') or 0) / 5)
-                if 'negativo' in radar_sent:
-                    radar_score += 6
-                elif 'positivo' in radar_sent:
-                    radar_score += 2
-                else:
-                    radar_score += 4
-
-            score = int(round(min(100, base_score + gap_score + pressao_score + recencia_score + radar_score)))
-            nivel = 'alta' if score >= 60 else 'media' if score >= 40 else 'monitorar'
-
-            top_temas = [t for t, _ in fb.get('topicos', Counter()).most_common(3)]
-            if operacao.get('topicos'):
-                temas_operacao = [t for t, _ in operacao.get('topicos').most_common(3)]
-                top_temas = list(dict.fromkeys(temas_operacao + top_temas))[:3]
-            if not top_temas and radar.get('temas'):
-                top_temas = [t.get('tema') for t in sorted(
-                    radar.get('temas', []),
-                    key=lambda x: x.get('mencoes', 0),
-                    reverse=True
-                )[:3] if t.get('tema')]
-
-            motivos = []
-            if gap_conversao > 0:
-                motivos.append(f"{gap_conversao:,}".replace(',', '.') + " votos potenciais")
-            if base_aliada > 0:
-                motivos.append(f"{base_aliada:,}".replace(',', '.') + " votos de base mapeada")
-            if urgentes or negativos:
-                motivos.append(f"{urgentes} urgência(s) e {negativos} sinal(is) negativo(s)")
-            elif total_fb:
-                motivos.append(f"{total_fb} feedback(s) cidadão(s)")
-            if total_operacao:
-                motivos.append(f"{total_operacao} movimento(s) de campo")
-            if radar:
-                motivos.append("Radar local recente com sentimento " + (radar.get('sentimento') or 'neutro'))
-            if not motivos:
-                motivos.append("Cidade em monitoramento por dados eleitorais")
-
-            if urgentes or negativos or atencao_operacao or 'negativo' in radar_sent:
-                acao = "Entrar com resposta local: ligar para liderança, preparar fala curta e criar tarefa de acompanhamento."
-            elif gap_conversao >= 1000:
-                acao = "Marcar agenda de mobilização: visita com lideranças locais e pauta ligada aos temas quentes."
-            elif radar:
-                acao = "Usar o radar local para transformar os temas recentes em roteiro de visita ou vídeo curto."
-            else:
-                acao = "Acompanhar e reforçar presença digital antes de deslocamento presencial."
-
-            prioridades.append({
-                'cidade': meta.get('cidade') or votos.get('cidade') or radar.get('cidade') or operacao.get('cidade') or nomes_para_busca.get(chave, chave.title()),
-                'regiao': meta.get('regiao') or votos.get('regiao_eleitoral') or '',
-                'polo': votos.get('polo') or '',
-                'score': score,
-                'nivel': nivel,
-                'votos_candidato_a': votos_candidato_a,
-                'votos_candidato_b': votos_candidato_b,
-                'base_aliada': base_aliada,
-                'gap_conversao': gap_conversao,
-                'feedbacks': total_fb,
-                'negativos': negativos,
-                'urgentes': urgentes,
-                'abertos': abertos,
-                'movimentos_campo': total_operacao,
-                'pontos_atencao_campo': atencao_operacao,
-                'ultima_interacao': ultima_interacao.isoformat() if ultima_interacao else None,
-                'top_temas': top_temas,
-                'radar': {
-                    'sentimento': radar.get('sentimento'),
-                    'total_posts': radar.get('total_posts') or 0,
-                    'resumo': radar.get('resumo') or '',
-                    'created_at': radar.get('created_at'),
-                } if radar else None,
-                'motivos': motivos[:4],
-                'acao_recomendada': acao,
-            })
-
-        prioridades.sort(key=lambda item: item['score'], reverse=True)
-        top_prioridades = prioridades[:limite]
-
-        return jsonify({
-            'generated_at': agora.isoformat(),
-            'kpis': {
-                'total_cidades': len(prioridades),
-                'alta_prioridade': sum(1 for p in prioridades if p['nivel'] == 'alta'),
-                'media_prioridade': sum(1 for p in prioridades if p['nivel'] == 'media'),
-                'cidades_com_pressao': sum(1 for p in prioridades if p['feedbacks'] > 0 or p['radar'] or p.get('movimentos_campo', 0) > 0),
-                'gap_top10': sum(p['gap_conversao'] for p in prioridades[:10]),
-            },
-            'metodologia': {
-                'base_eleitoral': 30,
-                'gap_conversao': 30,
-                'pressao_cidada': 22,
-                'recencia': 8,
-                'radar_mg': 10,
-            },
-            'prioridades': top_prioridades,
-        })
+        return jsonify(_prioridades_semana_internal(limit=limite))
     except Exception as e:
         print(f"[prioridades] Erro geral: {e}")
         return jsonify({'error': 'erro_ao_calcular_prioridades', 'detail': str(e)}), 500
@@ -6134,190 +6169,190 @@ def radar_mg_listar_pesquisas():
 
 
 @app.route('/api/ibge/<cidade>')
-def ibge_cidade(cidade):
-    """Busca dados do IBGE via API de pesquisas (mesma usada pelo IBGE Cidades)"""
-    try:
-        import unicodedata
+def _ibge_cidade_internal(cidade: str) -> dict | None:
+    """Versão pura (sem Flask) para uso interno por outros módulos como o Marcos.
+    Retorna dict com dados IBGE ou None se cidade não encontrada.
+    Pode levantar exceção em caso de erro de rede."""
+    import unicodedata
 
-        def normalize(s: str) -> str:
-            """Remove acentos para comparação"""
-            return unicodedata.normalize('NFKD', s).encode('ASCII', 'ignore').decode('ASCII').lower()
+    def normalize(s: str) -> str:
+        return unicodedata.normalize('NFKD', s).encode('ASCII', 'ignore').decode('ASCII').lower()
 
-        def extrair_ultimo_valor(item: dict) -> tuple:
-            """Extrai o valor mais recente de um item da API de pesquisas IBGE"""
-            res_list = item.get('res', [])
-            if not res_list:
-                return None, None
-            serie = res_list[0].get('res', {})
-            for ano in sorted(serie.keys(), reverse=True):
-                val = serie[ano]
-                if val is not None:
-                    return val, ano
+    def extrair_ultimo_valor(item: dict) -> tuple:
+        res_list = item.get('res', [])
+        if not res_list:
             return None, None
+        serie = res_list[0].get('res', {})
+        for ano in sorted(serie.keys(), reverse=True):
+            val = serie[ano]
+            if val is not None:
+                return val, ano
+        return None, None
 
-        cidade_norm = normalize(cidade)
+    cidade_norm = normalize(cidade)
 
-        # 1. Buscar código do município via API de localidades
-        loc_url = "https://servicodados.ibge.gov.br/api/v1/localidades/estados/MG/municipios"
-        loc_resp = requests.get(loc_url, timeout=10)
-        municipios = loc_resp.json() if loc_resp.status_code == 200 else []
+    loc_url = "https://servicodados.ibge.gov.br/api/v1/localidades/estados/MG/municipios"
+    loc_resp = requests.get(loc_url, timeout=10)
+    municipios = loc_resp.json() if loc_resp.status_code == 200 else []
 
-        codigo = None
-        nome_oficial = cidade
+    codigo = None
+    nome_oficial = cidade
+    for m in municipios:
+        if normalize(m.get('nome', '')) == cidade_norm:
+            codigo = m['id']
+            nome_oficial = m['nome']
+            break
+
+    if not codigo:
         for m in municipios:
-            if normalize(m.get('nome', '')) == cidade_norm:
+            if cidade_norm in normalize(m.get('nome', '')):
                 codigo = m['id']
                 nome_oficial = m['nome']
                 break
 
-        if not codigo:
-            for m in municipios:
-                if cidade_norm in normalize(m.get('nome', '')):
-                    codigo = m['id']
-                    nome_oficial = m['nome']
-                    break
+    if not codigo:
+        return None
 
-        if not codigo:
+    resultado = {
+        'cidade': nome_oficial,
+        'codigo_ibge': codigo,
+        'estado': 'MG'
+    }
+
+    try:
+        url = f"https://servicodados.ibge.gov.br/api/v1/pesquisas/-/indicadores/29171|47001|29167|29170/resultados/{codigo}"
+        resp = requests.get(url, timeout=15)
+        if resp.status_code == 200:
+            for item in resp.json():
+                ind_id = item.get('id')
+                val, ano = extrair_ultimo_valor(item)
+                if not val:
+                    continue
+                if ind_id == 29171:
+                    resultado['populacao'] = int(val)
+                    resultado['populacao_ano'] = ano
+                elif ind_id == 47001:
+                    resultado['pib_per_capita'] = round(float(val), 2)
+                    resultado['pib_ano'] = ano
+                elif ind_id == 29167:
+                    resultado['area_km2'] = round(float(val), 3)
+                elif ind_id == 29170:
+                    resultado['prefeito'] = val.title()
+    except Exception as e:
+        print(f"[IBGE] Erro pesquisas panorama: {e}")
+
+    try:
+        idh_url = f"https://servicodados.ibge.gov.br/api/v1/pesquisas/10111/indicadores/329756/resultados/{codigo}"
+        idh_resp = requests.get(idh_url, timeout=10)
+        if idh_resp.status_code == 200:
+            dados = idh_resp.json()
+            if dados:
+                val, ano = extrair_ultimo_valor(dados[0])
+                if val:
+                    resultado['idh'] = float(val)
+                    resultado['idh_ano'] = ano
+    except Exception as e:
+        print(f"[IBGE] Erro IDHM: {e}")
+
+    if resultado.get('populacao') and resultado.get('area_km2'):
+        resultado['densidade'] = round(resultado['populacao'] / resultado['area_km2'], 1)
+
+    return resultado
+
+
+def ibge_cidade(cidade):
+    """Busca dados do IBGE via API de pesquisas (mesma usada pelo IBGE Cidades)"""
+    try:
+        resultado = _ibge_cidade_internal(cidade)
+        if resultado is None:
             return jsonify({'error': f'Cidade "{cidade}" não encontrada no IBGE', 'cidade': cidade}), 404
-
-        resultado = {
-            'cidade': nome_oficial,
-            'codigo_ibge': codigo,
-            'estado': 'MG'
-        }
-
-        # 2. Indicadores via API de pesquisas (mesma do site IBGE Cidades)
-        # 29171=população estimada, 47001=PIB per capita, 29167=área, 29170=prefeito
-        try:
-            url = f"https://servicodados.ibge.gov.br/api/v1/pesquisas/-/indicadores/29171|47001|29167|29170/resultados/{codigo}"
-            resp = requests.get(url, timeout=15)
-            if resp.status_code == 200:
-                for item in resp.json():
-                    ind_id = item.get('id')
-                    val, ano = extrair_ultimo_valor(item)
-                    if not val:
-                        continue
-                    if ind_id == 29171:
-                        resultado['populacao'] = int(val)
-                        resultado['populacao_ano'] = ano
-                    elif ind_id == 47001:
-                        resultado['pib_per_capita'] = round(float(val), 2)
-                        resultado['pib_ano'] = ano
-                    elif ind_id == 29167:
-                        resultado['area_km2'] = round(float(val), 3)
-                    elif ind_id == 29170:
-                        resultado['prefeito'] = val.title()
-        except Exception as e:
-            print(f"[IBGE] Erro pesquisas panorama: {e}")
-
-        # 3. IDHM via pesquisa 10111 (Atlas Brasil / PNUD)
-        try:
-            idh_url = f"https://servicodados.ibge.gov.br/api/v1/pesquisas/10111/indicadores/329756/resultados/{codigo}"
-            idh_resp = requests.get(idh_url, timeout=10)
-            if idh_resp.status_code == 200:
-                dados = idh_resp.json()
-                if dados:
-                    val, ano = extrair_ultimo_valor(dados[0])
-                    if val:
-                        resultado['idh'] = float(val)
-                        resultado['idh_ano'] = ano
-        except Exception as e:
-            print(f"[IBGE] Erro IDHM: {e}")
-
-        # 4. Densidade demográfica (calculada)
-        if resultado.get('populacao') and resultado.get('area_km2'):
-            resultado['densidade'] = round(resultado['populacao'] / resultado['area_km2'], 1)
-
         return jsonify(resultado)
-
     except Exception as e:
         print(f"[IBGE] Erro: {e}")
         return jsonify({'error': str(e)}), 500
 
 
 @app.route('/api/pitch-estrategico', methods=['POST'])
-def pitch_estrategico():
-    """Gera pitch estratégico para o político visitar uma cidade, cruzando feedbacks + Radar MG"""
-    try:
-        data = request.get_json()
-        cidade = data.get('cidade', '').strip()
+def _pitch_estrategico_internal(cidade: str) -> dict:
+    """Versão pura (sem Flask) do pitch estratégico para uso interno por Marcos etc.
+    Retorna dict com o pitch ou lança ValueError para erros conhecidos."""
+    cidade = (cidade or "").strip()
+    if not cidade:
+        raise ValueError("cidade_obrigatoria")
 
-        if not cidade:
-            return jsonify({'error': 'Cidade é obrigatória'}), 400
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        raise ValueError("openai_key_ausente")
 
-        api_key = os.getenv("OPENAI_API_KEY")
-        if not api_key:
-            return jsonify({'error': 'OpenAI API key não configurada'}), 500
+    # ── 1. Feedbacks da cidade ──────────────────────────────────────────
+    feedbacks = get_feedbacks()
+    fb_cidade = [f for f in feedbacks if (f.get('city') or '').lower() == cidade.lower()]
 
-        # ── 1. Feedbacks da cidade ──────────────────────────────────────────
-        feedbacks = get_feedbacks()
-        fb_cidade = [f for f in feedbacks if (f.get('city') or '').lower() == cidade.lower()]
+    # Contagens por categoria
+    cat_counts = {}
+    urgency_counts = {}
+    topics = []
+    for fb in fb_cidade:
+        cat = fb.get('category', 'Outros')
+        urg = fb.get('urgency', 'Neutro')
+        cat_counts[cat] = cat_counts.get(cat, 0) + 1
+        urgency_counts[urg] = urgency_counts.get(urg, 0) + 1
+        topics.append(fb.get('topic', ''))
 
-        # Contagens por categoria
-        cat_counts = {}
-        urgency_counts = {}
-        topics = []
-        for fb in fb_cidade:
-            cat = fb.get('category', 'Outros')
-            urg = fb.get('urgency', 'Neutro')
-            cat_counts[cat] = cat_counts.get(cat, 0) + 1
-            urgency_counts[urg] = urgency_counts.get(urg, 0) + 1
-            topics.append(fb.get('topic', ''))
+    # Top categorias e mensagens recentes
+    top_cats = sorted(cat_counts.items(), key=lambda x: x[1], reverse=True)
+    msgs_recentes = [fb.get('message', '')[:150] for fb in fb_cidade[:15]]
 
-        # Top categorias e mensagens recentes
-        top_cats = sorted(cat_counts.items(), key=lambda x: x[1], reverse=True)
-        msgs_recentes = [fb.get('message', '')[:150] for fb in fb_cidade[:15]]
+    # ── 2. Radar MG — temas e resumos ──────────────────────────────────
+    radar_resumos = []
+    radar_temas = []
 
-        # ── 2. Radar MG — temas e resumos ──────────────────────────────────
-        radar_resumos = []
-        radar_temas = []
+    if supabase:
+        try:
+            pesquisas = supabase.table('radar_cidades_pesquisas') \
+                .select('id, resumo_ia, created_at') \
+                .ilike('cidade', cidade) \
+                .eq('status', 'concluido') \
+                .order('created_at', desc=True) \
+                .limit(3) \
+                .execute()
 
-        if supabase:
-            try:
-                pesquisas = supabase.table('radar_cidades_pesquisas') \
-                    .select('id, resumo_ia, created_at') \
-                    .ilike('cidade', cidade) \
-                    .eq('status', 'concluido') \
-                    .order('created_at', desc=True) \
-                    .limit(3) \
-                    .execute()
+            for p in pesquisas.data:
+                if p.get('resumo_ia'):
+                    radar_resumos.append(p['resumo_ia'])
+                pesq_id = p.get('id')
+                if pesq_id:
+                    temas = supabase.table('radar_cidades_temas') \
+                        .select('tema, categoria, mencoes, sentimento_predominante') \
+                        .eq('pesquisa_id', pesq_id) \
+                        .order('mencoes', desc=True) \
+                        .limit(10) \
+                        .execute()
+                    radar_temas.extend(temas.data)
+        except Exception as e:
+            print(f"[Pitch] Erro ao buscar Radar MG: {e}")
 
-                for p in pesquisas.data:
-                    if p.get('resumo_ia'):
-                        radar_resumos.append(p['resumo_ia'])
-                    pesq_id = p.get('id')
-                    if pesq_id:
-                        temas = supabase.table('radar_cidades_temas') \
-                            .select('tema, categoria, mencoes, sentimento_predominante') \
-                            .eq('pesquisa_id', pesq_id) \
-                            .order('mencoes', desc=True) \
-                            .limit(10) \
-                            .execute()
-                        radar_temas.extend(temas.data)
-            except Exception as e:
-                print(f"[Pitch] Erro ao buscar Radar MG: {e}")
+    # Deduplicar temas do radar
+    temas_unicos = {}
+    for t in radar_temas:
+        nome = t.get('tema', '')
+        if nome not in temas_unicos:
+            temas_unicos[nome] = t
+        else:
+            temas_unicos[nome]['mencoes'] = max(temas_unicos[nome].get('mencoes', 0), t.get('mencoes', 0))
+    radar_temas_dedup = sorted(temas_unicos.values(), key=lambda x: x.get('mencoes', 0), reverse=True)[:8]
 
-        # Deduplicar temas do radar
-        temas_unicos = {}
-        for t in radar_temas:
-            nome = t.get('tema', '')
-            if nome not in temas_unicos:
-                temas_unicos[nome] = t
-            else:
-                temas_unicos[nome]['mencoes'] = max(temas_unicos[nome].get('mencoes', 0), t.get('mencoes', 0))
-        radar_temas_dedup = sorted(temas_unicos.values(), key=lambda x: x.get('mencoes', 0), reverse=True)[:8]
-
-        # ── 3. Montar prompt para IA ────────────────────────────────────────
-        fb_section = "NENHUM FEEDBACK DISPONÍVEL"
-        if fb_cidade:
-            fb_lines = []
-            for cat, count in top_cats:
-                fb_lines.append(f"  - {cat}: {count} feedbacks")
-            urg_lines = []
-            for urg, count in sorted(urgency_counts.items(), key=lambda x: x[1], reverse=True):
-                urg_lines.append(f"  - {urg}: {count}")
-            msg_lines = "\n".join([f'  - "{m}"' for m in msgs_recentes[:10]])
-            fb_section = f"""Total de feedbacks: {len(fb_cidade)}
+    # ── 3. Montar prompt para IA ────────────────────────────────────────
+    fb_section = "NENHUM FEEDBACK DISPONÍVEL"
+    if fb_cidade:
+        fb_lines = []
+        for cat, count in top_cats:
+            fb_lines.append(f"  - {cat}: {count} feedbacks")
+        urg_lines = []
+        for urg, count in sorted(urgency_counts.items(), key=lambda x: x[1], reverse=True):
+            urg_lines.append(f"  - {urg}: {count}")
+        msg_lines = "\n".join([f'  - "{m}"' for m in msgs_recentes[:10]])
+        fb_section = f"""Total de feedbacks: {len(fb_cidade)}
 
 Por categoria:
 {chr(10).join(fb_lines)}
@@ -6328,17 +6363,17 @@ Por urgência:
 Mensagens recentes dos cidadãos:
 {msg_lines}"""
 
-        radar_section = "NENHUM DADO DO RADAR MG DISPONÍVEL"
-        if radar_resumos or radar_temas_dedup:
-            parts = []
-            if radar_resumos:
-                parts.append("Resumos de inteligência (mídia + redes sociais):\n" + "\n---\n".join(radar_resumos[:2]))
-            if radar_temas_dedup:
-                tema_lines = [f"  - {t['tema']} ({t.get('categoria','')}, {t.get('mencoes',0)} menções, sentimento: {t.get('sentimento_predominante','')})" for t in radar_temas_dedup]
-                parts.append("Principais temas detectados:\n" + "\n".join(tema_lines))
-            radar_section = "\n\n".join(parts)
+    radar_section = "NENHUM DADO DO RADAR MG DISPONÍVEL"
+    if radar_resumos or radar_temas_dedup:
+        parts = []
+        if radar_resumos:
+            parts.append("Resumos de inteligência (mídia + redes sociais):\n" + "\n---\n".join(radar_resumos[:2]))
+        if radar_temas_dedup:
+            tema_lines = [f"  - {t['tema']} ({t.get('categoria','')}, {t.get('mencoes',0)} menções, sentimento: {t.get('sentimento_predominante','')})" for t in radar_temas_dedup]
+            parts.append("Principais temas detectados:\n" + "\n".join(tema_lines))
+        radar_section = "\n\n".join(parts)
 
-        prompt = f"""Você é um estrategista político experiente em Minas Gerais.
+    prompt = f"""Você é um estrategista político experiente em Minas Gerais.
 
 Um deputado estadual vai visitar a cidade de {cidade} - MG. Precisa de um pitch estratégico para saber O QUE FALAR e COMO SE POSICIONAR.
 
@@ -6373,33 +6408,46 @@ Gere um JSON com esta estrutura:
 IMPORTANTE: Seja específico para {cidade}. Use os dados reais dos feedbacks e radar. Não invente dados — se não houver informação suficiente, indique isso.
 Retorne APENAS o JSON."""
 
-        from openai import OpenAI
-        client = OpenAI(api_key=api_key)
+    from openai import OpenAI
+    client = OpenAI(api_key=api_key)
 
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.4,
-            max_tokens=2000
-        )
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.4,
+        max_tokens=2000
+    )
 
-        ai_text = response.choices[0].message.content.strip()
-        if '```json' in ai_text:
-            ai_text = ai_text.split('```json')[1].split('```')[0].strip()
-        elif '```' in ai_text:
-            ai_text = ai_text.split('```')[1].split('```')[0].strip()
+    ai_text = response.choices[0].message.content.strip()
+    if '```json' in ai_text:
+        ai_text = ai_text.split('```json')[1].split('```')[0].strip()
+    elif '```' in ai_text:
+        ai_text = ai_text.split('```')[1].split('```')[0].strip()
 
-        pitch_data = json.loads(ai_text)
-        pitch_data['meta'] = {
-            'cidade': cidade,
-            'total_feedbacks': len(fb_cidade),
-            'total_radar_temas': len(radar_temas_dedup),
-            'categorias_feedbacks': dict(top_cats),
-            'gerado_em': datetime.utcnow().isoformat()
-        }
+    pitch_data = json.loads(ai_text)
+    pitch_data['meta'] = {
+        'cidade': cidade,
+        'total_feedbacks': len(fb_cidade),
+        'total_radar_temas': len(radar_temas_dedup),
+        'categorias_feedbacks': dict(top_cats),
+        'gerado_em': datetime.utcnow().isoformat()
+    }
+    return pitch_data
 
-        return jsonify(pitch_data)
 
+def pitch_estrategico():
+    """Gera pitch estratégico para o político visitar uma cidade, cruzando feedbacks + Radar MG"""
+    try:
+        data = request.get_json() or {}
+        cidade = (data.get('cidade') or '').strip()
+        return jsonify(_pitch_estrategico_internal(cidade))
+    except ValueError as ve:
+        msg = str(ve)
+        if msg == "cidade_obrigatoria":
+            return jsonify({'error': 'Cidade é obrigatória'}), 400
+        if msg == "openai_key_ausente":
+            return jsonify({'error': 'OpenAI API key não configurada'}), 500
+        return jsonify({'error': msg}), 400
     except json.JSONDecodeError as e:
         print(f"[Pitch] Erro ao parsear JSON da IA: {e}")
         return jsonify({'error': 'Erro ao processar resposta da IA'}), 500

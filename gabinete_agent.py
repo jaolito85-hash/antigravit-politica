@@ -113,6 +113,25 @@ Quando o Deputado mandar uma URL do YouTube, Spotify ou Apple Podcasts:
   → Use `listar_videos_analisados` com filtros de candidato/tipo/periodo.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🗓️ PLANEJAMENTO SEMANAL E POR CIDADE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• *"Briefing agora", "panorama da semana", "o que tá pegando"*:
+  → Use `briefing_radar_completo`. NÃO use `pulso_ia` que é mais raso.
+  → Cite os 3 a 5 temas quentes com sentimento e ação concreta.
+  → Se infiltração de adversário > 10%, *destaque no topo* da resposta.
+
+• *"Qual cidade visitar?", "onde tá pegando fogo?", "prioridade da semana"*:
+  → Use `prioridades_semana` com limit 3.
+  → Apresente como ranking enxuto: cidade, score, motivo principal, ação.
+
+• *"Vou em X amanhã, me passa um pitch", "discurso pra evento em Y"*:
+  → Use `pitch_estrategico_cidade`. Combine, se útil, com `dados_cidade` (IBGE).
+  → Foque em: frase de abertura + 3 temas que ele DEVE tocar + o que evitar.
+
+• *"Dados de X", "população de Y", "PIB de Z"*:
+  → Use `dados_cidade`. Mostre população, PIB per capita, IDHM, prefeito atual.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ✍️ FORMATAÇÃO (WhatsApp nativo — NÃO use markdown padrão)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 • *negrito* com asterisco simples — para dados-chave e títulos
@@ -437,6 +456,95 @@ TOOLS = [
                     "periodo": {"type": "string", "enum": ["hoje", "7d", "30d"], "description": "Janela de tempo."},
                     "limit": {"type": "integer", "default": 10, "description": "Máximo de itens (max 20)."},
                 },
+            },
+        },
+    },
+    # =========================================================================
+    # COMMIT 2 — Inteligência semanal e cidade
+    # =========================================================================
+    {
+        "type": "function",
+        "function": {
+            "name": "briefing_radar_completo",
+            "description": (
+                "Briefing executivo rico cruzando imprensa + redes sociais. "
+                "Use quando o Deputado pedir 'briefing agora', 'panorama da semana', "
+                "'o que tá pegando nas redes', 'como tá meu cenário'. Mais profundo "
+                "que pulso_ia — tem temas quentes, evidências, recomendações."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "politico": {"type": "string", "description": "Nome do candidato (default = configurado)."},
+                    "instagram": {"type": "string", "description": "Handle do Instagram do candidato (sem @)."},
+                    "adversarios": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Lista de adversários a monitorar.",
+                    },
+                    "periodo": {"type": "string", "default": "7d", "description": "Janela: 7d, 14d, 30d."},
+                },
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "prioridades_semana",
+            "description": (
+                "Ranking de cidades prioritárias para o Deputado essa semana. "
+                "Combina base eleitoral, feedbacks negativos, Radar local e "
+                "movimentos de campo. Use para 'qual cidade visitar?', "
+                "'onde tá pegando fogo?', 'prioridade da semana'."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "limit": {"type": "integer", "default": 3, "description": "Máximo de cidades (default 3, max 10)."},
+                    "nivel_minimo": {
+                        "type": "string",
+                        "enum": ["alta", "media", "monitorar"],
+                        "description": "Filtra por nível mínimo de prioridade.",
+                    },
+                },
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "pitch_estrategico_cidade",
+            "description": (
+                "Gera pitch personalizado para o Deputado visitar uma cidade. "
+                "Combina dados socioeconômicos + feedbacks + Radar local. "
+                "Use para 'vou em X amanhã, me dá um pitch', 'discurso pra evento em Y', "
+                "'o que falar em Z'."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "cidade": {"type": "string", "description": "Nome da cidade (ex.: 'Montes Claros')."},
+                },
+                "required": ["cidade"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "dados_cidade",
+            "description": (
+                "Retorna dados socioeconômicos do IBGE (população, PIB per capita, "
+                "IDHM, área, densidade, prefeito) + contagem de feedbacks recentes "
+                "naquela cidade. Use para 'dados de X', 'população e PIB de Y', "
+                "'qual o IDHM de Z'."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "cidade": {"type": "string", "description": "Nome da cidade (estado MG por padrão)."},
+                },
+                "required": ["cidade"],
             },
         },
     },
@@ -1142,6 +1250,208 @@ def _tool_listar_videos_analisados(args: dict, remote_jid: str) -> dict:
 
 
 # =============================================================================
+# COMMIT 2 — Tools de inteligência semanal e cidade
+# =============================================================================
+def _tool_briefing_radar_completo(args: dict, remote_jid: str) -> dict:
+    """Chama _radar_briefing_internal com defaults sensatos."""
+    from server import _radar_briefing_internal  # lazy
+    politico = (args.get("politico") or os.getenv("CANDIDATO_PADRAO") or "").strip()
+    instagram = (args.get("instagram") or os.getenv("CANDIDATO_INSTAGRAM_PADRAO") or "").strip()
+    adversarios = args.get("adversarios")
+    if not adversarios:
+        env_adv = os.getenv("ADVERSARIOS_PADRAO", "")
+        adversarios = [a.strip() for a in env_adv.split(",") if a.strip()]
+    periodo = (args.get("periodo") or "7d").strip()
+
+    if not politico:
+        return {"ok": False, "erro": "politico_nao_configurado", "mensagem": "Não tenho o nome do candidato. Configure CANDIDATO_PADRAO no .env ou passe o parâmetro."}
+
+    try:
+        data = _radar_briefing_internal(
+            politico=politico,
+            instagram=instagram,
+            periodo=periodo,
+            adversarios=adversarios,
+            force_refresh=False,
+        )
+    except ValueError as ve:
+        msg = str(ve)
+        if msg == "dados_insuficientes":
+            return {"ok": False, "erro": "dados_insuficientes", "mensagem": "Sem cobertura na imprensa nem comentários no Instagram para gerar briefing."}
+        return {"ok": False, "erro": msg}
+    except Exception as e:
+        return {"ok": False, "erro": f"falha: {e}"}
+
+    # Resposta enxuta para o GPT-4o
+    meta = data.get("meta") or {}
+    temas = data.get("temas_quentes") or []
+    temas_enxutos = []
+    for t in temas[:5]:
+        temas_enxutos.append({
+            "tema": t.get("tema"),
+            "relevancia": t.get("relevancia"),
+            "sentimento": t.get("sentimento_popular"),
+            "o_que_falar": (t.get("o_que_falar") or "")[:200],
+            "o_que_evitar": (t.get("o_que_evitar") or "")[:150],
+        })
+    return {
+        "ok": True,
+        "panorama": data.get("panorama"),
+        "temperatura": data.get("temperatura"),
+        "infiltracao_adversario": data.get("infiltracao_adversario") or {},
+        "temas_quentes": temas_enxutos,
+        "stats": {
+            "noticias_total": meta.get("total_noticias"),
+            "comentarios_total": meta.get("total_comentarios"),
+            "pct_infiltracao_adversario": meta.get("pct_infiltracao"),
+            "adversarios_citados": meta.get("adversarios_citados") or {},
+        },
+        "cached": data.get("cached", False),
+    }
+
+
+def _tool_prioridades_semana(args: dict, remote_jid: str) -> dict:
+    """Chama _prioridades_semana_internal e devolve resposta enxuta para WhatsApp."""
+    from server import _prioridades_semana_internal  # lazy
+    try:
+        limit_int = int(args.get("limit") or 3)
+    except (TypeError, ValueError):
+        limit_int = 3
+    limit_int = max(1, min(limit_int, 10))
+
+    nivel_min = (args.get("nivel_minimo") or "").lower()
+    ordem_nivel = {"alta": 3, "media": 2, "monitorar": 1}
+
+    try:
+        data = _prioridades_semana_internal(limit=max(limit_int * 3, 15))
+    except Exception as e:
+        return {"ok": False, "erro": f"falha: {e}"}
+
+    prioridades = data.get("prioridades") or []
+    if nivel_min and nivel_min in ordem_nivel:
+        minimo = ordem_nivel[nivel_min]
+        prioridades = [p for p in prioridades if ordem_nivel.get(p.get("nivel"), 0) >= minimo]
+
+    enxuto = []
+    for p in prioridades[:limit_int]:
+        enxuto.append({
+            "cidade": p.get("cidade"),
+            "regiao": p.get("regiao") or "",
+            "score": p.get("score"),
+            "nivel": p.get("nivel"),
+            "motivos": (p.get("motivos") or [])[:3],
+            "acao": p.get("acao_recomendada"),
+            "feedbacks_recentes": p.get("feedbacks"),
+            "urgentes": p.get("urgentes"),
+            "movimentos_campo": p.get("movimentos_campo"),
+        })
+    return {
+        "ok": True,
+        "total_cidades_analisadas": (data.get("kpis") or {}).get("total_cidades", 0),
+        "alta_prioridade_total": (data.get("kpis") or {}).get("alta_prioridade", 0),
+        "top_prioridades": enxuto,
+    }
+
+
+def _tool_pitch_estrategico_cidade(args: dict, remote_jid: str) -> dict:
+    """Chama _pitch_estrategico_internal e formata pra Marcos."""
+    from server import _pitch_estrategico_internal  # lazy
+    cidade = (args.get("cidade") or "").strip()
+    if not cidade:
+        return {"ok": False, "erro": "cidade_obrigatoria"}
+
+    try:
+        pitch = _pitch_estrategico_internal(cidade)
+    except ValueError as ve:
+        msg = str(ve)
+        if msg == "openai_key_ausente":
+            return {"ok": False, "erro": "openai_nao_configurado"}
+        return {"ok": False, "erro": msg}
+    except Exception as e:
+        return {"ok": False, "erro": f"falha: {e}"}
+
+    temas = pitch.get("temas_quentes") or []
+    return {
+        "ok": True,
+        "cidade": cidade,
+        "titulo": pitch.get("titulo"),
+        "panorama": pitch.get("panorama"),
+        "frase_de_abertura": pitch.get("frase_de_abertura"),
+        "tom_recomendado": pitch.get("tom_recomendado"),
+        "top_temas": [
+            {
+                "tema": t.get("tema"),
+                "o_que_falar": (t.get("o_que_falar") or "")[:200],
+                "cuidado": (t.get("cuidado") or "")[:150],
+                "sentimento": t.get("sentimento_popular"),
+            }
+            for t in temas[:5]
+        ],
+        "dados_impacto": (pitch.get("dados_impacto") or [])[:3],
+        "oportunidades": (pitch.get("oportunidades") or [])[:3],
+        "riscos": (pitch.get("riscos") or [])[:3],
+        "total_feedbacks": (pitch.get("meta") or {}).get("total_feedbacks", 0),
+    }
+
+
+def _tool_dados_cidade(args: dict, remote_jid: str) -> dict:
+    """Chama _ibge_cidade_internal e enriquece com contagem de feedbacks."""
+    from server import _ibge_cidade_internal, get_feedbacks  # lazy
+    cidade = (args.get("cidade") or "").strip()
+    if not cidade:
+        return {"ok": False, "erro": "cidade_obrigatoria"}
+
+    try:
+        dados = _ibge_cidade_internal(cidade)
+    except Exception as e:
+        return {"ok": False, "erro": f"falha_ibge: {e}"}
+
+    if dados is None:
+        return {"ok": False, "erro": "cidade_nao_encontrada", "mensagem": f"Não achei {cidade} no IBGE."}
+
+    # Conta feedbacks recentes (últimos 30 dias)
+    try:
+        feedbacks = get_feedbacks() or []
+        nome_oficial = dados.get("cidade", cidade)
+        nome_lower = nome_oficial.lower()
+        fb_cidade = [f for f in feedbacks if (f.get("city") or "").lower() == nome_lower]
+        agora = datetime.now(timezone.utc)
+        recentes = []
+        for f in fb_cidade:
+            dt = _parse_date(f.get("created_at") or f.get("timestamp"))
+            if not dt:
+                continue
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            if (agora - dt) <= timedelta(days=30):
+                recentes.append(f)
+        total_30d = len(recentes)
+        sentimentos = [f.get("sentiment") for f in recentes if f.get("sentiment")]
+        negativos = sum(1 for s in sentimentos if "Negativo" in str(s))
+    except Exception as e:
+        print(f"[gabinete] feedback count soft-fail: {e}")
+        total_30d = None
+        negativos = None
+
+    return {
+        "ok": True,
+        "cidade": dados.get("cidade"),
+        "estado": dados.get("estado"),
+        "populacao": dados.get("populacao"),
+        "populacao_ano": dados.get("populacao_ano"),
+        "pib_per_capita_reais": dados.get("pib_per_capita"),
+        "pib_ano": dados.get("pib_ano"),
+        "idhm": dados.get("idh"),
+        "idhm_ano": dados.get("idh_ano"),
+        "area_km2": dados.get("area_km2"),
+        "densidade_hab_km2": dados.get("densidade"),
+        "prefeito_atual": dados.get("prefeito"),
+        "total_feedbacks_30d": total_30d,
+        "feedbacks_negativos_30d": negativos,
+    }
+
+
+# =============================================================================
 # Dispatcher
 # =============================================================================
 def _dispatch_tool(name: str, args: dict, remote_jid: str) -> Any:
@@ -1173,6 +1483,15 @@ def _dispatch_tool(name: str, args: dict, remote_jid: str) -> Any:
             return _tool_consultar_video_analise(args, remote_jid)
         if name == "listar_videos_analisados":
             return _tool_listar_videos_analisados(args, remote_jid)
+        # Commit 2 — Inteligência semanal e cidade
+        if name == "briefing_radar_completo":
+            return _tool_briefing_radar_completo(args, remote_jid)
+        if name == "prioridades_semana":
+            return _tool_prioridades_semana(args, remote_jid)
+        if name == "pitch_estrategico_cidade":
+            return _tool_pitch_estrategico_cidade(args, remote_jid)
+        if name == "dados_cidade":
+            return _tool_dados_cidade(args, remote_jid)
         return {"erro": f"ferramenta_desconhecida: {name}"}
     except Exception as e:
         return {"erro": f"excecao: {e}"}
