@@ -588,6 +588,130 @@ def validar_url_video(url: str) -> tuple[bool, str]:
     return False, f"Host não permitido: {host}"
 
 
+def _extrair_video_id_youtube(url: str) -> str | None:
+    """Extrai o ID do vídeo de uma URL do YouTube. None se não for YouTube."""
+    try:
+        from urllib.parse import urlparse, parse_qs
+        p = urlparse(url)
+        host = (p.hostname or "").lower()
+        if host in ("youtu.be",):
+            return (p.path or "/").lstrip("/").split("/")[0] or None
+        if host.endswith("youtube.com"):
+            if p.path == "/watch":
+                return (parse_qs(p.query).get("v") or [None])[0]
+            if p.path.startswith("/shorts/"):
+                return p.path.split("/")[2] or None
+            if p.path.startswith("/embed/"):
+                return p.path.split("/")[2] or None
+    except Exception:
+        pass
+    return None
+
+
+def obter_metadados_oembed(url: str) -> dict | None:
+    """Pega título/canal/thumbnail via oEmbed público do YouTube (sem auth, sem anti-bot)."""
+    try:
+        import requests as _req
+        r = _req.get(
+            "https://www.youtube.com/oembed",
+            params={"url": url, "format": "json"},
+            timeout=10,
+        )
+        if r.status_code != 200:
+            print(f"[videos] oembed status {r.status_code} para {url[:80]}")
+            return None
+        data = r.json()
+        return {
+            "titulo": (data.get("title") or "")[:500],
+            "canal": (data.get("author_name") or "")[:300],
+            "thumbnail_url": (data.get("thumbnail_url") or "")[:1000],
+        }
+    except Exception as e:
+        print(f"[videos] oembed falhou: {e}")
+        return None
+
+
+def obter_transcricao_via_api(url: str) -> dict | None:
+    """Pega o transcript público do YouTube (legendas auto-geradas ou manuais).
+
+    Bypassa o anti-bot porque usa o endpoint público de captions, sem
+    download de mídia. Retorna no mesmo formato de transcrever_whisper_longo:
+    {texto, segmentos: [{start, end, text}], idioma}.
+    """
+    video_id = _extrair_video_id_youtube(url)
+    if not video_id:
+        print(f"[videos] não consegui extrair video_id de {url[:80]}")
+        return None
+
+    try:
+        from youtube_transcript_api import YouTubeTranscriptApi
+        from youtube_transcript_api._errors import (
+            TranscriptsDisabled, NoTranscriptFound, VideoUnavailable,
+        )
+    except ImportError:
+        print("[videos] youtube-transcript-api não instalado")
+        return None
+
+    idiomas_preferidos = ["pt", "pt-BR", "en", "en-US"]
+    fetched = None
+    idioma_usado = None
+    try:
+        api = YouTubeTranscriptApi()
+        # fetch() já aceita lista de idiomas em ordem de preferência;
+        # tenta pt/pt-BR/en/en-US e cai pra qualquer um disponível se nenhum bate.
+        try:
+            fetched = api.fetch(video_id, languages=idiomas_preferidos)
+            idioma_usado = getattr(fetched, "language_code", None)
+        except NoTranscriptFound:
+            # Fallback: pega o primeiro transcript disponível em qualquer idioma
+            lista = api.list(video_id)
+            for t in lista:
+                try:
+                    fetched = t.fetch()
+                    idioma_usado = getattr(t, "language_code", None)
+                    break
+                except Exception:
+                    continue
+    except (TranscriptsDisabled, VideoUnavailable) as e:
+        print(f"[videos] transcript indisponível para {video_id}: {type(e).__name__}")
+        return None
+    except Exception as e:
+        print(f"[videos] erro ao buscar transcript {video_id}: {type(e).__name__}: {e}")
+        return None
+
+    if not fetched:
+        print(f"[videos] sem transcript em nenhum idioma para {video_id}")
+        return None
+
+    segmentos = []
+    textos = []
+    # FetchedTranscript é iterável de FetchedTranscriptSnippet
+    for snip in fetched:
+        if isinstance(snip, dict):
+            t = (snip.get("text") or "").strip()
+            s = float(snip.get("start") or 0)
+            d = float(snip.get("duration") or 0)
+        else:
+            t = (getattr(snip, "text", "") or "").strip()
+            s = float(getattr(snip, "start", 0) or 0)
+            d = float(getattr(snip, "duration", 0) or 0)
+        if not t:
+            continue
+        segmentos.append({"start": s, "end": s + d, "text": t})
+        textos.append(t)
+
+    if not segmentos:
+        return None
+
+    return {
+        "texto": " ".join(textos).strip(),
+        "segmentos": segmentos,
+        "idioma": (idioma_usado or "pt").split("-")[0],
+        "duracao_segundos": int(segmentos[-1]["end"]),
+        "via": "youtube_transcript_api",
+    }
+
+
 def baixar_audio_youtube(url: str, video_id: int) -> dict | None:
     """Baixa áudio com yt-dlp em opus mono 16kHz (~1MB/min). Retorna metadados + path local."""
     try:
@@ -1084,37 +1208,72 @@ def _videos_update_status(video_id: int, status: str, progresso: int = None, **e
 
 
 def _processar_video_pipeline(video_id: int, url: str):
-    """Thread background: download → transcrição → (análise IA virá no commit 2)."""
+    """Thread background: tenta transcript API do YouTube primeiro (sem
+    download de mídia, bypassa anti-bot); cai pra yt-dlp+Whisper como
+    fallback. Depois roda a análise IA igual nos dois caminhos."""
     print(f"[videos] pipeline iniciado id={video_id} url={url[:80]}")
     _videos_update_status(video_id, "downloading", progresso=5,
                           iniciado_em=datetime.utcnow().isoformat())
 
-    meta = baixar_audio_youtube(url, video_id)
-    if not meta:
-        _videos_update_status(video_id, "error", erro="Falha no download do áudio",
-                              finalizado_em=datetime.utcnow().isoformat())
-        return
+    via_transcript_api = False
+    duracao_segundos = 0
+    meta_oembed = None
+    trans = None
+    audio_path_tmp = None
 
-    _videos_update_status(
-        video_id, "transcribing", progresso=30,
-        titulo=meta["titulo"][:500] if meta.get("titulo") else None,
-        canal=meta["canal"][:300] if meta.get("canal") else None,
-        thumbnail_url=meta["thumbnail_url"][:1000] if meta.get("thumbnail_url") else None,
-        duracao_segundos=meta["duracao_segundos"],
-    )
+    # Caminho A: tenta pegar transcript público via API (sem cookies, sem download)
+    if _extrair_video_id_youtube(url):
+        meta_oembed = obter_metadados_oembed(url)
+        trans = obter_transcricao_via_api(url)
+        if trans:
+            via_transcript_api = True
+            duracao_segundos = trans.get("duracao_segundos") or 0
+            print(f"[videos] id={video_id} transcript via API ok ({len(trans['texto'])} chars, {duracao_segundos}s)")
 
-    trans = transcrever_whisper_longo(meta["path"])
-    # Remove o arquivo de áudio principal após transcrição
-    try:
-        if os.path.exists(meta["path"]):
-            os.remove(meta["path"])
-    except Exception as e:
-        print(f"[videos] Falha ao remover áudio id={video_id}: {e}")
+    # Caminho B (fallback): yt-dlp + Whisper
+    if not via_transcript_api:
+        print(f"[videos] id={video_id} sem transcript público, fallback para yt-dlp+Whisper")
+        meta = baixar_audio_youtube(url, video_id)
+        if not meta:
+            _videos_update_status(video_id, "error", erro="Falha no download do áudio",
+                                  finalizado_em=datetime.utcnow().isoformat())
+            return
+        meta_oembed = {
+            "titulo": meta.get("titulo") or "",
+            "canal": meta.get("canal") or "",
+            "thumbnail_url": meta.get("thumbnail_url") or "",
+        }
+        duracao_segundos = meta.get("duracao_segundos") or 0
+        audio_path_tmp = meta["path"]
 
-    if not trans or not trans.get("texto"):
-        _videos_update_status(video_id, "error", erro="Falha na transcrição",
-                              finalizado_em=datetime.utcnow().isoformat())
-        return
+        _videos_update_status(
+            video_id, "transcribing", progresso=30,
+            titulo=(meta_oembed["titulo"] or None) and meta_oembed["titulo"][:500],
+            canal=(meta_oembed["canal"] or None) and meta_oembed["canal"][:300],
+            thumbnail_url=(meta_oembed["thumbnail_url"] or None) and meta_oembed["thumbnail_url"][:1000],
+            duracao_segundos=duracao_segundos,
+        )
+
+        trans = transcrever_whisper_longo(audio_path_tmp)
+        try:
+            if os.path.exists(audio_path_tmp):
+                os.remove(audio_path_tmp)
+        except Exception as e:
+            print(f"[videos] Falha ao remover áudio id={video_id}: {e}")
+
+        if not trans or not trans.get("texto"):
+            _videos_update_status(video_id, "error", erro="Falha na transcrição",
+                                  finalizado_em=datetime.utcnow().isoformat())
+            return
+    else:
+        # Caminho A já tem transcript; persiste título/canal/duração agora.
+        _videos_update_status(
+            video_id, "transcribing", progresso=30,
+            titulo=(meta_oembed or {}).get("titulo") or None,
+            canal=(meta_oembed or {}).get("canal") or None,
+            thumbnail_url=(meta_oembed or {}).get("thumbnail_url") or None,
+            duracao_segundos=duracao_segundos,
+        )
 
     _videos_update_status(
         video_id, "analyzing", progresso=70,
@@ -1149,7 +1308,9 @@ def _processar_video_pipeline(video_id: int, url: str):
 
     tokens_in = int(analise.get("tokens_in") or 0)
     tokens_out = int(analise.get("tokens_out") or 0)
-    custo = calcular_custo_processamento(meta["duracao_segundos"], tokens_in, tokens_out)
+    # Se via transcript API, custo de Whisper = 0 (passa duracao=0 para zerar).
+    duracao_para_custo = 0 if via_transcript_api else duracao_segundos
+    custo = calcular_custo_processamento(duracao_para_custo, tokens_in, tokens_out)
 
     resumo = analise.get("resumo") or {}
     sentimento = (resumo.get("sentimento_geral") or "").lower() or None
@@ -1167,7 +1328,8 @@ def _processar_video_pipeline(video_id: int, url: str):
         tokens_consumidos={"input": tokens_in, "output": tokens_out, "total": tokens_in + tokens_out},
         finalizado_em=datetime.utcnow().isoformat(),
     )
-    print(f"[videos] pipeline DONE id={video_id} duracao={meta['duracao_segundos']}s "
+    print(f"[videos] pipeline DONE id={video_id} duracao={duracao_segundos}s "
+          f"via={'transcript_api' if via_transcript_api else 'whisper'} "
           f"custo=${custo['total_usd']} tokens={tokens_in}+{tokens_out}")
 
 
