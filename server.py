@@ -613,14 +613,6 @@ def baixar_audio_youtube(url: str, video_id: int) -> dict | None:
         "postprocessor_args": ["-ar", "16000", "-ac", "1"],
         "noplaylist": True,
         "socket_timeout": 30,
-        # Contorna "Sign in to confirm you're not a bot" do YouTube: força
-        # clients que normalmente não exigem cookies. yt-dlp tenta na ordem;
-        # ios costuma passar, android_vr/web_safari como fallback.
-        "extractor_args": {
-            "youtube": {
-                "player_client": ["tv_embedded", "ios", "android_vr", "web_safari", "web"],
-            },
-        },
     }
     cookies_file = os.getenv("YT_DLP_COOKIES_FILE", "").strip()
     if cookies_file and os.path.exists(cookies_file):
