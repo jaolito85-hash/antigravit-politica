@@ -596,6 +596,9 @@ def baixar_audio_youtube(url: str, video_id: int) -> dict | None:
         print("❌ yt-dlp não instalado (pip install yt-dlp)")
         return None
 
+    # Log da versão pra diagnosticar deploys com cache antigo
+    print(f"[videos] yt-dlp versão: {getattr(yt_dlp.version, '__version__', '?')}")
+
     out_template = os.path.join(VIDEOS_TMP_DIR, f"video_{video_id}.%(ext)s")
     ydl_opts = {
         "format": "bestaudio/best",
@@ -615,7 +618,7 @@ def baixar_audio_youtube(url: str, video_id: int) -> dict | None:
         # ios costuma passar, android_vr/web_safari como fallback.
         "extractor_args": {
             "youtube": {
-                "player_client": ["ios", "android_vr", "web_safari", "web"],
+                "player_client": ["tv_embedded", "ios", "android_vr", "web_safari", "web"],
             },
         },
     }
