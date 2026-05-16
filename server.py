@@ -712,6 +712,88 @@ def obter_transcricao_via_api(url: str) -> dict | None:
     }
 
 
+def obter_transcricao_via_apify(url: str) -> dict | None:
+    """Pega o transcript do YouTube via Apify (proxy residencial).
+
+    Necessário porque o IP do servidor (datacenter) é bloqueado pelo
+    YouTube tanto no yt-dlp quanto no youtube-transcript-api. Apify roda
+    em IPs residenciais e não dispara o anti-bot.
+
+    Actor configurável via env APIFY_YOUTUBE_TRANSCRIPT_ACTOR
+    (default: pintostudio/youtube-transcript-scraper).
+    """
+    token = os.getenv("APIFY_TOKEN", "")
+    if not token:
+        print("[videos] apify pulado: APIFY_TOKEN não configurado")
+        return None
+
+    actor = os.getenv("APIFY_YOUTUBE_TRANSCRIPT_ACTOR", "pintostudio~youtube-transcript-scraper")
+
+    # Schemas comuns dos actors de YouTube transcript no Apify
+    payload_candidatos = [
+        {"videoUrl": url},                         # pintostudio
+        {"startUrls": [{"url": url}], "maxResults": 1},  # streamers/youtube-scraper
+        {"urls": [url]},                            # genérico
+    ]
+
+    items = None
+    for payload in payload_candidatos:
+        try:
+            items = _apify_run(actor, payload, timeout=180)
+            if items:
+                break
+        except Exception as e:
+            print(f"[videos] apify {actor} payload {list(payload.keys())} falhou: {e}")
+            continue
+
+    if not items:
+        print(f"[videos] apify retornou vazio para {url[:80]}")
+        return None
+
+    item = items[0] if isinstance(items, list) else items
+
+    # Extrai a lista de snippets do transcript. Cada actor tem formato
+    # ligeiramente diferente, então tentamos vários nomes de campo.
+    snippets = None
+    for campo in ("transcript", "captions", "subtitles", "data"):
+        candidato = item.get(campo) if isinstance(item, dict) else None
+        if isinstance(candidato, list) and candidato:
+            snippets = candidato
+            break
+
+    if not snippets:
+        print(f"[videos] apify retornou item sem transcript: keys={list(item.keys()) if isinstance(item, dict) else type(item).__name__}")
+        return None
+
+    segmentos = []
+    textos = []
+    for s in snippets:
+        if not isinstance(s, dict):
+            continue
+        t = (s.get("text") or s.get("caption") or "").strip()
+        start = float(s.get("start") or s.get("offset") or s.get("startTime") or 0)
+        dur = float(s.get("duration") or s.get("dur") or 0)
+        # Alguns actors devolvem só {text, startMs, endMs}
+        if not dur and s.get("endMs") and s.get("startMs"):
+            start = float(s["startMs"]) / 1000.0
+            dur = (float(s["endMs"]) - float(s["startMs"])) / 1000.0
+        if not t:
+            continue
+        segmentos.append({"start": start, "end": start + dur, "text": t})
+        textos.append(t)
+
+    if not segmentos:
+        return None
+
+    return {
+        "texto": " ".join(textos).strip(),
+        "segmentos": segmentos,
+        "idioma": (item.get("language") or "pt").split("-")[0] if isinstance(item, dict) else "pt",
+        "duracao_segundos": int(segmentos[-1]["end"]),
+        "via": "apify",
+    }
+
+
 def baixar_audio_youtube(url: str, video_id: int) -> dict | None:
     """Baixa áudio com yt-dlp em opus mono 16kHz (~1MB/min). Retorna metadados + path local."""
     try:
@@ -1221,7 +1303,7 @@ def _processar_video_pipeline(video_id: int, url: str):
     trans = None
     audio_path_tmp = None
 
-    # Caminho A: tenta pegar transcript público via API (sem cookies, sem download)
+    # Caminho A: tenta pegar transcript público via API direta (sem cookies, sem download)
     if _extrair_video_id_youtube(url):
         meta_oembed = obter_metadados_oembed(url)
         trans = obter_transcricao_via_api(url)
@@ -1230,9 +1312,21 @@ def _processar_video_pipeline(video_id: int, url: str):
             duracao_segundos = trans.get("duracao_segundos") or 0
             print(f"[videos] id={video_id} transcript via API ok ({len(trans['texto'])} chars, {duracao_segundos}s)")
 
-    # Caminho B (fallback): yt-dlp + Whisper
+    # Caminho B: tenta via Apify (proxy residencial — necessário se IP do servidor
+    # for bloqueado pelo YouTube tanto no download quanto no endpoint de captions).
+    if not via_transcript_api and _extrair_video_id_youtube(url):
+        if meta_oembed is None:
+            meta_oembed = obter_metadados_oembed(url)
+        print(f"[videos] id={video_id} tentando transcript via Apify (proxy residencial)")
+        trans = obter_transcricao_via_apify(url)
+        if trans:
+            via_transcript_api = True
+            duracao_segundos = trans.get("duracao_segundos") or 0
+            print(f"[videos] id={video_id} transcript via Apify ok ({len(trans['texto'])} chars, {duracao_segundos}s)")
+
+    # Caminho C (último fallback): yt-dlp + Whisper
     if not via_transcript_api:
-        print(f"[videos] id={video_id} sem transcript público, fallback para yt-dlp+Whisper")
+        print(f"[videos] id={video_id} sem transcript público nem via Apify, fallback para yt-dlp+Whisper")
         meta = baixar_audio_youtube(url, video_id)
         if not meta:
             _videos_update_status(video_id, "error", erro="Falha no download do áudio",
