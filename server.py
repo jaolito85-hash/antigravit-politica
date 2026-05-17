@@ -84,6 +84,7 @@ def require_login():
     public_routes = {
         "login_page", "verify_2fa", "setup_2fa", "logout",
         "static", "service_worker", "manifest", "webhook",
+        "api_briefing_gerar_agora",  # protegido por X-Briefing-Token (check interno)
     }
     if request.endpoint in public_routes:
         return
@@ -4165,8 +4166,15 @@ def api_videos_orcamento():
 @app.route("/api/briefing/gerar-agora", methods=["POST"])
 def api_briefing_gerar_agora():
     """Gera o briefing matinal sob demanda. Útil pra testar antes do cron das 7h.
-    Body opcional: {"data": "YYYY-MM-DD" (default: ontem), "enviar": bool (default: true)}.
+    Autenticação: header X-Briefing-Token (deve bater com env BRIEFING_TRIGGER_TOKEN)
+    OU sessão logada. Body opcional: {"data": "YYYY-MM-DD", "enviar": bool}.
     """
+    # Auth: ou tem token válido OU está logado
+    token_env = os.getenv("BRIEFING_TRIGGER_TOKEN", "").strip()
+    token_req = request.headers.get("X-Briefing-Token", "").strip()
+    autorizado = (token_env and token_req and token_env == token_req) or session.get("logged_in")
+    if not autorizado:
+        return jsonify({"error": "Não autorizado. Forneça X-Briefing-Token ou faça login."}), 401
     try:
         body = request.get_json(silent=True) or {}
         data_alvo = body.get("data")
