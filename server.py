@@ -4158,6 +4158,104 @@ def api_videos_orcamento():
     })
 
 
+# =============================================================================
+# BRIEFING MATINAL — rotas + scheduler
+# =============================================================================
+
+@app.route("/api/briefing/gerar-agora", methods=["POST"])
+def api_briefing_gerar_agora():
+    """Gera o briefing matinal sob demanda. Útil pra testar antes do cron das 7h.
+    Body opcional: {"data": "YYYY-MM-DD" (default: ontem), "enviar": bool (default: true)}.
+    """
+    try:
+        body = request.get_json(silent=True) or {}
+        data_alvo = body.get("data")
+        enviar = bool(body.get("enviar", True))
+        from briefing_matinal import gerar_briefing_completo  # lazy
+        import threading
+
+        def _run():
+            try:
+                gerar_briefing_completo(data_alvo=data_alvo, enviar=enviar)
+            except Exception as e:
+                print(f"[briefing] exceção no thread: {e}")
+
+        threading.Thread(target=_run, daemon=True, name="briefing-manual").start()
+        return jsonify({"status": "iniciado", "data": data_alvo or "ontem", "enviar": enviar}), 202
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/briefing/historico", methods=["GET"])
+def api_briefing_historico():
+    """Últimos N briefings gerados. Query string: ?limit=10."""
+    if not supabase_admin:
+        return jsonify({"error": "supabase_indisponivel"}), 503
+    try:
+        limit = min(int(request.args.get("limit", 10)), 60)
+        res = supabase_admin.table("briefings_matinais") \
+            .select("id, data, enviado_em, criado_em, conteudo->resumo_executivo") \
+            .order("data", desc=True) \
+            .limit(limit).execute()
+        return jsonify({"data": res.data or [], "total": len(res.data or [])})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/briefing/<string:data_str>", methods=["GET"])
+def api_briefing_por_data(data_str: str):
+    """Retorna o briefing de uma data específica (YYYY-MM-DD)."""
+    if not supabase_admin:
+        return jsonify({"error": "supabase_indisponivel"}), 503
+    try:
+        res = supabase_admin.table("briefings_matinais") \
+            .select("*").eq("data", data_str).limit(1).execute()
+        if not res.data:
+            return jsonify({"error": "nao_encontrado"}), 404
+        return jsonify(res.data[0])
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+def _iniciar_scheduler_briefing():
+    """Inicia o scheduler do briefing matinal se BRIEFING_MATINAL_ATIVO=true.
+
+    Default DESLIGADO — segurança pra não disparar enquanto o endpoint manual
+    ainda não foi validado. Quando estiver tudo certo, setar a env e reiniciar.
+    """
+    if os.getenv("BRIEFING_MATINAL_ATIVO", "false").lower() not in ("true", "1", "yes"):
+        print("[briefing] scheduler DESLIGADO (BRIEFING_MATINAL_ATIVO != true)")
+        return None
+
+    try:
+        from apscheduler.schedulers.background import BackgroundScheduler
+        from apscheduler.triggers.cron import CronTrigger
+        from briefing_matinal import gerar_briefing_completo, TZ_BR
+    except Exception as e:
+        print(f"[briefing] falha ao importar apscheduler: {e}")
+        return None
+
+    hora = int(os.getenv("BRIEFING_MATINAL_HORA", "7"))
+    minuto = int(os.getenv("BRIEFING_MATINAL_MINUTO", "0"))
+
+    sched = BackgroundScheduler(timezone=TZ_BR)
+    sched.add_job(
+        lambda: gerar_briefing_completo(enviar=True),
+        CronTrigger(hour=hora, minute=minuto, timezone=TZ_BR),
+        id="briefing_matinal",
+        name="Briefing Matinal Pedro Rousseff",
+        replace_existing=True,
+        coalesce=True,
+        misfire_grace_time=3600,  # se app reiniciar até 1h depois, ainda roda
+    )
+    sched.start()
+    print(f"[briefing] scheduler LIGADO — todos os dias às {hora:02d}:{minuto:02d} (America/Sao_Paulo)")
+    return sched
+
+
+_BRIEFING_SCHEDULER = _iniciar_scheduler_briefing()
+
+
 # --- HELPER: GET ACTIVE FEEDBACK ---
 def get_active_feedback(remote_jid):
     """Verifica se existe um chamado Aberto ou Em Andamento para este número"""

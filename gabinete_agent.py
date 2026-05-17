@@ -169,6 +169,23 @@ Quando o Deputado mandar uma URL do YouTube, Spotify ou Apple Podcasts:
     o Radar pode ser atualizado pela aba do painel.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🌅 BRIEFING MATINAL (todo dia às 7h)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Você dispara automaticamente, às 7h, um briefing detalhado para o Deputado
+com notícias do dia anterior (sobre ele, adversários, PT, política MG) +
+ações recomendadas + rascunhos de post (Twitter e Instagram). Esse briefing
+fica salvo na base e pode ser consultado depois.
+
+• *"Cadê o briefing de hoje/ontem?"* / *"Me mostra o resumo do dia X"*:
+  → Use `consultar_briefing`. Sem data = mais recente. Com data = `YYYY-MM-DD`.
+  → Apresente em formato enxuto: resumo executivo + 2-3 ações + os rascunhos
+    de post se ele pedir.
+
+• *"Refaz aquele tweet"* / *"Faz outro rascunho de post"*:
+  → Pegue o briefing mais recente com `consultar_briefing` e ofereça uma nova
+    versão do rascunho com o tom solicitado.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ✍️ FORMATAÇÃO (WhatsApp nativo — NÃO use markdown padrão)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 • *negrito* com asterisco simples — para dados-chave e títulos
@@ -704,6 +721,27 @@ TOOLS = [
                     "cidade": {"type": "string", "description": "Nome da cidade."},
                 },
                 "required": ["cidade"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "consultar_briefing",
+            "description": (
+                "Consulta o briefing matinal automático (gerado todos os dias às 7h "
+                "sobre política em MG, deputado, adversários e PT). Use para "
+                "'me mostra o briefing de hoje/ontem/data', 'o que rolou anteontem?', "
+                "'qual foi a recomendação de segunda?', 'cadê o resumo do dia?'."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "data": {
+                        "type": "string",
+                        "description": "Data alvo no formato YYYY-MM-DD. Se omitido, retorna o briefing mais recente.",
+                    },
+                },
             },
         },
     },
@@ -2016,6 +2054,56 @@ def _tool_pesquisar_cidade(args: dict, remote_jid: str) -> dict:
     }
 
 
+def _tool_consultar_briefing(args: dict, remote_jid: str) -> dict:
+    """Lê o briefing matinal automático salvo na tabela briefings_matinais.
+    Se `data` informada (YYYY-MM-DD), busca esse dia. Senão, retorna o mais recente.
+    """
+    from server import supabase_admin  # lazy
+    if not supabase_admin:
+        return {"ok": False, "erro": "supabase_indisponivel"}
+
+    data_str = (args.get("data") or "").strip()
+    try:
+        q = supabase_admin.table("briefings_matinais").select(
+            "id, data, enviado_em, conteudo"
+        )
+        if data_str:
+            q = q.eq("data", data_str)
+        else:
+            q = q.order("data", desc=True)
+        res = q.limit(1).execute()
+        if not res.data:
+            return {
+                "ok": False,
+                "erro": "nao_encontrado",
+                "mensagem": (
+                    f"Não encontrei briefing para {data_str}." if data_str
+                    else "Ainda não há briefing salvo. Os briefings são gerados todo dia às 7h."
+                ),
+            }
+    except Exception as e:
+        return {"ok": False, "erro": f"falha_supabase: {e}"}
+
+    row = res.data[0]
+    conteudo = row.get("conteudo") or {}
+
+    # Payload enxuto pro LLM compor a resposta sem estourar contexto
+    return {
+        "ok": True,
+        "data_cobertura": row.get("data") or conteudo.get("data_cobertura"),
+        "enviado_em": row.get("enviado_em"),
+        "resumo_executivo": (conteudo.get("resumo_executivo") or "")[:800],
+        "fatos_do_dia": (conteudo.get("fatos_do_dia") or [])[:5],
+        "sobre_deputado": conteudo.get("sobre_deputado"),
+        "sobre_adversarios": (conteudo.get("sobre_adversarios") or [])[:3],
+        "sobre_partido": conteudo.get("sobre_partido"),
+        "contexto_mg": (conteudo.get("contexto_mg") or [])[:3],
+        "acoes_recomendadas": (conteudo.get("acoes_recomendadas") or [])[:3],
+        "rascunho_twitter": (conteudo.get("rascunho_twitter") or "")[:300],
+        "rascunho_instagram": (conteudo.get("rascunho_instagram") or "")[:1500],
+    }
+
+
 # =============================================================================
 # Dispatcher
 # =============================================================================
@@ -2068,6 +2156,8 @@ def _dispatch_tool(name: str, args: dict, remote_jid: str) -> Any:
             return _tool_enviar_mensagem_operador(args, remote_jid)
         if name == "pesquisar_cidade":
             return _tool_pesquisar_cidade(args, remote_jid)
+        if name == "consultar_briefing":
+            return _tool_consultar_briefing(args, remote_jid)
         return {"erro": f"ferramenta_desconhecida: {name}"}
     except Exception as e:
         return {"erro": f"excecao: {e}"}
