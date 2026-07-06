@@ -33,7 +33,7 @@ except ImportError:
 DEPUTADO_NOME = os.getenv("DEPUTADO_NOME", "Pedro Rousseff")
 DEPUTADO_PARTIDO = os.getenv("DEPUTADO_PARTIDO", "PT")
 DEPUTADO_ESTADO = os.getenv("DEPUTADO_ESTADO", "Minas Gerais")
-BRIEFING_MODEL = os.getenv("BRIEFING_MODEL", "gpt-4o")
+BRIEFING_MODEL = os.getenv("BRIEFING_MODEL", "gpt-5.4-mini")
 
 WHATSAPP_MSG_MAX = 4000  # limite ~4096 com folga
 
@@ -202,8 +202,7 @@ def analisar_com_gpt(noticias: dict[str, list[dict]], data_alvo: str) -> dict | 
                 {"role": "user", "content": prompt},
             ],
             response_format={"type": "json_object"},
-            temperature=0.4,
-            max_tokens=2500,
+            max_completion_tokens=2500,
         )
         content = resp.choices[0].message.content or "{}"
         analise = json.loads(content)

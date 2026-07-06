@@ -39,9 +39,53 @@ _RAW_WHITELIST = os.getenv("DEPUTADO_WHATSAPP_JID", "")
 DEPUTADO_WHITELIST = {j.strip() for j in _RAW_WHITELIST.split(",") if j.strip()}
 
 
+def _digitos_jid(valor: str) -> str:
+    """Extrai só os dígitos do número de um JID, descartando sufixo de device (:N) e domínio."""
+    valor = str(valor or "").strip()
+    if "@" in valor:
+        valor = valor.split("@", 1)[0]
+    valor = valor.split(":", 1)[0]
+    return re.sub(r"\D+", "", valor)
+
+
+def _variantes_numero(valor: str) -> set:
+    """Variações BR (com/sem 55, com/sem nono dígito) pra casar JIDs equivalentes.
+
+    O match exato de string falha quando o WhatsApp entrega o JID com sufixo
+    de dispositivo ou formato diferente do cadastrado na env.
+    """
+    digitos = _digitos_jid(valor)
+    if not digitos:
+        return set()
+    nacional = digitos[2:] if digitos.startswith("55") and len(digitos) > 11 else digitos
+    nacionais = {nacional}
+    if len(nacional) == 11 and nacional[2] == "9":
+        nacionais.add(nacional[:2] + nacional[3:])
+    elif len(nacional) == 10:
+        nacionais.add(nacional[:2] + "9" + nacional[2:])
+    variantes = {digitos}
+    for numero in nacionais:
+        variantes.add(numero)
+        variantes.add(f"55{numero}")
+    return {v for v in variantes if len(v) >= 10}
+
+
+_WHITELIST_VARIANTES: set = set()
+for _jid in DEPUTADO_WHITELIST:
+    _WHITELIST_VARIANTES |= _variantes_numero(_jid)
+
+
 def is_deputado(remote_jid: str) -> bool:
-    """Verifica se o número é o deputado autorizado."""
-    return bool(remote_jid) and remote_jid in DEPUTADO_WHITELIST
+    """Verifica se o número é o deputado autorizado (tolerante a formato do JID)."""
+    if not remote_jid:
+        return False
+    if remote_jid in DEPUTADO_WHITELIST:
+        return True
+    # JID @lid não carrega o telefone — o webhook resolve pro JID real
+    # via remoteJidAlt/senderPn antes de chegar aqui.
+    if str(remote_jid).endswith("@lid"):
+        return False
+    return bool(_variantes_numero(remote_jid) & _WHITELIST_VARIANTES)
 
 
 # =============================================================================
@@ -2280,12 +2324,11 @@ def handle_gabinete(text: str, remote_jid: str) -> None:
     for rodada in range(8):
         try:
             resp = client.chat.completions.create(
-                model=os.getenv("GABINETE_MODEL", "gpt-4o"),
+                model=os.getenv("GABINETE_MODEL", "gpt-5.4-mini"),
                 messages=messages,
                 tools=TOOLS,
                 tool_choice="auto",
-                temperature=0.4,
-                max_tokens=900,
+                max_completion_tokens=900,
             )
         except Exception as e:
             print(f"[gabinete] Erro OpenAI rodada {rodada}: {e}")

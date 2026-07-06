@@ -1042,10 +1042,9 @@ def _papel_estrategico(tipo: str, candidato: str) -> str:
 def _chat_json(client, system: str, user: str, max_tokens: int = 1500) -> tuple[dict, int, int]:
     """Wrapper para chat completion com response_format=json_object. Retorna (json, tokens_in, tokens_out)."""
     resp = client.chat.completions.create(
-        model="gpt-4o",
-        temperature=0.2,
+        model="gpt-5.4-mini",
         response_format={"type": "json_object"},
-        max_tokens=max_tokens,
+        max_completion_tokens=max_tokens,
         messages=[
             {"role": "system", "content": system},
             {"role": "user", "content": user},
@@ -1797,10 +1796,9 @@ Regras de cidade:
 - Se não houver cidade identificável, retorne "N/A"'''
 
         response = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="gpt-5.4-mini",
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=100,
-            temperature=0
+            max_completion_tokens=100
         )
 
         result_text = response.choices[0].message.content.strip()
@@ -1866,13 +1864,12 @@ SOBRE PERGUNTAS DE ACOMPANHAMENTO:
 - NUNCA mencione ser robô, IA, sistema ou bot."""
 
         response = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="gpt-5.4-mini",
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": text}
             ],
-            max_tokens=130,
-            temperature=0.5
+            max_completion_tokens=130
         )
 
         return response.choices[0].message.content.strip()
@@ -1974,10 +1971,9 @@ Exemplo: "🟡 Atenção! Alta demanda em Infraestrutura. 3 reclamações sobre 
 Seja MUITO conciso, máximo 150 caracteres.'''
 
         response = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="gpt-5.4-mini",
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=100,
-            temperature=0.7
+            max_completion_tokens=100
         )
 
         summary = response.choices[0].message.content.strip()
@@ -2680,10 +2676,9 @@ def _classificar_chunk(textos, politico, adversarios=None, contexto_post=None):
             f"Comentários a classificar:\n{items_text}"
         )
         resp = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="gpt-5.4-mini",
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=len(textos) * 80 + 300,
-            temperature=0
+            max_completion_tokens=len(textos) * 80 + 300
         )
         raw = resp.choices[0].message.content.strip()
         if raw.startswith("```"):
@@ -3552,10 +3547,9 @@ Gere uma análise estratégica respondendo SOMENTE em JSON:
 }}"""
 
         resp = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="gpt-5.4-mini",
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=600,
-            temperature=0.3
+            max_completion_tokens=600
         )
         raw = resp.choices[0].message.content.strip()
         if raw.startswith("```"):
@@ -3736,10 +3730,9 @@ REGRAS:
         from openai import OpenAI
         client = OpenAI(api_key=api_key)
         resp = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="gpt-5.4-mini",
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.4,
-            max_tokens=2000,
+            max_completion_tokens=2000,
         )
         raw = resp.choices[0].message.content.strip()
         if raw.startswith("```"):
@@ -5153,6 +5146,23 @@ def webhook():
             return jsonify({"status": "ignored_self"}), 200
 
         remote_jid = key.get("remoteJid")
+        # WhatsApp pode entregar o remetente como @lid (ID interno, sem o telefone).
+        # O número real vem em remoteJidAlt/senderPn — sem essa resolução, o
+        # deputado e os operadores de campo não são reconhecidos e a mensagem
+        # cai no fluxo de cidadão.
+        if remote_jid and str(remote_jid).endswith("@lid"):
+            jid_alt = (
+                key.get("remoteJidAlt")
+                or key.get("senderPn")
+                or msg_data.get("senderPn")
+                or msg_data.get("remoteJidAlt")
+            )
+            if jid_alt:
+                print(f"DEBUG [Política]: remoteJid @lid resolvido para {_mascarar_telefone(jid_alt)}")
+                remote_jid = jid_alt
+            else:
+                print(f"DEBUG [Política]: remoteJid @lid SEM campo alternativo. key keys: {list(key.keys())}")
+        print(f"DEBUG [Política]: remetente={_mascarar_telefone(remote_jid)}")
         push_name = msg_data.get("pushName", "Cidadão")
         message_content = msg_data.get("message", {})
 
@@ -5312,10 +5322,9 @@ Não mencione número de protocolo — já foi informado antes.
 Tom: próximo, humano, sem burocracia."""
 
                     resp = client.chat.completions.create(
-                        model="gpt-4o-mini",
+                        model="gpt-5.4-mini",
                         messages=[{"role": "system", "content": reply_prompt}],
-                        max_tokens=100,
-                        temperature=0.6
+                        max_completion_tokens=100
                     )
                     reply = resp.choices[0].message.content.strip()
                 except Exception as e:
@@ -6619,9 +6628,8 @@ Retorne um JSON com esta estrutura exata:
 Retorne APENAS o JSON, sem explicações."""
 
         ai_response = openai_client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[{"role": "user", "content": prompt_analise}],
-            temperature=0.3
+            model="gpt-5.4-mini",
+            messages=[{"role": "user", "content": prompt_analise}]
         )
 
         ai_text = ai_response.choices[0].message.content.strip()
@@ -6939,10 +6947,9 @@ Retorne APENAS o JSON."""
     client = OpenAI(api_key=api_key)
 
     response = client.chat.completions.create(
-        model="gpt-4o-mini",
+        model="gpt-5.4-mini",
         messages=[{"role": "user", "content": prompt}],
-        temperature=0.4,
-        max_tokens=2000
+        max_completion_tokens=2000
     )
 
     ai_text = response.choices[0].message.content.strip()
