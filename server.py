@@ -506,21 +506,32 @@ def download_evolution_media(remote_jid, message_id):
     if not EVOLUTION_API_URL or not EVOLUTION_API_KEY or not EVOLUTION_INSTANCE_NAME:
         return None
 
-    url = f"{EVOLUTION_API_URL}/chat/getBase64FromMessage/{EVOLUTION_INSTANCE_NAME}"
+    import base64
     headers = {"apikey": EVOLUTION_API_KEY, "Content-Type": "application/json"}
-    payload = {"message": {"key": {"id": message_id, "remoteJid": remote_jid, "fromMe": False}}}
-
-    try:
-        response = requests.post(url, json=payload, headers=headers, timeout=20)
-        if response.status_code == 200:
-            import base64
-            data = response.json()
-            if "base64" in data:
-                return base64.b64decode(data["base64"])
-        return None
-    except Exception as e:
-        print(f"❌ Error downloading media: {e}")
-        return None
+    payload = {
+        "message": {"key": {"id": message_id, "remoteJid": remote_jid, "fromMe": False}},
+        "convertToMp4": False,
+    }
+    # Evolution v2 usa getBase64FromMediaMessage; o endpoint antigo fica como
+    # fallback pra compatibilidade com instâncias v1.
+    endpoints = [
+        f"{EVOLUTION_API_URL}/chat/getBase64FromMediaMessage/{EVOLUTION_INSTANCE_NAME}",
+        f"{EVOLUTION_API_URL}/chat/getBase64FromMessage/{EVOLUTION_INSTANCE_NAME}",
+    ]
+    for url in endpoints:
+        try:
+            response = requests.post(url, json=payload, headers=headers, timeout=20)
+            if response.status_code in (200, 201):
+                data = response.json()
+                b64 = data.get("base64")
+                if b64:
+                    return base64.b64decode(b64)
+                print(f"[MEDIA] Resposta sem base64: {str(data)[:200]}")
+            else:
+                print(f"[MEDIA] Status {response.status_code} em {url.rsplit('/', 2)[-2]}: {response.text[:200]}")
+        except Exception as e:
+            print(f"❌ Error downloading media: {e}")
+    return None
 
 
 def transcribe_audio(audio_content):
